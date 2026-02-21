@@ -89,6 +89,12 @@
                                required>
                     </div>
 
+                    <div class="flex items-center justify-between text-sm">
+                        <a href="{{ route('password.request') }}" class="font-extrabold text-blue-700 hover:underline">
+                            نسيت كلمة السر؟
+                        </a>
+                    </div>
+
                     <button type="submit"
                             class="w-full rounded-xl bg-black px-5 py-3 text-sm font-extrabold text-white hover:bg-yellow-400 hover:text-black transition">
                         {{ trans('site/site.login_to_your_account') }}
