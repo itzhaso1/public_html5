@@ -18,6 +18,27 @@ class PublicProductController extends Controller
 {
     protected ProductInterface $productInterface;
 
+    private function publishCommissionFor(float $basePrice): float
+    {
+        $p = (float) $basePrice;
+        if ($p <= 0) return 0.0;
+
+        // Pricing tiers (SAR):
+        // <= 500 => +50
+        // <= 1000 => +75
+        // > 1500 => +100
+        // > 2000 => +175
+        // > 3000 => +250
+        // > 4000 => +270
+        if ($p <= 500) return 50.0;
+        if ($p <= 1000) return 75.0;
+        if ($p <= 1500) return 75.0;
+        if ($p <= 2000) return 100.0;
+        if ($p <= 3000) return 175.0;
+        if ($p <= 4000) return 250.0;
+        return 270.0;
+    }
+
     public function __construct(ProductInterface $productInterface)
     {
         $this->productInterface = $productInterface;
@@ -48,6 +69,22 @@ class PublicProductController extends Controller
             $normalizedPhone = WhatsAppNumber::normalize((string) $request->input('client_number', ''));
             if ($normalizedPhone !== '') {
                 $request->merge(['client_number' => $normalizedPhone]);
+            }
+
+            // Auto-add commission for public publish price.
+            $basePrice = (float) $request->input('price', 0);
+            if ($basePrice > 0) {
+                $commission = $this->publishCommissionFor($basePrice);
+                $finalPrice = round($basePrice + $commission, 2);
+
+                $note = trim((string) $request->input('review_note', ''));
+                $meta = "Public publish pricing:\n- base: {$basePrice} SAR\n- commission: {$commission} SAR\n- final: {$finalPrice} SAR";
+                $request->merge([
+                    // Persist final price in DB.
+                    'price' => $finalPrice,
+                    // Add a note for admin review (doesn't affect frontend).
+                    'review_note' => $note !== '' ? ($note . "\n\n" . $meta) : $meta,
+                ]);
             }
 
             // Always create as "pending review" before publishing.

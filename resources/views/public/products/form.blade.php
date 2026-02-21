@@ -215,6 +215,19 @@
                                px-4 py-5 text-lg
                                focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     >
+                    <div class="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 text-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-gray-700 font-semibold">العمولة</span>
+                            <span id="commissionFee" class="font-extrabold text-indigo-700">—</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between gap-3">
+                            <span class="text-gray-700 font-semibold">السعر بعد العمولة</span>
+                            <span id="commissionFinal" class="font-extrabold text-green-700">—</span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            اكتب سعر الحساب الأساسي (بدون عمولة)، وسيتم إضافة العمولة تلقائياً عند الإرسال.
+                        </div>
+                    </div>
                     @error('price')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -535,15 +548,37 @@ function prevStep() {
 function updateReview() {
     const name = document.querySelector('input[name="ar[name]"]')?.value?.trim() || '—';
     const shortDesc = document.querySelector('textarea[name="ar[short_description]"]')?.value?.trim() || '—';
-    const price = document.querySelector('input[name="price"]')?.value?.trim() || '—';
+    const priceRaw = document.querySelector('input[name="price"]')?.value?.trim() || '';
     syncClientNumber();
     const phone = document.getElementById('clientNumberFull')?.value?.trim() || '—';
     const mainImage = document.querySelector('input[name="product"]')?.files?.[0]?.name || 'غير مرفوعة';
     const galleryCount = document.querySelector('input[name="gallery[]"]')?.files?.length || 0;
 
+    const toNum = (v) => {
+        const n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+        return isNaN(n) ? 0 : n;
+    };
+    const calcCommission = (base) => {
+        const p = toNum(base);
+        if (p <= 0) return 0;
+        if (p <= 500) return 50;
+        if (p <= 1000) return 75;
+        if (p <= 1500) return 75;
+        if (p <= 2000) return 100;
+        if (p <= 3000) return 175;
+        if (p <= 4000) return 250;
+        return 270;
+    };
+    const basePrice = toNum(priceRaw);
+    const fee = calcCommission(basePrice);
+    const finalPrice = basePrice > 0 ? (basePrice + fee) : 0;
+
     document.getElementById('reviewName').textContent = name;
     document.getElementById('reviewShort').textContent = shortDesc;
-    document.getElementById('reviewPrice').textContent = price ? `${price} ريال` : '—';
+    document.getElementById('reviewPrice').textContent =
+        basePrice > 0
+            ? `${finalPrice} ريال (شامل عمولة ${fee})`
+            : '—';
     document.getElementById('reviewPhone').textContent = phone;
     document.getElementById('reviewMain').textContent = mainImage;
     document.getElementById('reviewGallery').textContent = galleryCount;
@@ -579,6 +614,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch (e) {}
 });
+</script>
+
+<script>
+  (function () {
+    const input = document.querySelector('input[name="price"]');
+    const feeEl = document.getElementById('commissionFee');
+    const finalEl = document.getElementById('commissionFinal');
+    if (!input || !feeEl || !finalEl) return;
+
+    const toNum = (v) => {
+      const n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
+    const calcCommission = (base) => {
+      const p = toNum(base);
+      if (p <= 0) return 0;
+      if (p <= 500) return 50;
+      if (p <= 1000) return 75;
+      if (p <= 1500) return 75;
+      if (p <= 2000) return 100;
+      if (p <= 3000) return 175;
+      if (p <= 4000) return 250;
+      return 270;
+    };
+    const fmt = (n) => {
+      try { return (Math.round(n * 100) / 100).toString().replace(/\.00$/, ''); } catch (e) { return String(n); }
+    };
+    const render = () => {
+      const base = toNum(input.value);
+      if (!base || base <= 0) {
+        feeEl.textContent = '—';
+        finalEl.textContent = '—';
+        return;
+      }
+      const fee = calcCommission(base);
+      const finalPrice = base + fee;
+      feeEl.textContent = `+${fmt(fee)} ريال`;
+      finalEl.textContent = `${fmt(finalPrice)} ريال`;
+    };
+
+    input.addEventListener('input', render);
+    render();
+  })();
 </script>
 
 <script>
