@@ -61,6 +61,14 @@
         </a>
     </div>
 
+    <!-- Merchant requests -->
+    <div class="menu-item">
+        <a class="menu-link {{ is_active('admin.merchant_requests.*') }}" href="{{ route('admin.merchant_requests.index') }}">
+            <span class="menu-icon"><i class="bi bi-person-badge fs-2"></i></span>
+            <span class="menu-title">طلبات التجار</span>
+        </a>
+    </div>
+
     <!-- Sections (homepage groupings) -->
     <div class="menu-item">
         <a class="menu-link {{ is_active('admin.sections.*') }}" href="{{ route('admin.sections.index') }}">

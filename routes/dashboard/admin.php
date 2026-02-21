@@ -56,6 +56,13 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
             Route::delete('{product}', [Dashboard\PublicProductRequestController::class, 'destroy'])->name('destroy');
         });
 
+        // Merchant requests (diamonds traders)
+        Route::prefix('merchant-requests')->as('merchant_requests.')->group(function () {
+            Route::get('/', [Dashboard\MerchantRequestController::class, 'index'])->name('index');
+            Route::post('{merchantRequest}/approve', [Dashboard\MerchantRequestController::class, 'approve'])->name('approve');
+            Route::post('{merchantRequest}/reject', [Dashboard\MerchantRequestController::class, 'reject'])->name('reject');
+        });
+
         // التصنيفات (الأقسام)
         Route::resource('categories', Dashboard\CategoryController::class);
         Route::post('categories/import', [Dashboard\CategoryController::class, 'import'])->name('categories.import');

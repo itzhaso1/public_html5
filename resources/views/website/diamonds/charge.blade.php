@@ -18,7 +18,18 @@
 
 <section class="max-w-7xl mx-auto px-4 pb-10" dir="rtl">
     <div class="mt-4">
-        @include('website.partials.currency_picker')
+        @php
+            $rates = $currencyRatesByCountry ?? ['SA' => 1, 'JO' => 0.1885, 'US' => 0.2666];
+            try {
+                if (auth()->check() && (bool) (auth()->user()?->is_merchant ?? false)) {
+                    $merchantRate = (float) ($settings?->merchant_usd_rate ?? 0);
+                    if ($merchantRate > 0) {
+                        $rates['US'] = $merchantRate;
+                    }
+                }
+            } catch (\Throwable $e) {}
+        @endphp
+        @include('website.partials.currency_picker', ['currencyRatesByCountry' => $rates])
     </div>
 
     <div class="bg-white/70 backdrop-blur rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
@@ -39,6 +50,29 @@
                        class="w-full sm:w-80 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400/60"
                        placeholder="ابحث باسم الباقة...">
             </div>
+        </div>
+
+        <div class="mt-4">
+            @auth
+                @if((bool) (auth()->user()?->is_merchant ?? false))
+                    <div class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-800">
+                        <span>✅ حساب تاجر</span>
+                        <span class="text-emerald-600">— سعر أفضل على الدولار</span>
+                    </div>
+                @else
+                    <a href="{{ route('website.merchant.apply') }}"
+                       class="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2 text-xs font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                        تقديم طلب لتصبح تاجر (سعر أفضل)
+                        <span aria-hidden="true">›</span>
+                    </a>
+                @endif
+            @else
+                <a href="{{ route('auth.login') }}"
+                   class="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2 text-xs font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                    سجّل دخولك لتقديم طلب تاجر
+                    <span aria-hidden="true">›</span>
+                </a>
+            @endauth
         </div>
 
         <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">

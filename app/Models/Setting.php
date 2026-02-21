@@ -29,6 +29,7 @@ class Setting extends Model
         'money_exchange_enabled',
         'charge_enabled',
         'codes_enabled',
+        'merchant_usd_rate',
     ];
 
     public function media()

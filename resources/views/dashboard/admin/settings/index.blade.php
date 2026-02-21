@@ -224,6 +224,30 @@
                         </div>
                     </div>
 
+                    <!-- Merchant pricing -->
+                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                        <h4 class="mb-3 fw-bolder">أسعار التجار (قسم شحن الجواهر)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'merchant_usd_rate'))
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">سعر الدولار للتاجر (تحويل SAR → USD)</label>
+                                    <input type="number" step="0.000001" min="0" class="form-control"
+                                           name="merchant_usd_rate"
+                                           value="{{ old('merchant_usd_rate', $setting?->merchant_usd_rate) }}"
+                                           placeholder="مثال: 0.240000">
+                                    <div class="form-text">
+                                        هذا الرقم هو معدل التحويل المستخدم لعرض الأسعار بالدولار داخل قسم شحن الجواهر للتجار فقط.
+                                        اتركه فارغاً لاستخدام السعر الافتراضي.
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل إعدادات التجار شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
+                    </div>
+
                     <!-- End Name & alert message -->
                     <hr>
                     <div class="form-row">

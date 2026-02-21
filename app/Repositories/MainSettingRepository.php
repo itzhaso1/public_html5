@@ -102,6 +102,13 @@ class MainSettingRepository implements MainSettingInterface
             if ($hasCodesToggle) {
                 $fields[] = 'codes_enabled';
             }
+            try {
+                if (Schema::hasColumn('settings', 'merchant_usd_rate')) {
+                    $fields[] = 'merchant_usd_rate';
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
 
             $setting->fill($request->only($fields));
             if ($hasCashToggle) {

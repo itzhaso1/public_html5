@@ -11,6 +11,8 @@ use App\Http\Controllers\Website\Customer;
 use App\Http\Controllers\PublicProductController;
 use App\Models\Product;
 use App\Models\Setting;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
  
 Route::group(
     [
@@ -163,6 +165,26 @@ Route::group(
         Route::get('publish-product', [PublicProductController::class, 'create'])->name('public.products.create');
         Route::post('publish-product', [PublicProductController::class, 'store'])->name('public.products.store');
         Route::get('publish-product/requests/{slug}', [PublicProductController::class, 'track'])->name('public.products.track');
+
+        // ===============================
+        // Merchant requests (Diamonds charge)
+        // ===============================
+        Route::get('merchant/apply', [Website\MerchantController::class, 'create'])
+            ->middleware('auth')
+            ->name('website.merchant.apply');
+        Route::post('merchant/apply', [Website\MerchantController::class, 'store'])
+            ->middleware('auth')
+            ->name('website.merchant.apply.store');
+
+        // ===============================
+        // Password reset (website users)
+        // ===============================
+        Route::middleware('guest')->group(function () {
+            Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
+            Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');
+            Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
+            Route::post('reset-password', [NewPasswordController::class, 'store'])->name('password.store');
+        });
  
         // ===============================
         // Customer dashboard
