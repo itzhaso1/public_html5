@@ -280,9 +280,9 @@
                 <div>
                     <label class="block text-sm font-bold text-gray-800 mb-1">رقم واتساب لاستلام إشعار الطلب</label>
                     <input type="hidden" name="contact_phone" id="waFullPhone" value="{{ $phoneFull }}">
-                    <div class="flex gap-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-[11rem,1fr] gap-2">
                         <select name="contact_phone_country" id="waCountry"
-                                class="w-40 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-yellow-400/60">
+                                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-yellow-400/60">
                             @foreach($waCountries as $cc => $info)
                                 <option value="{{ $cc }}" {{ ($defaultCountry === $cc) ? 'selected' : '' }}>
                                     {{ $info['label'] ?? ($cc . ' +' . ($info['dial'] ?? '')) }}
@@ -291,8 +291,9 @@
                         </select>
                         <input type="tel" name="contact_phone_local" id="waLocal"
                                value="{{ old('contact_phone_local', $defaultLocal) }}"
-                               class="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-yellow-400/60"
-                               placeholder="اكتب رقمك فقط"
+                               class="min-w-0 rounded-xl border border-gray-200 px-4 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-yellow-400/60 text-left"
+                               dir="ltr"
+                               placeholder="مثال: 5XXXXXXXX"
                                inputmode="numeric" autocomplete="tel"
                                {{ $phoneRequired ? 'required' : '' }}>
                     </div>
@@ -303,9 +304,28 @@
 
                 <div>
                     <label class="block text-sm font-bold text-gray-800 mb-1">إيصال التحويل</label>
-                    <input type="file" name="receipt" accept=".jpg,.jpeg,.png,.webp,.pdf"
-                           class="w-full rounded-xl border border-gray-200 px-4 py-2 text-sm bg-white" required>
-                    <div class="text-xs text-gray-500 mt-1">الأنواع المسموحة: JPG/PNG/WEBP/PDF — حتى 5MB</div>
+                    <input id="receiptInput" type="file" name="receipt"
+                           class="hidden"
+                           accept=".jpg,.jpeg,.png,.webp,.pdf"
+                           required>
+                    <div class="space-y-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button type="button" id="pickReceiptImage"
+                                    class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                                اختيار صورة الإيصال
+                                <span class="text-xs font-mono text-gray-500">JPG/PNG/WEBP</span>
+                            </button>
+                            <button type="button" id="pickReceiptPdf"
+                                    class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                                اختيار PDF
+                                <span class="text-xs font-mono text-gray-500">PDF</span>
+                            </button>
+                        </div>
+                        <div id="receiptName" class="text-xs text-gray-600 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                            لم يتم اختيار ملف
+                        </div>
+                        <div class="text-xs text-gray-500">الحد الأقصى: 5MB.</div>
+                    </div>
                     @error('receipt')<div class="text-xs text-red-600 mt-1">{{ $message }}</div>@enderror
                 </div>
 
@@ -351,6 +371,31 @@
     country.addEventListener('change', build);
     local.addEventListener('input', build);
     build();
+  })();
+</script>
+<script>
+  (function () {
+    const input = document.getElementById('receiptInput');
+    const nameEl = document.getElementById('receiptName');
+    const btnImg = document.getElementById('pickReceiptImage');
+    const btnPdf = document.getElementById('pickReceiptPdf');
+    if (!input || !nameEl || !btnImg || !btnPdf) return;
+
+    const setName = () => {
+      const f = input.files && input.files[0] ? input.files[0] : null;
+      nameEl.textContent = f ? (f.name || 'تم اختيار ملف') : 'لم يتم اختيار ملف';
+    };
+
+    btnImg.addEventListener('click', () => {
+      input.accept = 'image/*';
+      input.click();
+    });
+    btnPdf.addEventListener('click', () => {
+      input.accept = 'application/pdf';
+      input.click();
+    });
+    input.addEventListener('change', setName);
+    setName();
   })();
 </script>
 @unless($isCodes)
