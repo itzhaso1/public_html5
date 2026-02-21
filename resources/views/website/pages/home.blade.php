@@ -378,7 +378,7 @@
         حسابات متجر الممالك
     </h2>
 
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4" data-sort-by-base-price>
        @foreach($products->sortByDesc(fn($p) => (float) ($p->price ?? 0)) as $product)
             @php
                 $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
