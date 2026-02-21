@@ -286,7 +286,7 @@
         <h2 class="text-center font-bold text-xl mb-4">{{ $section->name }}</h2>
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            @foreach(($section->products ?? collect())->sortByDesc('price') as $product)
+            @foreach(($section->products ?? collect())->sortByDesc(fn($p) => (float) ($p->price ?? 0)) as $product)
                 @php
                     $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
                     $thumb = ($product->service_type ?? null) === 'codes' ? ($product->codeThumbnail?->image_path ?? null) : null;
@@ -379,7 +379,7 @@
     </h2>
 
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-       @foreach($products->sortByDesc('price') as $product)
+       @foreach($products->sortByDesc(fn($p) => (float) ($p->price ?? 0)) as $product)
             @php
                 $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
                 $productImage = $imageUrl ?: $fallbackImage;
