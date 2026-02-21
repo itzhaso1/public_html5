@@ -361,7 +361,7 @@
     </h2>
 
     <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-        @foreach($products as $product)
+       @foreach($products->sortByDesc('price') as $product)
             @php
                 $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
                 $productImage = $imageUrl ?: $fallbackImage;
