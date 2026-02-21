@@ -51,6 +51,24 @@ class PublicProductController extends Controller
     {
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج',
+            'formAction' => route('public.products.store', request()->query()),
+            'data' => [
+                'categories' => Category::all(),
+                'types' => Type::all(),
+                'tags' => Tag::all(),
+            ],
+        ]);
+    }
+
+    /**
+     * نفس صفحة publish-product لكن مخصصة للإدارة (تضيف حرف "ج" تلقائياً لاسم الحساب).
+     */
+    public function createAdmin()
+    {
+        return view('public.products.form', [
+            'pageTitle' => 'نشر منتج (للإدارة)',
+            'formAction' => route('public.products.store_admin', request()->query()),
+            'namePrefix' => 'ج',
             'data' => [
                 'categories' => Category::all(),
                 'types' => Type::all(),
@@ -64,11 +82,25 @@ class PublicProductController extends Controller
      */
     public function store(Request $request)
     {
+        return $this->storeInternal($request, null);
+    }
+
+    public function storeAdmin(Request $request)
+    {
+        return $this->storeInternal($request, 'ج');
+    }
+
+    private function storeInternal(Request $request, ?string $namePrefix)
+    {
         try {
             // Normalize customer WhatsApp number (digits only, fixes common formats).
             $normalizedPhone = WhatsAppNumber::normalize((string) $request->input('client_number', ''));
             if ($normalizedPhone !== '') {
                 $request->merge(['client_number' => $normalizedPhone]);
+            }
+
+            if ($namePrefix) {
+                $this->applyNamePrefix($request, $namePrefix, 'ar');
             }
 
             // Auto-add commission for public publish price.
@@ -124,6 +156,21 @@ class PublicProductController extends Controller
             return redirect()
                 ->route('home')
                 ->with('error', 'حدث خطأ غير متوقع');
+        }
+    }
+
+    private function applyNamePrefix(Request $request, string $prefix, string $locale = 'ar'): void
+    {
+        $prefix = trim((string) $prefix);
+        if ($prefix === '') return;
+
+        $payload = (array) $request->input($locale, []);
+        $name = trim((string) ($payload['name'] ?? ''));
+        if ($name === '') return;
+
+        if (!str_starts_with($name, $prefix) && !str_starts_with($name, $prefix . ' ')) {
+            $payload['name'] = $prefix . ' ' . $name;
+            $request->merge([$locale => $payload]);
         }
     }
 

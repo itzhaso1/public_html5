@@ -8,6 +8,8 @@
 
 @php
     $isEdit = isset($product);
+    $formAction = $formAction ?? route('public.products.store', request()->query());
+    $namePrefix = $namePrefix ?? null;
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -50,7 +52,7 @@
 
         <form
             id="productForm"
-            action="{{ route('public.products.store', request()->query()) }}"
+            action="{{ $formAction }}"
             method="POST"
             enctype="multipart/form-data"
            class="space-y-6"
@@ -83,6 +85,7 @@
                             minlength="3"
                             placeholder="مثال: حساب فير 8 لليوم او حساب كلاش محروق"
                             value="{{ old($locale.'.name', $product?->translateOrNew($locale)->name ?? '') }}"
+                            @if(!empty($namePrefix)) data-name-prefix="{{ $namePrefix }}" @endif
                             oninput="updateCounter(this, 'nameCounter')"
                             class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
                                    px-4 py-5 text-lg
@@ -586,6 +589,24 @@ function updateReview() {
 
 document.addEventListener('DOMContentLoaded', () => {
     showStep(currentStep);
+    // Optional name prefix enforcement (admin publish link)
+    try {
+        const nameInput = document.querySelector('input[name="ar[name]"][data-name-prefix]');
+        if (nameInput) {
+            const prefix = String(nameInput.getAttribute('data-name-prefix') || '').trim();
+            const ensure = () => {
+                if (!prefix) return;
+                const v = String(nameInput.value || '').trimStart();
+                if (!v) return;
+                if (v.startsWith(prefix) || v.startsWith(prefix + ' ')) return;
+                nameInput.value = (prefix + ' ' + v).slice(0, parseInt(nameInput.getAttribute('maxlength') || '999', 10));
+                try { updateCounter(nameInput, 'nameCounter'); } catch (e) {}
+            };
+            nameInput.addEventListener('input', ensure);
+            nameInput.addEventListener('blur', ensure);
+            ensure();
+        }
+    } catch (e) {}
     // Keep hidden full phone in sync.
     try {
         document.getElementById('clientDial')?.addEventListener('change', syncClientNumber);
