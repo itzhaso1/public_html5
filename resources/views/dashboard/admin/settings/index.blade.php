@@ -236,20 +236,10 @@
                                            value="{{ old('merchant_usd_rate', $setting?->merchant_usd_rate) }}"
                                            placeholder="مثال: 0.240000">
                                     <div class="form-text">
-                                        هذا الرقم هو معدل التحويل المستخدم لعرض الأسعار بالدولار داخل قسم شحن الجواهر للتجار فقط.
-                                        اتركه فارغاً لاستخدام السعر الافتراضي.
+                                        هذا الرقم هو معدل التحويل المستخدم لعرض الأسعار بالدولار داخل قسم شحن الجواهر للتجار فقط (بدون تغيير سعر الريال).
+                                        مثال تقريبي: السعر العادي \(1 SAR ≈ 0.26 USD\). لجعل الدولار أرخص للتاجر ضع قيمة أقل (مثل 0.24).
                                     </div>
                                 </div>
-                                @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'merchant_charge_discount_percent'))
-                                    <div class="col-md-6">
-                                        <label class="input-group-text text-dark">خصم التاجر على أسعار الجواهر (%)</label>
-                                        <input type="number" step="0.01" min="0" max="90" class="form-control"
-                                               name="merchant_charge_discount_percent"
-                                               value="{{ old('merchant_charge_discount_percent', $setting?->merchant_charge_discount_percent ?? 0) }}"
-                                               placeholder="مثال: 10">
-                                        <div class="form-text">ينطبق الخصم على السعر بالريال للتجار فقط داخل قسم شحن الجواهر.</div>
-                                    </div>
-                                @endif
                             </div>
                         @else
                             <div class="text-muted">

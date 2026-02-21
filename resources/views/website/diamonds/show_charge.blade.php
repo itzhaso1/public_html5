@@ -25,22 +25,7 @@
         : null;
     $effectiveAvailable = $isCodes ? max(0, ((int) $availableCodesCount) - ((int) $pendingRequestsCount)) : null;
     $isOutOfStock = $isCodes && ((int) $effectiveAvailable) === 0;
-
-    $isMerchant = false;
-    $merchantDiscount = 0.0;
-    try {
-        $isMerchant = auth()->check() && (bool) (auth()->user()?->is_merchant ?? false);
-        $merchantDiscount = (float) ($settings?->merchant_charge_discount_percent ?? 0);
-    } catch (\Throwable $e) {
-        $isMerchant = false;
-        $merchantDiscount = 0.0;
-    }
-
     $basePrice = (float) ($product?->price ?? 0);
-    $finalPrice = $basePrice;
-    if (! $isCodes && $isMerchant && $merchantDiscount > 0 && $basePrice > 0) {
-        $finalPrice = round($basePrice * (1 - ($merchantDiscount / 100)), 2);
-    }
 @endphp
 
 @include('website.diamonds.partials.header', [
@@ -81,15 +66,8 @@
             <div class="mt-5 rounded-2xl bg-gray-50 border border-gray-100 p-4">
                 <div class="text-xs text-gray-500">السعر</div>
                 <div class="mt-1 text-3xl font-extrabold text-green-600 product-price"
-                     data-base-price="{{ (float) $finalPrice }}"
-                     @if($finalPrice !== $basePrice) data-base-old="{{ (float) $basePrice }}" @endif>
-                    <span class="current-price">ر.س {{ number_format((float) $finalPrice, 2) }}</span>
-                    @if($finalPrice !== $basePrice)
-                        <span class="old-price ms-2 text-gray-500 text-sm line-through">
-                            {{ number_format((float) $basePrice, 2) }}
-                        </span>
-                        <div class="mt-1 text-xs font-extrabold text-emerald-700">سعر تاجر</div>
-                    @endif
+                     data-base-price="{{ (float) $basePrice }}">
+                    <span class="current-price">ر.س {{ number_format((float) $basePrice, 2) }}</span>
                 </div>
             </div>
 

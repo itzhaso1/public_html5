@@ -96,38 +96,6 @@ class ManualPaymentController extends Controller
         return $enabled;
     }
 
-    private function merchantDiscountedAmountForGems(Product $product): float
-    {
-        $base = (float) ($product->price ?? 0);
-        if ($base <= 0) return $base;
-
-        try {
-            $user = auth()->user();
-            if (! $user || ! (bool) ($user->is_merchant ?? false)) {
-                return $base;
-            }
-        } catch (\Throwable $e) {
-            return $base;
-        }
-
-        try {
-            if (!Schema::hasTable('settings') || !Schema::hasColumn('settings', 'merchant_charge_discount_percent')) {
-                return $base;
-            }
-        } catch (\Throwable $e) {
-            return $base;
-        }
-
-        try {
-            $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
-            $pct = (float) ($s?->merchant_charge_discount_percent ?? 0);
-            if ($pct <= 0) return $base;
-            if ($pct > 90) $pct = 90;
-            return round($base * (1 - ($pct / 100)), 2);
-        } catch (\Throwable $e) {
-            return $base;
-        }
-    }
 
     private function forgetCodesPageCache(): void
     {
@@ -269,7 +237,7 @@ class ManualPaymentController extends Controller
             'player_id' => $data['player_id'] ?? '-',
             'contact_phone' => $contactPhone !== '' ? $contactPhone : null,
             'contact_email' => null,
-            'amount' => $isCodes ? (float) $product->price : $this->merchantDiscountedAmountForGems($product),
+            'amount' => (float) $product->price,
             'currency' => 'SAR',
             'payment_method' => $data['payment_method'],
             'receipt_path' => $receiptPath ?? null,
