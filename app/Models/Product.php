@@ -152,10 +152,18 @@ class Product extends Model implements TranslatableContract {
         });
     }
     
-    public function getImageUrl()
-{
+    public function getImageUrl(): string
+    {
+        try {
+            $url = $this->getMediaUrl('product', $this, null, 'media', 'product');
+            if (!empty($url)) {
+                return (string) $url;
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
 
-    return asset('public/uploads/product/68f671923ab1a.jpg');
-}
+        return asset('img/قريبا.jpg');
+    }
 
 }
