@@ -4,11 +4,13 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
  
 use App\Http\Controllers\Website;
 use App\Http\Controllers\Website\Customer;
 use App\Http\Controllers\PublicProductController;
 use App\Models\Product;
+use App\Models\Setting;
  
 Route::group(
     [
@@ -43,6 +45,15 @@ Route::group(
         // Diamonds Sections ✅ (مصحح ومحمي)
         // ===============================
         Route::get('diamonds/charge', function () {
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'charge_enabled')) {
+                    $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
+                    if (! (bool) ($s?->charge_enabled ?? true)) {
+                        return redirect()->route('home')->with('error', 'قسم الشحن غير متاح حالياً.');
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             $locale = app()->getLocale();
             $products = Cache::remember("diamonds.charge.$locale", 60 * 5, function () {
                 return Product::query()
@@ -55,6 +66,15 @@ Route::group(
         })->name('website.diamonds.charge');
  
         Route::get('diamonds/codes', function () {
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'codes_enabled')) {
+                    $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
+                    if (! (bool) ($s?->codes_enabled ?? true)) {
+                        return redirect()->route('home')->with('error', 'قسم الأكواد غير متاح حالياً.');
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             $locale = app()->getLocale();
             $products = Cache::remember("diamonds.codes.$locale", 60 * 5, function () {
                 return Product::query()

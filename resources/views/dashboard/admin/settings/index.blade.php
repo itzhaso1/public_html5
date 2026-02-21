@@ -127,6 +127,14 @@
                                     <input type="text" class="form-control" name="home_quick_charge_title"
                                            value="{{ old('home_quick_charge_title', $setting?->home_quick_charge_title) }}"
                                            placeholder="شحن جواهر">
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'charge_enabled'))
+                                        <div class="form-check form-switch mt-3">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   id="charge_enabled" name="charge_enabled" value="1"
+                                                   {{ old('charge_enabled', (bool)($setting?->charge_enabled ?? true)) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="charge_enabled">الخدمة متاحة حالياً</label>
+                                        </div>
+                                    @endif
                                     <div class="mt-2">
                                         <label class="form-label fw-bold">الصورة</label>
                                         <input class="form-control" type="file" name="home_quick_charge_image" accept="image/*">
@@ -144,6 +152,14 @@
                                     <input type="text" class="form-control" name="home_quick_codes_title"
                                            value="{{ old('home_quick_codes_title', $setting?->home_quick_codes_title) }}"
                                            placeholder="أكواد ملابس">
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'codes_enabled'))
+                                        <div class="form-check form-switch mt-3">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   id="codes_enabled" name="codes_enabled" value="1"
+                                                   {{ old('codes_enabled', (bool)($setting?->codes_enabled ?? true)) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="codes_enabled">الخدمة متاحة حالياً</label>
+                                        </div>
+                                    @endif
                                     <div class="mt-2">
                                         <label class="form-label fw-bold">الصورة</label>
                                         <input class="form-control" type="file" name="home_quick_codes_image" accept="image/*">
@@ -187,6 +203,14 @@
                                     <input type="text" class="form-control" name="home_quick_money_exchange_title"
                                            value="{{ old('home_quick_money_exchange_title', $setting?->home_quick_money_exchange_title) }}"
                                            placeholder="تحويل الأموال">
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'money_exchange_enabled'))
+                                        <div class="form-check form-switch mt-3">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   id="money_exchange_enabled" name="money_exchange_enabled" value="1"
+                                                   {{ old('money_exchange_enabled', (bool)($setting?->money_exchange_enabled ?? true)) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="money_exchange_enabled">الخدمة متاحة حالياً</label>
+                                        </div>
+                                    @endif
                                     <div class="mt-2">
                                         <label class="form-label fw-bold">الصورة</label>
                                         <input class="form-control" type="file" name="home_quick_money_exchange_image" accept="image/*">

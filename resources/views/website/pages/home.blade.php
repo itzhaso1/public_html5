@@ -109,13 +109,15 @@
             $cashImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_cash_exchange') ?: null;
             $moneyImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_money_exchange') ?: null;
 
+            $chargeEnabled = (bool) ($chargeEnabled ?? ($settings?->charge_enabled ?? true));
+            $codesEnabled = (bool) ($codesEnabled ?? ($settings?->codes_enabled ?? true));
             $cashEnabled = (bool) ($cashExchangeEnabled ?? ($settings?->cash_exchange_enabled ?? true));
             $moneyEnabled = (bool) ($moneyExchangeEnabled ?? false);
         @endphp
 
         <!-- شحن جواهر -->
-        <a href="{{ route('website.diamonds.charge') }}"
-           class="group relative overflow-hidden rounded-2xl border border-yellow-200 bg-gradient-to-l from-yellow-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99]">
+        <a href="{{ $chargeEnabled ? route('website.diamonds.charge') : 'javascript:void(0)' }}"
+           class="group relative overflow-hidden rounded-2xl border border-yellow-200 bg-gradient-to-l from-yellow-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99] {{ $chargeEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
             <div class="p-2.5 sm:p-4">
                 <div class="flex items-center justify-center">
                     {{-- غيّر الصورة كما تريد --}}
@@ -141,11 +143,19 @@
                     </span>
                 </div>
             </div>
+
+            @unless($chargeEnabled)
+                <div class="absolute inset-0 bg-white/70 flex items-center justify-center">
+                    <span class="rounded-full bg-yellow-700 text-white text-xs font-extrabold px-3 py-1.5 shadow">
+                        غير متاح حالياً
+                    </span>
+                </div>
+            @endunless
         </a>
 
         <!-- أكواد جواهر -->
-        <a href="{{ route('website.diamonds.codes') }}"
-           class="group relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-l from-blue-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99]">
+        <a href="{{ $codesEnabled ? route('website.diamonds.codes') : 'javascript:void(0)' }}"
+           class="group relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-l from-blue-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99] {{ $codesEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
             <div class="p-2.5 sm:p-4">
                 <div class="flex items-center justify-center">
                     {{-- غيّر الصورة كما تريد --}}
@@ -171,6 +181,14 @@
                     </span>
                 </div>
             </div>
+
+            @unless($codesEnabled)
+                <div class="absolute inset-0 bg-white/70 flex items-center justify-center">
+                    <span class="rounded-full bg-blue-700 text-white text-xs font-extrabold px-3 py-1.5 shadow">
+                        غير متاح حالياً
+                    </span>
+                </div>
+            @endunless
         </a>
 
         <!-- استبدل رصيدك كاش -->

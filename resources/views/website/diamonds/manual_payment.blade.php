@@ -235,10 +235,46 @@
 
                 @php
                     $phoneFull = preg_replace('/\D+/', '', (string) old('contact_phone', $userPhone));
+                    $waCountries = [
+                        'SA' => ['dial' => '966', 'label' => '🇸🇦 السعودية (+966)'],
+                        'JO' => ['dial' => '962', 'label' => '🇯🇴 الأردن (+962)'],
+                        'AE' => ['dial' => '971', 'label' => '🇦🇪 الإمارات (+971)'],
+                        'KW' => ['dial' => '965', 'label' => '🇰🇼 الكويت (+965)'],
+                        'QA' => ['dial' => '974', 'label' => '🇶🇦 قطر (+974)'],
+                        'BH' => ['dial' => '973', 'label' => '🇧🇭 البحرين (+973)'],
+                        'OM' => ['dial' => '968', 'label' => '🇴🇲 عُمان (+968)'],
+                        'IQ' => ['dial' => '964', 'label' => '🇮🇶 العراق (+964)'],
+                        'LB' => ['dial' => '961', 'label' => '🇱🇧 لبنان (+961)'],
+                        'PS' => ['dial' => '970', 'label' => '🇵🇸 فلسطين (+970)'],
+                        'YE' => ['dial' => '967', 'label' => '🇾🇪 اليمن (+967)'],
+                        'SY' => ['dial' => '963', 'label' => '🇸🇾 سوريا (+963)'],
+                        'EG' => ['dial' => '20',  'label' => '🇪🇬 مصر (+20)'],
+                        'SD' => ['dial' => '249', 'label' => '🇸🇩 السودان (+249)'],
+                        'LY' => ['dial' => '218', 'label' => '🇱🇾 ليبيا (+218)'],
+                        'TN' => ['dial' => '216', 'label' => '🇹🇳 تونس (+216)'],
+                        'DZ' => ['dial' => '213', 'label' => '🇩🇿 الجزائر (+213)'],
+                        'MA' => ['dial' => '212', 'label' => '🇲🇦 المغرب (+212)'],
+                        'MR' => ['dial' => '222', 'label' => '🇲🇷 موريتانيا (+222)'],
+                        'SO' => ['dial' => '252', 'label' => '🇸🇴 الصومال (+252)'],
+                        'DJ' => ['dial' => '253', 'label' => '🇩🇯 جيبوتي (+253)'],
+                        'KM' => ['dial' => '269', 'label' => '🇰🇲 جزر القمر (+269)'],
+                    ];
+
                     $defaultCountry = 'SA';
                     $defaultLocal = $phoneFull;
-                    if (str_starts_with($phoneFull, '962')) { $defaultCountry = 'JO'; $defaultLocal = substr($phoneFull, 3); }
-                    elseif (str_starts_with($phoneFull, '966')) { $defaultCountry = 'SA'; $defaultLocal = substr($phoneFull, 3); }
+
+                    $dials = [];
+                    foreach ($waCountries as $cc => $info) { $dials[$cc] = (string) ($info['dial'] ?? ''); }
+                    uasort($dials, fn($a, $b) => strlen($b) <=> strlen($a)); // match longer first
+
+                    foreach ($dials as $cc => $dial) {
+                        if ($dial !== '' && str_starts_with($phoneFull, $dial)) {
+                            $defaultCountry = $cc;
+                            $defaultLocal = substr($phoneFull, strlen($dial));
+                            break;
+                        }
+                    }
+
                     $defaultLocal = ltrim((string) $defaultLocal, '0');
                 @endphp
                 <div>
@@ -247,8 +283,11 @@
                     <div class="flex gap-2">
                         <select name="contact_phone_country" id="waCountry"
                                 class="w-40 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-yellow-400/60">
-                            <option value="SA" {{ ($defaultCountry === 'SA') ? 'selected' : '' }}>🇸🇦 +966</option>
-                            <option value="JO" {{ ($defaultCountry === 'JO') ? 'selected' : '' }}>🇯🇴 +962</option>
+                            @foreach($waCountries as $cc => $info)
+                                <option value="{{ $cc }}" {{ ($defaultCountry === $cc) ? 'selected' : '' }}>
+                                    {{ $info['label'] ?? ($cc . ' +' . ($info['dial'] ?? '')) }}
+                                </option>
+                            @endforeach
                         </select>
                         <input type="tel" name="contact_phone_local" id="waLocal"
                                value="{{ old('contact_phone_local', $defaultLocal) }}"
@@ -296,7 +335,11 @@
     const full = document.getElementById('waFullPhone');
     if (!country || !local || !full) return;
 
-    const dialByCountry = { SA: '966', JO: '962' };
+    const dialByCountry = {
+      SA: '966', JO: '962', AE: '971', KW: '965', QA: '974', BH: '973', OM: '968',
+      IQ: '964', LB: '961', PS: '970', YE: '967', SY: '963', EG: '20', SD: '249',
+      LY: '218', TN: '216', DZ: '213', MA: '212', MR: '222', SO: '252', DJ: '253', KM: '269'
+    };
     const digitsOnly = (v) => String(v || '').replace(/\D+/g, '');
     const build = () => {
       const c = String(country.value || 'SA').toUpperCase();

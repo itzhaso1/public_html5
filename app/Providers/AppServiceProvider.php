@@ -39,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
                         'logo' => $logo,
                         'favicon' => $favicon,
                         'cashExchangeEnabled' => (bool) ($settings->cash_exchange_enabled ?? true),
+                        'chargeEnabled' => (bool) ($settings->charge_enabled ?? true),
+                        'codesEnabled' => (bool) ($settings->codes_enabled ?? true),
                     ]);
                 }
             }
@@ -80,6 +82,20 @@ class AppServiceProvider extends ServiceProvider
                 }
             } catch (\Throwable $e) {
                 $moneyExchangeEnabled = false;
+            }
+
+            // Optional manual toggle from main settings (same UX as cash exchange).
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'money_exchange_enabled')) {
+                    $appSettings = Cache::get('app_settings');
+                    if (!$appSettings) {
+                        $appSettings = Setting::query()->latest()->first();
+                    }
+                    $toggle = (bool) ($appSettings?->money_exchange_enabled ?? true);
+                    $moneyExchangeEnabled = (bool) $moneyExchangeEnabled && $toggle;
+                }
+            } catch (\Throwable $e) {
+                // ignore
             }
 
             $view->with([

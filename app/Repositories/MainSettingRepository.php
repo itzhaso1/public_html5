@@ -56,6 +56,18 @@ class MainSettingRepository implements MainSettingInterface
             } catch (\Throwable $e) {
                 $hasCashToggle = false;
             }
+            $hasMoneyToggle = false;
+            $hasChargeToggle = false;
+            $hasCodesToggle = false;
+            try {
+                $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
+                $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
+                $hasCodesToggle = Schema::hasColumn('settings', 'codes_enabled');
+            } catch (\Throwable $e) {
+                $hasMoneyToggle = false;
+                $hasChargeToggle = false;
+                $hasCodesToggle = false;
+            }
 
             $setting = Setting::firstOrNew([]);
             $fields = [
@@ -81,11 +93,29 @@ class MainSettingRepository implements MainSettingInterface
             if ($hasCashToggle) {
                 $fields[] = 'cash_exchange_enabled';
             }
+            if ($hasMoneyToggle) {
+                $fields[] = 'money_exchange_enabled';
+            }
+            if ($hasChargeToggle) {
+                $fields[] = 'charge_enabled';
+            }
+            if ($hasCodesToggle) {
+                $fields[] = 'codes_enabled';
+            }
 
             $setting->fill($request->only($fields));
             if ($hasCashToggle) {
                 // checkbox => set false when unchecked
                 $setting->cash_exchange_enabled = $request->boolean('cash_exchange_enabled');
+            }
+            if ($hasMoneyToggle) {
+                $setting->money_exchange_enabled = $request->boolean('money_exchange_enabled');
+            }
+            if ($hasChargeToggle) {
+                $setting->charge_enabled = $request->boolean('charge_enabled');
+            }
+            if ($hasCodesToggle) {
+                $setting->codes_enabled = $request->boolean('codes_enabled');
             }
             $setting->save();
             if ($request->hasFile('logo'))
