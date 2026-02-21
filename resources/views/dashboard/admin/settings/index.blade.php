@@ -240,6 +240,16 @@
                                         اتركه فارغاً لاستخدام السعر الافتراضي.
                                     </div>
                                 </div>
+                                @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'merchant_charge_discount_percent'))
+                                    <div class="col-md-6">
+                                        <label class="input-group-text text-dark">خصم التاجر على أسعار الجواهر (%)</label>
+                                        <input type="number" step="0.01" min="0" max="90" class="form-control"
+                                               name="merchant_charge_discount_percent"
+                                               value="{{ old('merchant_charge_discount_percent', $setting?->merchant_charge_discount_percent ?? 0) }}"
+                                               placeholder="مثال: 10">
+                                        <div class="form-text">ينطبق الخصم على السعر بالريال للتجار فقط داخل قسم شحن الجواهر.</div>
+                                    </div>
+                                @endif
                             </div>
                         @else
                             <div class="text-muted">

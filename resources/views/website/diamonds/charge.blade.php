@@ -8,6 +8,15 @@
 @php
     $fallbackImage = asset('img/قريبا.jpg');
     $products = $products ?? collect();
+    $isMerchant = false;
+    $merchantDiscount = 0.0;
+    try {
+        $isMerchant = auth()->check() && (bool) (auth()->user()?->is_merchant ?? false);
+        $merchantDiscount = (float) ($settings?->merchant_charge_discount_percent ?? 0);
+    } catch (\Throwable $e) {
+        $isMerchant = false;
+        $merchantDiscount = 0.0;
+    }
 @endphp
 
 @include('website.diamonds.partials.header', [
@@ -102,6 +111,12 @@
                     $title = $product->name ?? 'باقة شحن';
                     $desc = $product->description ?? $product->short_description ?? null;
                     $descText = $desc ? \Illuminate\Support\Str::limit(trim(strip_tags($desc)), 90) : 'شحن فوري وآمن';
+
+                    $basePrice = (float) ($product->price ?? 0);
+                    $finalPrice = $basePrice;
+                    if ($isMerchant && $merchantDiscount > 0 && $basePrice > 0) {
+                        $finalPrice = round($basePrice * (1 - ($merchantDiscount / 100)), 2);
+                    }
                 @endphp
 
                 <article class="diamond-card bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition overflow-hidden"
@@ -130,9 +145,18 @@
                             <div class="text-right">
                                 <div class="text-xs text-gray-500">السعر</div>
                                 <div class="text-lg font-extrabold text-green-600 product-price"
-                                     data-base-price="{{ (float) $product->price }}">
-                                    <span class="current-price">ر.س {{ number_format((float) $product->price, 2) }}</span>
+                                     data-base-price="{{ (float) $finalPrice }}"
+                                     @if($finalPrice !== $basePrice) data-base-old="{{ (float) $basePrice }}" @endif>
+                                    <span class="current-price">ر.س {{ number_format((float) $finalPrice, 2) }}</span>
+                                    @if($finalPrice !== $basePrice)
+                                        <span class="old-price ms-1 text-gray-500 text-sm line-through">
+                                            {{ number_format((float) $basePrice, 2) }}
+                                        </span>
+                                    @endif
                                 </div>
+                                @if($finalPrice !== $basePrice)
+                                    <div class="mt-1 text-[11px] font-extrabold text-emerald-700">سعر تاجر</div>
+                                @endif
                             </div>
 
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">

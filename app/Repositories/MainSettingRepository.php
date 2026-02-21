@@ -109,6 +109,13 @@ class MainSettingRepository implements MainSettingInterface
             } catch (\Throwable $e) {
                 // ignore
             }
+            try {
+                if (Schema::hasColumn('settings', 'merchant_charge_discount_percent')) {
+                    $fields[] = 'merchant_charge_discount_percent';
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
 
             $setting->fill($request->only($fields));
             if ($hasCashToggle) {

@@ -30,6 +30,7 @@ class Setting extends Model
         'charge_enabled',
         'codes_enabled',
         'merchant_usd_rate',
+        'merchant_charge_discount_percent',
     ];
 
     public function media()
