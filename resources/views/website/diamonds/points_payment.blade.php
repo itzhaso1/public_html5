@@ -47,15 +47,22 @@
             </div>
         </div>
 
-        <form method="POST" action="{{ route('website.diamonds.points_payment.store', $product) }}" class="mt-5 space-y-4">
+        <form id="pointsPaymentForm" method="POST" action="{{ route('website.diamonds.points_payment.store', $product) }}" class="mt-5 space-y-4">
             @csrf
 
             @if($isGems)
                 <div>
                     <label class="block text-sm font-extrabold mb-2">Player ID</label>
-                    <input type="text" name="player_id" value="{{ old('player_id') }}"
-                           class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-yellow-400/50"
-                           placeholder="اكتب Player ID" required>
+                    <div class="flex gap-2">
+                        <input id="playerIdInput" type="text" name="player_id" value="{{ old('player_id') }}"
+                               class="flex-1 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-yellow-400/50"
+                               placeholder="اكتب Player ID" required>
+                        <button id="checkPlayerBtn" type="button"
+                                class="whitespace-nowrap rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-extrabold hover:bg-gray-50 transition">
+                            تحقق من الاسم
+                        </button>
+                    </div>
+                    <div id="playerCheckResult" class="mt-2 text-xs"></div>
                     <div class="text-xs text-gray-500 mt-1">سيتم تنفيذ الشحن بعد المراجعة.</div>
                 </div>
             @endif
@@ -83,6 +90,7 @@
             </div>
 
             <button type="submit"
+                    id="pointsSubmitBtn"
                     class="w-full inline-flex items-center justify-center rounded-xl bg-black px-5 py-3 text-sm font-extrabold text-white hover:bg-gray-800 transition">
                 تأكيد الدفع بالنقاط
             </button>
@@ -90,4 +98,108 @@
     </div>
 </section>
 @endsection
+
+@push('js')
+@if($isGems)
+<script>
+  (function () {
+    const form = document.getElementById('pointsPaymentForm');
+    const btn = document.getElementById('checkPlayerBtn');
+    const input = document.getElementById('playerIdInput');
+    const out = document.getElementById('playerCheckResult');
+    const submitBtn = document.getElementById('pointsSubmitBtn');
+    if (!form || !btn || !input || !out || !submitBtn) return;
+
+    const csrf = @json(csrf_token());
+    const url = @json(route('website.diamonds.check_player'));
+
+    let verifiedPlayerId = '';
+    let isChecking = false;
+
+    const setMsg = (html, cls) => {
+      out.className = 'mt-2 text-xs ' + (cls || '');
+      out.innerHTML = html;
+    };
+
+    const check = async () => {
+      const playerId = (input.value || '').trim();
+      if (playerId.length < 3) {
+        setMsg('ضع Player ID صحيح.', 'text-red-600');
+        verifiedPlayerId = '';
+        return false;
+      }
+
+      if (verifiedPlayerId === playerId) {
+        return true;
+      }
+
+      if (isChecking) return false;
+      isChecking = true;
+      btn.disabled = true;
+      submitBtn.disabled = true;
+      setMsg('جارِ التحقق...', 'text-gray-500');
+
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({ player_id: playerId })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setMsg('حدث خطأ أثناء التحقق. حاول لاحقاً.', 'text-red-600');
+          verifiedPlayerId = '';
+          return false;
+        }
+
+        if (data.success === true) {
+          const name = data.player_name ? String(data.player_name) : '—';
+          const region = data.region ? String(data.region) : '—';
+          const cached = data.cached ? ' (cached)' : '';
+          setMsg(`✅ الاسم: <b>${name}</b> — Region: <b>${region}</b>${cached}`, 'text-green-700');
+          verifiedPlayerId = playerId;
+          return true;
+        }
+
+        const raw = data.msg ? String(data.msg) : 'فشل التحقق';
+        const friendly = (raw === 'NOT_READY' || raw === 'DUPLICATE_TASK')
+          ? 'الطلب قيد المعالجة، انتظر قليلًا ثم أعد المحاولة.'
+          : raw;
+        setMsg(`❌ ${friendly}`, 'text-red-600');
+        verifiedPlayerId = '';
+        return false;
+      } catch (e) {
+        setMsg('فشل الاتصال. حاول لاحقاً.', 'text-red-600');
+        verifiedPlayerId = '';
+        return false;
+      } finally {
+        isChecking = false;
+        btn.disabled = false;
+        submitBtn.disabled = false;
+      }
+    };
+
+    btn.addEventListener('click', check);
+
+    form.addEventListener('submit', async (e) => {
+      const playerId = (input.value || '').trim();
+      if (playerId.length >= 3 && verifiedPlayerId === playerId) return;
+
+      e.preventDefault();
+      const ok = await check();
+      if (ok) {
+        // avoid double-check: verifiedPlayerId is set
+        form.submit();
+      }
+    });
+  })();
+</script>
+@endif
+@endpush
 

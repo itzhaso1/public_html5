@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DiamondCode;
 use App\Models\ManualPaymentRequest;
 use App\Models\Product;
+use App\Services\Integrations\Shop2TopUp\Shop2TopUpService;
 use App\Services\Wallet\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -45,6 +46,31 @@ class WalletPointsPaymentController extends Controller
         }
 
         $data = $request->validate($rules);
+
+        if ($isGems) {
+            $playerId = trim((string) ($data['player_id'] ?? ''));
+            $cacheKey = 'shop2topup.player.' . sha1($playerId);
+
+            $check = Cache::get($cacheKey);
+            if (!is_array($check) || ($check['success'] ?? false) !== true) {
+                $service = new Shop2TopUpService();
+                $check = $service->checkPlayer($playerId);
+                if (($check['success'] ?? false) === true && !empty($check['player_name'])) {
+                    Cache::put($cacheKey, $check, now()->addHours(12));
+                }
+            }
+
+            if (($check['success'] ?? false) !== true || empty($check['player_name'])) {
+                $raw = (string) ($check['msg'] ?? 'فشل التحقق');
+                $friendly = in_array($raw, ['NOT_READY', 'DUPLICATE_TASK'], true)
+                    ? 'التحقق قيد المعالجة، انتظر قليلًا ثم أعد المحاولة.'
+                    : $raw;
+
+                return back()
+                    ->withErrors(['error' => 'تعذر التحقق من اسم اللاعب: ' . $friendly])
+                    ->withInput();
+            }
+        }
 
         if ($isCodes) {
             // Prevent overselling codes stock (available > pending).

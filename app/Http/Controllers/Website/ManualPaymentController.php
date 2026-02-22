@@ -256,8 +256,6 @@ class ManualPaymentController extends Controller
 
     public function checkPlayerName(Request $request): JsonResponse
     {
-        abort_unless(config('bank.enabled'), 404);
-
         $data = $request->validate([
             'player_id' => ['required', 'string', 'min:3', 'max:64'],
         ]);
