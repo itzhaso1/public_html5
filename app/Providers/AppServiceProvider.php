@@ -27,7 +27,7 @@ class AppServiceProvider extends ServiceProvider
         try {
             if (Schema::hasTable('settings')) {
                 $settings = Cache::remember('app_settings', 60 * 60, function () {
-                    return Setting::with('media')->latest()->first();
+                    return Setting::with('media')->latest('id')->first();
                 });
 
                 if ($settings) {
@@ -56,6 +56,21 @@ class AppServiceProvider extends ServiceProvider
                 'JO' => (float) ($fx['JOD'] ?? 0.1885),
                 'US' => (float) ($fx['USD'] ?? 0.2666),
             ];
+
+            // Merchant USD override: affects USD display only.
+            try {
+                if (auth()->check() && (bool) (auth()->user()?->is_merchant ?? false)) {
+                    if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'merchant_usd_rate')) {
+                        $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+                        $m = (float) ($s?->merchant_usd_rate ?? 0);
+                        if ($m > 0) {
+                            $ratesByCountry['US'] = $m;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
 
             try {
                 $locale = app()->getLocale();
