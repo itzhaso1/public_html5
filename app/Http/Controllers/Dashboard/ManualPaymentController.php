@@ -522,9 +522,17 @@ class ManualPaymentController extends Controller
 
         $requests = ManualPaymentRequest::query()
             ->whereIn('id', $ids)
-            ->get(['id', 'receipt_path']);
+            ->get(['id', 'receipt_path', 'status', 'payment_method', 'points_spent', 'points_refunded_at', 'user_id', 'product_id']);
 
         foreach ($requests as $r) {
+            // Refund points first (best-effort) before deleting.
+            try {
+                if ((string) ($r->status ?? '') === 'pending') {
+                    $this->refundWalletPointsIfNeeded($r);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
             if (!empty($r->receipt_path)) {
                 try {
                     Storage::disk('public')->delete($r->receipt_path);
@@ -547,11 +555,18 @@ class ManualPaymentController extends Controller
         ]);
 
         ManualPaymentRequest::query()
-            ->select(['id', 'receipt_path'])
+            ->select(['id', 'receipt_path', 'status', 'payment_method', 'points_spent', 'points_refunded_at', 'user_id', 'product_id'])
             ->orderBy('id')
             ->chunkById(200, function ($chunk) {
                 $ids = [];
                 foreach ($chunk as $r) {
+                    try {
+                        if ((string) ($r->status ?? '') === 'pending') {
+                            $this->refundWalletPointsIfNeeded($r);
+                        }
+                    } catch (\Throwable $e) {
+                        report($e);
+                    }
                     $ids[] = $r->id;
                     if (!empty($r->receipt_path)) {
                         try {
