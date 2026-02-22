@@ -55,6 +55,11 @@
                         <div class="text-sm font-extrabold text-green-700">
                             ر.س {{ number_format((float)$mpr->amount, 2) }}
                         </div>
+                        @if(!empty($mpr->points_spent))
+                            <div class="text-xs font-extrabold text-gray-800">
+                                بالنقاط: {{ number_format((int)$mpr->points_spent) }}
+                            </div>
+                        @endif
                         <div class="text-xs text-gray-500">{{ $mpr->created_at?->format('Y-m-d H:i') }}</div>
                     </div>
                 </div>

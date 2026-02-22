@@ -87,6 +87,15 @@
                     <div class="mt-2 text-xs font-extrabold text-purple-700">غير متاح حالياً</div>
                 @endunless
             </a>
+
+            <a href="{{ route('customer.wallet.index') }}"
+               class="rounded-2xl border border-gray-200 bg-white p-4 hover:bg-gray-50 transition">
+                <div class="font-extrabold text-gray-900">محفظتي (نقاط)</div>
+                <div class="text-xs text-gray-500 mt-1">عرض الرصيد + إيداع نقاط.</div>
+                <div class="mt-2 text-xs font-extrabold text-gray-800">
+                    الرصيد: {{ number_format((int)($user?->wallet_points_balance ?? 0)) }} نقطة
+                </div>
+            </a>
         </div>
     </div>
 </section>

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use App\Services\Integrations\Shop2TopUp\Shop2TopUpService;
+use App\Services\Wallet\WalletService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use App\Notifications\ChargeCompletedNotification;
@@ -383,6 +384,14 @@ class ManualPaymentController extends Controller
             'admin_note' => $request->input('admin_note'),
         ]);
 
+        // Refund points if this request was paid via wallet points.
+        try {
+            $this->refundWalletPointsIfNeeded($manualPaymentRequest);
+        } catch (\Throwable $e) {
+            // best-effort; do not block admin flow
+            report($e);
+        }
+
         if ($oldStatus !== 'rejected') {
             $this->notifyCustomerDecision($manualPaymentRequest, false);
         }
@@ -396,6 +405,43 @@ class ManualPaymentController extends Controller
         return redirect()
             ->route('admin.manual_payments.show', $manualPaymentRequest)
             ->with('success', 'تم رفض الطلب.');
+    }
+
+    private function refundWalletPointsIfNeeded(ManualPaymentRequest $manualPaymentRequest): void
+    {
+        $pm = (string) ($manualPaymentRequest->payment_method ?? '');
+        $points = (int) ($manualPaymentRequest->points_spent ?? 0);
+
+        if ($pm !== 'wallet_points' || $points <= 0) {
+            return;
+        }
+
+        DB::transaction(function () use ($manualPaymentRequest, $points) {
+            /** @var ManualPaymentRequest $mpr */
+            $mpr = ManualPaymentRequest::query()
+                ->whereKey($manualPaymentRequest->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if (!empty($mpr->points_refunded_at)) {
+                return;
+            }
+
+            $user = $mpr->user()->first();
+            if (! $user) {
+                return;
+            }
+
+            $wallet = app(WalletService::class);
+            $wallet->credit($user, $points, 'refund_credit', $mpr, [
+                'manual_payment_request_id' => $mpr->id,
+                'product_id' => $mpr->product_id,
+            ]);
+
+            $mpr->update([
+                'points_refunded_at' => now(),
+            ]);
+        });
     }
 
     private function notifyCustomerDecision(ManualPaymentRequest $mpr, bool $approved): void
@@ -434,6 +480,15 @@ class ManualPaymentController extends Controller
         $data = $request->validate([
             'confirm' => ['required', 'in:DELETE'],
         ]);
+
+        // If deleting a pending points-paid request, refund points first.
+        try {
+            if ((string) ($manualPaymentRequest->status ?? '') === 'pending') {
+                $this->refundWalletPointsIfNeeded($manualPaymentRequest);
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         $receipt = $manualPaymentRequest->receipt_path;
         if ($receipt) {

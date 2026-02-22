@@ -25,6 +25,9 @@
                 <a href="#" class="text-white hover:text-yellow-400 font-medium">العروض</a>
                 @auth
                     <a href="{{ route('customer.purchases') }}" class="text-white hover:text-yellow-400 font-medium">مشترياتي</a>
+                    <a href="{{ route('customer.wallet.index') }}" class="text-white hover:text-yellow-400 font-medium">
+                        محفظتي ({{ number_format((int)(auth()->user()?->wallet_points_balance ?? 0)) }})
+                    </a>
                     <a href="{{ route('customer.profile') }}" class="text-white hover:text-yellow-400 font-medium">ملفي الشخصي</a>
                 @endauth
                 <a href="https://chat.whatsapp.com/LiEKm0hQPlB9yeToyetcbh" class="text-white hover:text-yellow-400 font-medium">تواصل معنا</a>
@@ -56,6 +59,7 @@
         <a href="#" class="block text-white px-3 py-2 rounded hover:bg-gray-700">العروض</a>
         @auth
             <a href="{{ route('customer.purchases') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">مشترياتي</a>
+            <a href="{{ route('customer.wallet.index') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">محفظتي (نقاط)</a>
             <a href="{{ route('customer.profile') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">ملفي الشخصي</a>
         @endauth
         <a href="https://chat.whatsapp.com/LiEKm0hQPlB9yeToyetcbh" class="block text-white px-3 py-2 rounded hover:bg-gray-700">تواصل معنا</a>

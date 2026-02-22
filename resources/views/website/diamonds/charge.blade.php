@@ -136,6 +136,11 @@
                                      data-base-price="{{ (float) $basePrice }}">
                                     <span class="current-price">ر.س {{ number_format((float) $basePrice, 2) }}</span>
                                 </div>
+                                @if(!empty($product->points_price))
+                                    <div class="mt-1 text-xs font-extrabold text-gray-800">
+                                        بالنقاط: {{ number_format((int) $product->points_price) }} نقطة
+                                    </div>
+                                @endif
                             </div>
 
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -150,6 +155,21 @@
                                         دفع يدوي
                                     </a>
                                 @endif
+                                @auth
+                                    @if(!empty($product->points_price))
+                                        <a href="{{ route('website.diamonds.points_payment.create', $product) }}"
+                                           class="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2 text-xs sm:text-sm font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                                            شراء بالنقاط
+                                        </a>
+                                    @endif
+                                @else
+                                    @if(!empty($product->points_price))
+                                        <a href="{{ route('auth.login') }}"
+                                           class="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-gray-800 hover:bg-gray-50 transition">
+                                            سجّل دخولك لشراء بالنقاط
+                                        </a>
+                                    @endif
+                                @endauth
                             </div>
                         </div>
                     </div>

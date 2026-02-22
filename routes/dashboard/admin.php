@@ -84,6 +84,14 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
             Route::delete('{manualPaymentRequest}', [Dashboard\ManualPaymentController::class, 'destroy'])->name('destroy');
         });
 
+        // Wallet top-ups (points deposits)
+        Route::prefix('wallet-topups')->as('wallet_topups.')->group(function () {
+            Route::get('/', [Dashboard\WalletTopupRequestController::class, 'index'])->name('index');
+            Route::get('{walletTopupRequest}/receipt', [Dashboard\WalletTopupRequestController::class, 'receipt'])->name('receipt');
+            Route::post('{walletTopupRequest}/approve', [Dashboard\WalletTopupRequestController::class, 'approve'])->name('approve');
+            Route::post('{walletTopupRequest}/reject', [Dashboard\WalletTopupRequestController::class, 'reject'])->name('reject');
+        });
+
         Route::prefix('diamond-codes')->as('diamond_codes.')->group(function () {
             Route::get('/', [Dashboard\DiamondCodeController::class, 'index'])->name('index');
             Route::get('create', [Dashboard\DiamondCodeController::class, 'create'])->name('create');

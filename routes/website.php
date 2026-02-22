@@ -13,6 +13,8 @@ use App\Models\Product;
 use App\Models\Setting;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Website\WalletPointsPaymentController;
+use App\Http\Controllers\Website\Customer\WalletController as CustomerWalletController;
  
 Route::group(
     [
@@ -109,6 +111,14 @@ Route::group(
         Route::post('diamonds/{product}/manual-payment', [Website\ManualPaymentController::class, 'store'])
             ->middleware('auth')
             ->name('website.diamonds.manual_payment.store');
+
+        // Wallet points payment (create a pending request paid with points)
+        Route::get('diamonds/{product}/points-payment', [WalletPointsPaymentController::class, 'create'])
+            ->middleware('auth')
+            ->name('website.diamonds.points_payment.create');
+        Route::post('diamonds/{product}/points-payment', [WalletPointsPaymentController::class, 'store'])
+            ->middleware('auth')
+            ->name('website.diamonds.points_payment.store');
         Route::post('diamonds/check-player', [Website\ManualPaymentController::class, 'checkPlayerName'])
             ->middleware(['auth', 'throttle:5,1'])
             ->name('website.diamonds.check_player');
@@ -202,6 +212,13 @@ Route::group(
             Route::get('profile', [Customer\ProfileController::class, 'edit'])->name('profile');
             Route::post('profile', [Customer\ProfileController::class, 'update'])->name('profile.update');
             Route::post('profile/password', [Customer\ProfileController::class, 'updatePassword'])->name('profile.password');
+
+            // Wallet (points)
+            Route::get('wallet', [CustomerWalletController::class, 'index'])->name('wallet.index');
+            Route::get('wallet/topup', [CustomerWalletController::class, 'createTopup'])->name('wallet.topup');
+            Route::post('wallet/topup', [CustomerWalletController::class, 'storeTopup'])->name('wallet.topup.store');
+            Route::get('wallet/topups/{walletTopupRequest}/receipt', [CustomerWalletController::class, 'receipt'])
+                ->name('wallet.topups.receipt');
 
             // Money exchange tracking
             Route::get('money-exchange', [Website\MoneyExchangeController::class, 'list'])->name('money_exchange.index');

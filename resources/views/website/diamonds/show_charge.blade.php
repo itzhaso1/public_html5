@@ -69,6 +69,11 @@
                      data-base-price="{{ (float) $basePrice }}">
                     <span class="current-price">ر.س {{ number_format((float) $basePrice, 2) }}</span>
                 </div>
+                @if(!empty($product?->points_price))
+                    <div class="mt-1 text-sm font-extrabold text-gray-900">
+                        بالنقاط: {{ number_format((int) $product->points_price) }} نقطة
+                    </div>
+                @endif
             </div>
 
             <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
@@ -102,6 +107,19 @@
                        class="inline-flex items-center justify-center rounded-xl bg-black px-5 py-3 text-sm font-extrabold text-white hover:bg-gray-800 transition">
                         الدفع اليدوي (تحويل بنكي)
                     </a>
+                    @if(!empty($product?->points_price))
+                        @auth
+                            <a href="{{ route('website.diamonds.points_payment.create', $product) }}"
+                               class="inline-flex items-center justify-center rounded-xl border border-yellow-200 bg-yellow-50 px-5 py-3 text-sm font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                                الدفع بالنقاط
+                            </a>
+                        @else
+                            <a href="{{ route('auth.login') }}"
+                               class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                                سجّل دخولك للدفع بالنقاط
+                            </a>
+                        @endauth
+                    @endif
                 @else
                     <a href="{{ route('website.diamonds.codes') }}"
                        class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-extrabold text-gray-700 cursor-not-allowed">
