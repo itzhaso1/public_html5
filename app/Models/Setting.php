@@ -31,6 +31,8 @@ class Setting extends Model
         'codes_enabled',
         'merchant_usd_rate',
         'merchant_charge_discount_percent',
+        'point_price_sar',
+        'point_price_usd',
     ];
 
     public function media()

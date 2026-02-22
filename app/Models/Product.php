@@ -32,6 +32,7 @@ class Product extends Model implements TranslatableContract {
         'reviewed_at',
         'rejected_at',
         'service_type',
+        'points_price',
         // Shop2TopUp offer id (column name in DB is itemID)
         'itemID',
 
@@ -47,6 +48,7 @@ class Product extends Model implements TranslatableContract {
         'reviewed_at' => 'datetime',
         'rejected_at' => 'datetime',
         'review_reject_reasons' => 'array',
+        'points_price' => 'int',
     ];
 
     public $translatedAttributes = [
