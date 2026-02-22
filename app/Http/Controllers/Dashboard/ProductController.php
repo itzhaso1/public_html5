@@ -74,6 +74,7 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'points_price' => 'nullable|integer|min:0',
             // NOTE: this field is actually the service type (gems/codes)
             'type_id' => 'required|in:gems,codes',
         ]);
@@ -100,6 +101,7 @@ class ProductController extends Controller
                 'type_id'      => $typeId ?: null,
                 'service_type' => $request->type_id, // gems/codes
                 'price'        => $request->price,
+                'points_price' => $request->filled('points_price') ? (int) $request->points_price : null,
                 'stock'        => 9999,
                 'sku'          => $sku,
                 'status'       => 'published',

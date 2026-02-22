@@ -277,6 +277,7 @@ if ($request->hasFile('video')) {
             'price_before_discount',
             'deal_ends_at',
             'price',
+            'points_price',
             'stock',
             'sku',
             'status',

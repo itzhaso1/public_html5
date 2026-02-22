@@ -82,6 +82,12 @@
                     <label class="form-label fw-bold">السعر ($)</label>
                     <input type="number" step="0.01" name="price" class="form-control" placeholder="0.00" required>
                 </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">السعر بالنقاط (اختياري)</label>
+                    <input type="number" step="1" min="0" name="points_price" class="form-control" placeholder="مثال: 250">
+                    <div class="form-text">لو تركته فارغاً لن يظهر خيار الشراء بالنقاط لهذا المنتج.</div>
+                </div>
  
                 <button type="submit" class="btn btn-success w-100 py-2 fw-bold">حفظ الباقة</button>
             </form>

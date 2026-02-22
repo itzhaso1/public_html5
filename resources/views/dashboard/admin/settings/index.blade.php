@@ -248,6 +248,35 @@
                         @endif
                     </div>
 
+                    <!-- Wallet / Points pricing -->
+                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                        <h4 class="mb-3 fw-bolder">نظام النقاط (المحفظة)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'point_price_sar'))
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">سعر النقطة بالريال (SAR)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           name="point_price_sar"
+                                           value="{{ old('point_price_sar', $setting?->point_price_sar ?? 3.75) }}"
+                                           placeholder="مثال: 3.75">
+                                    <div class="form-text">هذا السعر يستخدم لحساب قيمة الإيداع بالنقاط (عدد النقاط × سعر النقطة).</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">سعر النقطة بالدولار (USD)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           name="point_price_usd"
+                                           value="{{ old('point_price_usd', $setting?->point_price_usd ?? 1.00) }}"
+                                           placeholder="مثال: 1.00">
+                                    <div class="form-text">للإظهار للمستخدم عند اختيار الدولار (ليس شرطاً أن يطابق سعر الصرف).</div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل إعدادات النقاط شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
+                    </div>
+
                     <!-- End Name & alert message -->
                     <hr>
                     <div class="form-row">

@@ -118,6 +118,16 @@ class MainSettingRepository implements MainSettingInterface
             } catch (\Throwable $e) {
                 // ignore
             }
+            try {
+                if (Schema::hasColumn('settings', 'point_price_sar')) {
+                    $fields[] = 'point_price_sar';
+                }
+                if (Schema::hasColumn('settings', 'point_price_usd')) {
+                    $fields[] = 'point_price_usd';
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
 
             $setting->fill($request->only($fields));
             if ($hasCashToggle) {
@@ -155,6 +165,7 @@ class MainSettingRepository implements MainSettingInterface
             }
 
             Cache::forget('app_settings');
+            Cache::forget('wallet.point_prices');
 
             $msg = 'تم تحديث الإعدادات بنجاح.';
             if (! $hasHomeQuick) {
