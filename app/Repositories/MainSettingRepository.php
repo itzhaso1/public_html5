@@ -69,7 +69,9 @@ class MainSettingRepository implements MainSettingInterface
                 $hasCodesToggle = false;
             }
 
-            $setting = Setting::firstOrNew([]);
+            // Always update the latest settings row (singleton behavior).
+            // Using firstOrNew([]) may update an older row while the app reads the latest.
+            $setting = Setting::query()->latest('id')->first() ?? new Setting();
             $fields = [
                 'email',
                 'name',

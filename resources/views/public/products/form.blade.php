@@ -427,6 +427,17 @@ function setWizardBusy(state, label = 'التالي') {
     const nextBtn = document.getElementById('wizardNextBtn');
     const submitBtn = document.getElementById('finalSubmit');
 
+    try {
+        if (window.__wizardBusyTimer) clearTimeout(window.__wizardBusyTimer);
+        if (state) {
+            // Safety net: never keep the wizard locked forever (iOS can throw in DataTransfer).
+            window.__wizardBusyTimer = setTimeout(() => {
+                isProcessingImages = false;
+                setWizardBusy(false, label);
+            }, 45000);
+        }
+    } catch (e) {}
+
     if (nextBtn) {
         nextBtn.disabled = state;
         nextBtn.classList.toggle('opacity-50', state);
@@ -634,6 +645,16 @@ document.addEventListener('DOMContentLoaded', () => {
             syncClientNumber();
         }
     } catch (e) {}
+
+    // iOS Safari sometimes ignores taps when keyboard is open
+    try {
+        const submitBtn = document.getElementById('finalSubmit');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
+            }, { passive: true });
+        }
+    } catch (e) {}
 });
 </script>
 
@@ -802,42 +823,46 @@ function updateCounter(input, counterId) {
 <script>
 async function previewMainImage(input) {
   setWizardBusy(true);
-
-  let file = input.files[0];
-  const previewBox = document.getElementById('imagePreviewBox');
-  const previewImg = document.getElementById('imagePreview');
-  const fileName = document.getElementById('product_image_name');
-
-  if (!file) {
-    setWizardBusy(false);
-    return;
-  }
-
-  if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
-    const convertedBlob = await heic2any({
-      blob: file,
-      toType: 'image/jpeg',
-      quality: 0.75
-    });
-
-    file = new File([convertedBlob], file.name.replace('.heic', '.jpg'), { type: 'image/jpeg' });
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-  }
-
   try {
-    file = await downscaleToJpeg(file);
-    const dt2 = new DataTransfer();
-    dt2.items.add(file);
-    input.files = dt2.files;
-  } catch (e) {}
+    let file = input.files[0];
+    const previewBox = document.getElementById('imagePreviewBox');
+    const previewImg = document.getElementById('imagePreview');
+    const fileName = document.getElementById('product_image_name');
 
-  fileName.innerText = file.name;
-  previewImg.src = URL.createObjectURL(file);
-  previewBox.classList.remove('hidden');
+    if (!file) return;
 
-  setWizardBusy(false);
+    try {
+      if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: 'image/jpeg',
+          quality: 0.75
+        });
+
+        file = new File([convertedBlob], file.name.replace('.heic', '.jpg'), { type: 'image/jpeg' });
+        try {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          input.files = dt.files;
+        } catch (e) {}
+      }
+    } catch (e) {}
+
+    try {
+      file = await downscaleToJpeg(file);
+      try {
+        const dt2 = new DataTransfer();
+        dt2.items.add(file);
+        input.files = dt2.files;
+      } catch (e) {}
+    } catch (e) {}
+
+    if (fileName) fileName.innerText = file.name;
+    if (previewImg) previewImg.src = URL.createObjectURL(file);
+    if (previewBox) previewBox.classList.remove('hidden');
+  } finally {
+    setWizardBusy(false);
+  }
 }
 
 function removeMainImage() {
@@ -865,46 +890,59 @@ let galleryFiles = [];
 
 async function previewGalleryImages(input) {
     setWizardBusy(true);
+    try {
+        const preview = document.getElementById('galleryPreview');
+        const nameLabel = document.getElementById('gallery_images_name');
 
-    const preview = document.getElementById('galleryPreview');
-    const nameLabel = document.getElementById('gallery_images_name');
+        let files = Array.from(input.files || []);
+        galleryFiles = [];
+        if (preview) preview.innerHTML = '';
 
-    let files = Array.from(input.files);
-    galleryFiles = [];
-    preview.innerHTML = '';
+        for (let i = 0; i < files.length; i++) {
+            let file = files[i];
 
-    for (let i = 0; i < files.length; i++) {
-        let file = files[i];
+            if (nameLabel) {
+                nameLabel.textContent = `جاري تجهيز الصور... (${i + 1} / ${files.length})`;
+                nameLabel.classList.remove('text-red-600', 'text-green-600');
+                nameLabel.classList.add('text-gray-500');
+            }
 
-        if (nameLabel) {
-            nameLabel.textContent = `جاري تجهيز الصور... (${i + 1} / ${files.length})`;
-            nameLabel.classList.remove('text-red-600', 'text-green-600');
-            nameLabel.classList.add('text-gray-500');
+            try {
+                if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+                    const blob = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.8
+                    });
+
+                    file = new File([blob], file.name.replace('.heic', '.jpg'), {
+                        type: 'image/jpeg'
+                    });
+                }
+            } catch (e) {}
+
+            try { file = await downscaleToJpeg(file); } catch (e) {}
+
+            galleryFiles.push(file);
         }
 
         try {
-            if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
-                const blob = await heic2any({
-                    blob: file,
-                    toType: 'image/jpeg',
-                    quality: 0.8
-                });
-
-                file = new File([blob], file.name.replace('.heic', '.jpg'), {
-                    type: 'image/jpeg'
-                });
+            renderGallery();
+        } catch (e) {
+            // Fallback: don't block the wizard if preview/sync fails on iOS.
+            const nextBtn = document.getElementById('wizardNextBtn');
+            const nameLabel2 = document.getElementById('gallery_images_name');
+            const count = (input.files && input.files.length) ? input.files.length : galleryFiles.length;
+            if (nameLabel2) {
+                nameLabel2.textContent = count < 12
+                    ? `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${count})`
+                    : `${count} صور مختارة`;
             }
-        } catch (e) {}
-
-        try {
-            file = await downscaleToJpeg(file);
-        } catch (e) {}
-
-        galleryFiles.push(file);
+            if (nextBtn) nextBtn.disabled = count < 12;
+        }
+    } finally {
+        setWizardBusy(false);
     }
-
-    renderGallery();
-    setWizardBusy(false);
 }
 
 function renderGallery() {
@@ -912,25 +950,34 @@ function renderGallery() {
     const nameLabel = document.getElementById('gallery_images_name');
     const nextBtn = document.getElementById('wizardNextBtn');
 
-    preview.innerHTML = '';
+    if (preview) preview.innerHTML = '';
 
-    const dt = new DataTransfer();
-    galleryFiles.forEach(f => dt.items.add(f));
-    document.getElementById('gallery_images').files = dt.files;
+    try {
+        const dt = new DataTransfer();
+        galleryFiles.forEach(f => dt.items.add(f));
+        const input = document.getElementById('gallery_images');
+        if (input) input.files = dt.files;
+    } catch (e) {
+        // DataTransfer may throw on iOS Safari; keep original input.files untouched.
+    }
 
     if (galleryFiles.length < 12) {
-        nameLabel.textContent = `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${galleryFiles.length})`;
-        nameLabel.classList.add('text-red-600');
-        nameLabel.classList.remove('text-green-600');
+        if (nameLabel) {
+            nameLabel.textContent = `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${galleryFiles.length})`;
+            nameLabel.classList.add('text-red-600');
+            nameLabel.classList.remove('text-green-600');
+        }
 
         if (nextBtn) {
             nextBtn.disabled = true;
             nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
         }
     } else {
-        nameLabel.textContent = `${galleryFiles.length} صور مختارة`;
-        nameLabel.classList.remove('text-red-600');
-        nameLabel.classList.add('text-green-600');
+        if (nameLabel) {
+            nameLabel.textContent = `${galleryFiles.length} صور مختارة`;
+            nameLabel.classList.remove('text-red-600');
+            nameLabel.classList.add('text-green-600');
+        }
 
         if (nextBtn) {
             nextBtn.disabled = false;
