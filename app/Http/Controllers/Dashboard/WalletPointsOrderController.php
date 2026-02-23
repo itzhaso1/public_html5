@@ -81,7 +81,12 @@ class WalletPointsOrderController extends Controller
             $mpr->shop2topup_response = $trx;
 
             $hay = strtoupper(trim($status . ' ' . $msg));
-            $isDelivered = $hay !== '' && (str_contains($hay, 'DELIVER') || str_contains($hay, 'SUCCESS') || str_contains($hay, 'COMPLET'));
+            $isDelivered = $hay !== '' && (
+                str_contains($hay, 'DELIVER') ||
+                str_contains($hay, 'SUCCESS') ||
+                str_contains($hay, 'COMPLET') ||
+                str_contains($hay, 'DONE')
+            );
             $isFailed = $hay !== '' && (
                 str_contains($hay, 'REFUND_REGION') ||
                 str_contains($hay, 'REFUND') ||

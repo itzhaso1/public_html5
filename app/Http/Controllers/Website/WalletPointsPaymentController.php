@@ -240,7 +240,10 @@ class WalletPointsPaymentController extends Controller
     {
         $s = strtoupper(trim((string) $status));
         if ($s === '') return false;
-        return str_contains($s, 'DELIVER') || str_contains($s, 'SUCCESS') || str_contains($s, 'COMPLET');
+        return str_contains($s, 'DELIVER')
+            || str_contains($s, 'SUCCESS')
+            || str_contains($s, 'COMPLET')
+            || str_contains($s, 'DONE');
     }
 
     private function isRefundOrRejectedStatus(?string $status, ?string $msg): bool

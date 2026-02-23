@@ -73,7 +73,8 @@ class RefreshWalletPointsOrders extends Command
                     $isDelivered = $hay !== '' && (
                         str_contains($hay, 'DELIVER') ||
                         str_contains($hay, 'SUCCESS') ||
-                        str_contains($hay, 'COMPLET')
+                        str_contains($hay, 'COMPLET') ||
+                        str_contains($hay, 'DONE')
                     );
                     $isFailed = $hay !== '' && (
                         str_contains($hay, 'REFUND_REGION') ||
