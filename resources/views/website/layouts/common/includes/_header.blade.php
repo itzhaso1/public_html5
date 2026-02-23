@@ -26,7 +26,15 @@
                 @auth
                     <a href="{{ route('customer.purchases') }}" class="text-white hover:text-yellow-400 font-medium">مشترياتي</a>
                     <a href="{{ route('customer.wallet.index') }}" class="text-white hover:text-yellow-400 font-medium">
-                        محفظتي ({{ number_format((int)(auth()->user()?->wallet_points_balance ?? 0)) }})
+                        <span class="relative inline-flex items-center">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <path d="M3 7a3 3 0 0 1 3-3h12a2 2 0 0 1 2 2v2h-5a3 3 0 0 0 0 6h5v2a2 2 0 0 1-2 2H6a3 3 0 0 1-3-3V7zm18 3h-5a1 1 0 1 0 0 2h5v-2z"/>
+                            </svg>
+                            <span class="ms-2">المحفظة</span>
+                            <span class="absolute -top-2 -right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-yellow-400 text-black text-[11px] font-extrabold flex items-center justify-center">
+                                {{ number_format((int)(auth()->user()?->wallet_points_balance ?? 0)) }}
+                            </span>
+                        </span>
                     </a>
                     <a href="{{ route('customer.profile') }}" class="text-white hover:text-yellow-400 font-medium">ملفي الشخصي</a>
                 @endauth
@@ -59,7 +67,17 @@
         <a href="#" class="block text-white px-3 py-2 rounded hover:bg-gray-700">العروض</a>
         @auth
             <a href="{{ route('customer.purchases') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">مشترياتي</a>
-            <a href="{{ route('customer.wallet.index') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">محفظتي (نقاط)</a>
+            <a href="{{ route('customer.wallet.index') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">
+                <span class="inline-flex items-center gap-2">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M3 7a3 3 0 0 1 3-3h12a2 2 0 0 1 2 2v2h-5a3 3 0 0 0 0 6h5v2a2 2 0 0 1-2 2H6a3 3 0 0 1-3-3V7zm18 3h-5a1 1 0 1 0 0 2h5v-2z"/>
+                    </svg>
+                    <span>محفظتي</span>
+                    <span class="inline-flex items-center justify-center min-w-[22px] h-[18px] px-1 rounded-full bg-yellow-400 text-black text-[11px] font-extrabold">
+                        {{ number_format((int)(auth()->user()?->wallet_points_balance ?? 0)) }}
+                    </span>
+                </span>
+            </a>
             <a href="{{ route('customer.profile') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">ملفي الشخصي</a>
         @endauth
         <a href="https://chat.whatsapp.com/LiEKm0hQPlB9yeToyetcbh" class="block text-white px-3 py-2 rounded hover:bg-gray-700">تواصل معنا</a>
