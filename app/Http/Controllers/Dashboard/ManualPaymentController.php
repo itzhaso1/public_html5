@@ -78,6 +78,10 @@ class ManualPaymentController extends Controller
     public function index()
     {
         $requests = ManualPaymentRequest::query()
+            ->where(function ($q) {
+                $q->whereNull('payment_method')
+                    ->orWhere('payment_method', '!=', 'wallet_points');
+            })
             ->with(['product', 'user'])
             ->latest()
             ->paginate(30);
@@ -90,6 +94,12 @@ class ManualPaymentController extends Controller
 
     public function show(ManualPaymentRequest $manualPaymentRequest)
     {
+        if (($manualPaymentRequest->payment_method ?? null) === 'wallet_points') {
+            return redirect()
+                ->route('admin.wallet_points_orders.show', $manualPaymentRequest)
+                ->withErrors(['error' => 'هذا الطلب مدفوع بالنقاط وتم نقله لقسم طلبات النقاط.']);
+        }
+
         $manualPaymentRequest->load(['product', 'user']);
 
         return view('dashboard.admin.manual_payments.show', [
@@ -106,6 +116,9 @@ class ManualPaymentController extends Controller
 
     public function receipt(ManualPaymentRequest $manualPaymentRequest)
     {
+        if (($manualPaymentRequest->payment_method ?? null) === 'wallet_points') {
+            abort(404);
+        }
         abort_if(! $manualPaymentRequest->receipt_path, 404);
         abort_if(! Storage::disk('public')->exists($manualPaymentRequest->receipt_path), 404);
 
@@ -114,6 +127,11 @@ class ManualPaymentController extends Controller
 
     public function checkTransaction(Request $request, ManualPaymentRequest $manualPaymentRequest)
     {
+        if (($manualPaymentRequest->payment_method ?? null) === 'wallet_points') {
+            return redirect()
+                ->route('admin.wallet_points_orders.show', $manualPaymentRequest)
+                ->withErrors(['error' => 'هذا الطلب مدفوع بالنقاط—استخدم تحديث الحالة من قسم طلبات النقاط.']);
+        }
         $request->validate([
             'trx_id' => ['required', 'string', 'max:100'],
         ]);
@@ -156,6 +174,11 @@ class ManualPaymentController extends Controller
 
     public function approve(Request $request, ManualPaymentRequest $manualPaymentRequest)
     {
+        if (($manualPaymentRequest->payment_method ?? null) === 'wallet_points') {
+            return redirect()
+                ->route('admin.wallet_points_orders.show', $manualPaymentRequest)
+                ->withErrors(['error' => 'طلبات النقاط لا يتم قبولها من هنا.']);
+        }
         if ((string) ($manualPaymentRequest->status ?? '') !== 'pending') {
             return back()->withErrors(['error' => 'لا يمكن تنفيذ هذا الإجراء لأن الطلب ليس قيد المراجعة.']);
         }
@@ -368,6 +391,11 @@ class ManualPaymentController extends Controller
 
     public function reject(Request $request, ManualPaymentRequest $manualPaymentRequest)
     {
+        if (($manualPaymentRequest->payment_method ?? null) === 'wallet_points') {
+            return redirect()
+                ->route('admin.wallet_points_orders.show', $manualPaymentRequest)
+                ->withErrors(['error' => 'طلبات النقاط لا يتم رفضها من هنا.']);
+        }
         if ((string) ($manualPaymentRequest->status ?? '') !== 'pending') {
             return back()->withErrors(['error' => 'لا يمكن تنفيذ هذا الإجراء لأن الطلب ليس قيد المراجعة.']);
         }
@@ -477,6 +505,11 @@ class ManualPaymentController extends Controller
 
     public function destroy(Request $request, ManualPaymentRequest $manualPaymentRequest)
     {
+        if (($manualPaymentRequest->payment_method ?? null) === 'wallet_points') {
+            return redirect()
+                ->route('admin.wallet_points_orders.show', $manualPaymentRequest)
+                ->withErrors(['error' => 'حذف طلبات النقاط يتم من قسم طلبات النقاط.']);
+        }
         $data = $request->validate([
             'confirm' => ['required', 'in:DELETE'],
         ]);
@@ -522,6 +555,10 @@ class ManualPaymentController extends Controller
 
         $requests = ManualPaymentRequest::query()
             ->whereIn('id', $ids)
+            ->where(function ($q) {
+                $q->whereNull('payment_method')
+                    ->orWhere('payment_method', '!=', 'wallet_points');
+            })
             ->get(['id', 'receipt_path', 'status', 'payment_method', 'points_spent', 'points_refunded_at', 'user_id', 'product_id']);
 
         foreach ($requests as $r) {
@@ -542,7 +579,13 @@ class ManualPaymentController extends Controller
             }
         }
 
-        ManualPaymentRequest::query()->whereIn('id', $ids)->delete();
+        ManualPaymentRequest::query()
+            ->whereIn('id', $ids)
+            ->where(function ($q) {
+                $q->whereNull('payment_method')
+                    ->orWhere('payment_method', '!=', 'wallet_points');
+            })
+            ->delete();
         $this->forgetDiamondsCaches();
 
         return back()->with('success', 'تم حذف الطلبات المحددة ✅');
@@ -555,6 +598,10 @@ class ManualPaymentController extends Controller
         ]);
 
         ManualPaymentRequest::query()
+            ->where(function ($q) {
+                $q->whereNull('payment_method')
+                    ->orWhere('payment_method', '!=', 'wallet_points');
+            })
             ->select(['id', 'receipt_path', 'status', 'payment_method', 'points_spent', 'points_refunded_at', 'user_id', 'product_id'])
             ->orderBy('id')
             ->chunkById(200, function ($chunk) {

@@ -84,6 +84,14 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
             Route::delete('{manualPaymentRequest}', [Dashboard\ManualPaymentController::class, 'destroy'])->name('destroy');
         });
 
+        // Wallet points orders (separated from manual bank transfer)
+        Route::prefix('wallet-points-orders')->as('wallet_points_orders.')->group(function () {
+            Route::get('/', [Dashboard\WalletPointsOrderController::class, 'index'])->name('index');
+            Route::get('{manualPaymentRequest}', [Dashboard\WalletPointsOrderController::class, 'show'])->name('show');
+            Route::post('{manualPaymentRequest}/refresh', [Dashboard\WalletPointsOrderController::class, 'refreshTransaction'])->name('refresh');
+            Route::delete('{manualPaymentRequest}', [Dashboard\WalletPointsOrderController::class, 'destroy'])->name('destroy');
+        });
+
         // Wallet top-ups (points deposits)
         Route::prefix('wallet-topups')->as('wallet_topups.')->group(function () {
             Route::get('/', [Dashboard\WalletTopupRequestController::class, 'index'])->name('index');

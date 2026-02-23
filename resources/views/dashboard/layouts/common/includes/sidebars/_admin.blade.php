@@ -93,6 +93,14 @@
         </a>
     </div>
 
+    <!-- Wallet points orders -->
+    <div class="menu-item">
+        <a class="menu-link {{ is_active('admin.wallet_points_orders.*') }}" href="{{ route('admin.wallet_points_orders.index') }}">
+            <span class="menu-icon"><i class="bi bi-lightning-charge fs-2"></i></span>
+            <span class="menu-title">طلبات الشحن بالنقاط</span>
+        </a>
+    </div>
+
     <!-- Wallet topups -->
     <div class="menu-item">
         <a class="menu-link {{ is_active('admin.wallet_topups.*') }}" href="{{ route('admin.wallet_topups.index') }}">
