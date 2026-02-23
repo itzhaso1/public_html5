@@ -90,7 +90,7 @@ return [
     'login_to_your_account' => 'تسجيل الدخول لحسابك',
     'name' => 'الاسم',
     'email' => 'البريد الالكترونى',
-    'phone' => 'غير رقم هاتفك',
+    'phone' => 'ادخل رقم هاتفك',
     'password' => 'كلمه المرور',
     'login_account' => 'تسجيل الدخول',
     'register_new_account' => 'تسجيل حساب جديد',
