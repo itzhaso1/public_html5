@@ -14,9 +14,10 @@ class Kernel extends ConsoleKernel
     {
         // Auto refresh pending wallet points gem orders (Shop2TopUp)
         $schedule->command('wallet:refresh-points-orders --limit=50')
-            ->everyFiveMinutes()
+            ->everyMinute()
             ->withoutOverlapping()
-            ->onOneServer();
+            ->onOneServer()
+            ->appendOutputTo(storage_path('logs/cron-wallet-points.log'));
     }
 
     /**
