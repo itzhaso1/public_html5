@@ -21,11 +21,16 @@
         @forelse($requests as $mpr)
             @php
                 $isCodes = ($mpr->product?->service_type ?? null) === 'codes';
+                $isGems = ($mpr->product?->service_type ?? null) === 'gems';
+                $isPoints = ($mpr->payment_method ?? null) === 'wallet_points';
                 $statusLabel = match($mpr->status) {
                     'approved' => 'مقبول',
                     'rejected' => 'مرفوض',
                     default => 'قيد المراجعة',
                 };
+                if ($isGems && $isPoints && ($mpr->status ?? '') === 'pending') {
+                    $statusLabel = 'قيد المعالجة';
+                }
                 $statusClass = match($mpr->status) {
                     'approved' => 'bg-green-100 text-green-800 border-green-200',
                     'rejected' => 'bg-red-100 text-red-800 border-red-200',
@@ -63,6 +68,31 @@
                         <div class="text-xs text-gray-500">{{ $mpr->created_at?->format('Y-m-d H:i') }}</div>
                     </div>
                 </div>
+
+                @if($isGems && $isPoints)
+                    <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="text-sm text-gray-700">
+                                <span class="font-extrabold">حالة المزود:</span>
+                                <span class="font-mono text-xs">{{ $mpr->shop2topup_status ?? '-' }}</span>
+                            </div>
+                            @if(($mpr->status ?? '') === 'pending' && !empty($mpr->shop2topup_trx_id))
+                                <form method="POST" action="{{ route('customer.purchases.refresh_shop2topup', $mpr) }}">
+                                    @csrf
+                                    <button type="submit"
+                                            class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold hover:bg-gray-50 transition">
+                                        تحديث الحالة
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                        @if(($mpr->status ?? '') === 'rejected' && !empty($mpr->points_refunded_at))
+                            <div class="mt-2 text-xs font-extrabold text-emerald-700">
+                                تم إرجاع النقاط ✅ يمكنك الشحن مرة أخرى.
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 @if($isCodes)
                     <div class="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">

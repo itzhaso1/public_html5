@@ -207,6 +207,9 @@ Route::group(
             Route::get('orders/show/{order}', [Customer\DashboardController::class, 'showPartial'])->name('orders.partial');
             Route::get('track', [Customer\DashboardController::class, 'trackOrder'])->name('track.order');
             Route::get('purchases', [Customer\PurchasesController::class, 'index'])->name('purchases');
+            Route::post('purchases/{manualPaymentRequest}/refresh-shop2topup', [Customer\PurchasesController::class, 'refreshShop2Topup'])
+                ->middleware('throttle:10,1')
+                ->name('purchases.refresh_shop2topup');
             Route::get('diamond-codes/{diamondCode}/image', [Customer\DiamondCodeController::class, 'image'])
                 ->name('diamond_codes.image');
             Route::get('profile', [Customer\ProfileController::class, 'edit'])->name('profile');

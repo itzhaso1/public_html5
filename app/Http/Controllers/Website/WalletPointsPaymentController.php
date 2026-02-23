@@ -195,22 +195,32 @@ class WalletPointsPaymentController extends Controller
                 return back()->withErrors(['error' => $msg])->withInput();
             }
 
-            // Mark approved after successful submission
-            ManualPaymentRequest::query()->whereKey($mprId)->update([
-                'status' => 'approved',
-                'approved_at' => now(),
-            ]);
-
             // Update transaction status (best-effort)
             try {
                 $trx = $service->getTransaction((string) $trxId);
+                $status = (string) ($trx['status'] ?? '');
+                $msg = (string) ($trx['msg'] ?? '');
+
                 ManualPaymentRequest::query()->whereKey($mprId)->update([
-                    'shop2topup_status' => $trx['status'] ?? 'SUBMITTED',
+                    'shop2topup_status' => $status !== '' ? $status : 'SUBMITTED',
                     'shop2topup_order_id' => $trx['order_id'] ?? null,
                     'shop2topup_secure_id' => $trx['secure_id'] ?? null,
                     'shop2topup_delivery_at' => !empty($trx['delivery_at']) ? $trx['delivery_at'] : null,
                     'shop2topup_response' => $trx,
                 ]);
+
+                if ($this->isDeliveredStatus($status)) {
+                    ManualPaymentRequest::query()->whereKey($mprId)->update([
+                        'status' => 'approved',
+                        'approved_at' => now(),
+                    ]);
+                } elseif ($this->isRefundOrRejectedStatus($status, $msg)) {
+                    $reason = $msg !== '' ? $msg : ($status !== '' ? $status : 'رفض المزود');
+                    $this->refundAndRejectMpr($wallet, $user, $points, $mprId, $reason);
+                    return back()->withErrors(['error' => 'تم رفض الطلب من المزود: ' . $reason . ' — اشحن مرة أخرى.'])->withInput();
+                } else {
+                    // still processing => keep pending
+                }
             } catch (\Throwable $e) {
                 // ignore
             }
@@ -223,7 +233,30 @@ class WalletPointsPaymentController extends Controller
 
         return redirect()
             ->route('customer.purchases')
-            ->with('success', 'تم تنفيذ طلبك والدفع بالنقاط ✅');
+            ->with('success', $isGems ? 'تم إرسال طلب الشحن للمزود ✅ الحالة: قيد المعالجة.' : 'تم تنفيذ طلبك والدفع بالنقاط ✅');
+    }
+
+    private function isDeliveredStatus(?string $status): bool
+    {
+        $s = strtoupper(trim((string) $status));
+        if ($s === '') return false;
+        return str_contains($s, 'DELIVER') || str_contains($s, 'SUCCESS') || str_contains($s, 'COMPLET');
+    }
+
+    private function isRefundOrRejectedStatus(?string $status, ?string $msg): bool
+    {
+        $s = strtoupper(trim((string) $status));
+        $m = strtoupper(trim((string) $msg));
+        $hay = $s . ' ' . $m;
+        if ($hay === '') return false;
+
+        // Common failure indicators from vendor
+        return str_contains($hay, 'REFUND_REGION')
+            || str_contains($hay, 'REFUND')
+            || str_contains($hay, 'FAILED')
+            || str_contains($hay, 'REJECT')
+            || str_contains($hay, 'CANCEL')
+            || str_contains($hay, 'ERROR');
     }
 
     private function refundAndRejectMpr(WalletService $wallet, $user, int $points, ?int $mprId, string $message): void
