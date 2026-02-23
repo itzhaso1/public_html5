@@ -8,6 +8,7 @@ use App\Services\Wallet\WalletService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class RefreshWalletPointsOrders extends Command
 {
@@ -20,10 +21,12 @@ class RefreshWalletPointsOrders extends Command
         $lock = Cache::lock('wallet.refresh_points_orders', 60);
         if (! $lock->get()) {
             $this->info('Skipped: already running.');
+            Log::info('wallet:refresh-points-orders skipped (lock busy)');
             return self::SUCCESS;
         }
 
         try {
+            $startedAt = microtime(true);
             $limit = max(1, (int) $this->option('limit'));
 
             $q = ManualPaymentRequest::query()
@@ -38,6 +41,7 @@ class RefreshWalletPointsOrders extends Command
 
             $total = (clone $q)->count();
             $this->info("Pending wallet points gem orders: {$total}");
+            Log::info('wallet:refresh-points-orders started', ['pending_total' => $total, 'limit' => $limit]);
 
             $processed = 0;
             $approved = 0;
@@ -129,6 +133,13 @@ class RefreshWalletPointsOrders extends Command
             });
 
             $this->info("Processed: {$processed}, Approved: {$approved}, Rejected+Refunded: {$rejected}, FailedFetch: {$failedFetch}");
+            Log::info('wallet:refresh-points-orders finished', [
+                'processed' => $processed,
+                'approved' => $approved,
+                'rejected_refunded' => $rejected,
+                'failed_fetch' => $failedFetch,
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
             return self::SUCCESS;
         } finally {
             optional($lock)->release();
