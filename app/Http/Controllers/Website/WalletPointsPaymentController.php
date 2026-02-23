@@ -47,6 +47,8 @@ class WalletPointsPaymentController extends Controller
 
         $data = $request->validate($rules);
 
+        $playerId = null;
+        $playerCheck = null;
         if ($isGems) {
             $playerId = trim((string) ($data['player_id'] ?? ''));
             $cacheKey = 'shop2topup.player.' . sha1($playerId);
@@ -70,6 +72,7 @@ class WalletPointsPaymentController extends Controller
                     ->withErrors(['error' => 'تعذر التحقق من اسم اللاعب: ' . $friendly])
                     ->withInput();
             }
+            $playerCheck = $check;
         }
 
         if ($isCodes) {
@@ -92,33 +95,125 @@ class WalletPointsPaymentController extends Controller
         $user = $request->user();
         $points = (int) $product->points_price;
 
-        try {
-            DB::transaction(function () use ($wallet, $user, $product, $points, $data, $request) {
-                // Deduct points first (locked in WalletService).
-                $wallet->debit($user, $points, 'purchase_debit', $product, [
-                    'product_id' => $product->id,
-                    'service_type' => (string) ($product->service_type ?? ''),
-                ]);
+        if ($isCodes) {
+            // Instant delivery for codes paid with points.
+            try {
+                DB::transaction(function () use ($wallet, $user, $product, $points, $data, $request) {
+                    $wallet->debit($user, $points, 'purchase_debit', $product, [
+                        'product_id' => $product->id,
+                        'service_type' => (string) ($product->service_type ?? ''),
+                    ]);
 
-                ManualPaymentRequest::create([
-                    'reference' => (string) Str::uuid(),
-                    'product_id' => $product->id,
-                    'user_id' => $user->id,
-                    'player_id' => $data['player_id'] ?? null,
-                    'contact_phone' => $data['contact_phone'] ?? null,
-                    'contact_email' => $data['contact_email'] ?? null,
-                    'amount' => (float) ($product->price ?? 0),
-                    'currency' => 'SAR',
-                    'payment_method' => 'wallet_points',
-                    'points_spent' => $points,
-                    'receipt_path' => null,
-                    'status' => 'pending',
-                    'ip' => $request->ip(),
-                    'user_agent' => (string) $request->userAgent(),
+                    $mpr = ManualPaymentRequest::create([
+                        'reference' => (string) Str::uuid(),
+                        'product_id' => $product->id,
+                        'user_id' => $user->id,
+                        'player_id' => $data['player_id'] ?? null,
+                        'contact_phone' => $data['contact_phone'] ?? null,
+                        'contact_email' => $data['contact_email'] ?? null,
+                        'amount' => (float) ($product->price ?? 0),
+                        'currency' => 'SAR',
+                        'payment_method' => 'wallet_points',
+                        'points_spent' => $points,
+                        'receipt_path' => null,
+                        'status' => 'approved',
+                        'approved_at' => now(),
+                        'ip' => $request->ip(),
+                        'user_agent' => (string) $request->userAgent(),
+                    ]);
+
+                    $code = DiamondCode::query()
+                        ->where('product_id', $product->id)
+                        ->where('status', 'available')
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (!$code) {
+                        throw new \RuntimeException('نفذت الكمية حالياً. جرّب لاحقاً.');
+                    }
+
+                    $code->update([
+                        'status' => 'delivered',
+                        'user_id' => $user->id,
+                        'manual_payment_request_id' => $mpr->id,
+                        'delivered_at' => now(),
+                    ]);
+                });
+            } catch (\RuntimeException $e) {
+                return back()->withErrors(['error' => $e->getMessage()])->withInput();
+            }
+        } else {
+            // Gems: submit to Shop2TopUp immediately (no admin approval), refund points on failure.
+            $mprId = null;
+            $trxId = null;
+
+            try {
+                DB::transaction(function () use ($wallet, $user, $product, $points, $data, $request, &$mprId, &$trxId) {
+                    $wallet->debit($user, $points, 'purchase_debit', $product, [
+                        'product_id' => $product->id,
+                        'service_type' => (string) ($product->service_type ?? ''),
+                    ]);
+
+                    $trxId = (string) Str::uuid();
+                    $mpr = ManualPaymentRequest::create([
+                        'reference' => (string) Str::uuid(),
+                        'product_id' => $product->id,
+                        'user_id' => $user->id,
+                        'player_id' => $data['player_id'] ?? null,
+                        'contact_phone' => $data['contact_phone'] ?? null,
+                        'contact_email' => $data['contact_email'] ?? null,
+                        'amount' => (float) ($product->price ?? 0),
+                        'currency' => 'SAR',
+                        'payment_method' => 'wallet_points',
+                        'points_spent' => $points,
+                        'receipt_path' => null,
+                        'status' => 'pending',
+                        'shop2topup_trx_id' => $trxId,
+                        'shop2topup_status' => 'SUBMITTING',
+                        'ip' => $request->ip(),
+                        'user_agent' => (string) $request->userAgent(),
+                    ]);
+                    $mprId = $mpr->id;
+                });
+            } catch (\RuntimeException $e) {
+                return back()->withErrors(['error' => $e->getMessage()])->withInput();
+            }
+
+            $service = new Shop2TopUpService();
+            $player = trim((string) ($data['player_id'] ?? ''));
+            $offerId = (int) ($product->itemID ?? 0);
+            if ($offerId <= 0) {
+                // refund points + mark rejected
+                $this->refundAndRejectMpr($wallet, $user, $points, $mprId, 'هذا المنتج غير مربوط بعرض Shop2TopUp (itemId).');
+                return back()->withErrors(['error' => 'هذا المنتج غير مربوط بعرض Shop2TopUp (itemId).'])->withInput();
+            }
+
+            $top = $service->topup($player, $offerId, (string) $trxId);
+            if (($top['success'] ?? false) !== true) {
+                $msg = (string) ($top['msg'] ?? 'فشل إرسال الطلب');
+                $this->refundAndRejectMpr($wallet, $user, $points, $mprId, $msg);
+                return back()->withErrors(['error' => $msg])->withInput();
+            }
+
+            // Mark approved after successful submission
+            ManualPaymentRequest::query()->whereKey($mprId)->update([
+                'status' => 'approved',
+                'approved_at' => now(),
+            ]);
+
+            // Update transaction status (best-effort)
+            try {
+                $trx = $service->getTransaction((string) $trxId);
+                ManualPaymentRequest::query()->whereKey($mprId)->update([
+                    'shop2topup_status' => $trx['status'] ?? 'SUBMITTED',
+                    'shop2topup_order_id' => $trx['order_id'] ?? null,
+                    'shop2topup_secure_id' => $trx['secure_id'] ?? null,
+                    'shop2topup_delivery_at' => !empty($trx['delivery_at']) ? $trx['delivery_at'] : null,
+                    'shop2topup_response' => $trx,
                 ]);
-            });
-        } catch (\RuntimeException $e) {
-            return back()->withErrors(['error' => $e->getMessage()]);
+            } catch (\Throwable $e) {
+                // ignore
+            }
         }
 
         // Clear cached codes list so out-of-stock products can disappear fast.
@@ -128,7 +223,37 @@ class WalletPointsPaymentController extends Controller
 
         return redirect()
             ->route('customer.purchases')
-            ->with('success', 'تم إنشاء طلبك والدفع بالنقاط ✅ سيتم تنفيذ الطلب بعد المراجعة.');
+            ->with('success', 'تم تنفيذ طلبك والدفع بالنقاط ✅');
+    }
+
+    private function refundAndRejectMpr(WalletService $wallet, $user, int $points, ?int $mprId, string $message): void
+    {
+        if (!$mprId) {
+            // Best-effort refund only; debit may have failed before mpr creation.
+            try { $wallet->credit($user, $points, 'refund_credit', null, ['message' => $message]); } catch (\Throwable $e) {}
+            return;
+        }
+
+        try {
+            DB::transaction(function () use ($wallet, $user, $points, $mprId, $message) {
+                $mpr = ManualPaymentRequest::query()->whereKey($mprId)->lockForUpdate()->first();
+                if (!$mpr) return;
+
+                if (empty($mpr->points_refunded_at) && (int) ($mpr->points_spent ?? 0) > 0) {
+                    $wallet->credit($user, $points, 'refund_credit', $mpr, [
+                        'reason' => 'points_purchase_failed',
+                        'message' => $message,
+                    ]);
+                    $mpr->points_refunded_at = now();
+                }
+
+                $mpr->status = 'rejected';
+                $mpr->admin_note = trim(($mpr->admin_note ? ($mpr->admin_note . "\n") : '') . 'AUTO: ' . $message);
+                $mpr->save();
+            });
+        } catch (\Throwable $e) {
+            // ignore
+        }
     }
 
     private function ensureProductSupportsPoints(Product $product): void
