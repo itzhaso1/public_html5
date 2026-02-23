@@ -19,6 +19,7 @@ class WalletTopupRequest extends Model
         'point_price_usd',
         'amount_sar',
         'amount_usd',
+        'payment_method',
         'receipt_path',
         'status',
         'admin_note',

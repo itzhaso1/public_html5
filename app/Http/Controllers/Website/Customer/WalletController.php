@@ -50,8 +50,22 @@ class WalletController extends Controller
 
     public function storeTopup(Request $request, WalletService $wallet)
     {
+        $methods = (array) config('bank.methods', []);
+        $enabledKeys = [];
+        foreach ($methods as $k => $m) {
+            if (!is_array($m)) continue;
+            if (!($m['enabled'] ?? false)) continue;
+            if ($k === 'binance_trc20') {
+                $addr = trim((string) ($m['address'] ?? ''));
+                $link = trim((string) ($m['link'] ?? ''));
+                if ($addr === '' && $link === '') continue;
+            }
+            $enabledKeys[] = (string) $k;
+        }
+
         $data = $request->validate([
             'points' => ['required', 'integer', 'min:1', 'max:1000000'],
+            'payment_method' => ['required', 'string', 'in:' . implode(',', $enabledKeys ?: ['sa_bank'])],
             'receipt' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,webp,pdf'],
         ]);
 
@@ -71,6 +85,7 @@ class WalletController extends Controller
             'point_price_usd' => (float) $prices['usd'],
             'amount_sar' => $amountSar,
             'amount_usd' => $amountUsd,
+            'payment_method' => (string) ($data['payment_method'] ?? null),
             'receipt_path' => $path,
             'status' => 'pending',
         ]);

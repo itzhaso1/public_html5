@@ -8,6 +8,16 @@
 @php
     $ppSar = (float) ($pointPrices['sar'] ?? 3.75);
     $ppUsd = (float) ($pointPrices['usd'] ?? 1.0);
+    $methods = (array) config('bank.methods', []);
+    $enabledMethods = collect($methods)->filter(fn($m) => is_array($m) && ($m['enabled'] ?? false));
+    $enabledMethods = $enabledMethods->filter(function ($m, $key) {
+        if ($key !== 'binance_trc20') return true;
+        $addr = trim((string) ($m['address'] ?? ''));
+        $link = trim((string) ($m['link'] ?? ''));
+        return $addr !== '' || $link !== '';
+    });
+    $methodKeys = $enabledMethods->keys()->values()->all();
+    $selectedMethod = old('payment_method') ?: ($methodKeys[0] ?? null);
 @endphp
 
 <section class="max-w-3xl mx-auto px-4 py-8" dir="rtl">
@@ -57,6 +67,116 @@
                 </div>
             </div>
 
+            @if(count($methodKeys))
+                <div>
+                    <label class="block text-sm font-extrabold mb-2">طريقة الدفع</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        @foreach($methodKeys as $key)
+                            @php $m = $enabledMethods->get($key, []); @endphp
+                            @php
+                                $methodUi = [
+                                    'sa_bank' => ['emoji' => '🇸🇦', 'label' => 'تحويل بنكي سعودي'],
+                                    'jo_click' => ['emoji' => '🇯🇴', 'label' => 'تحويل أردني'],
+                                    'binance_trc20' => ['emoji' => '💰', 'label' => 'Binance USDT (TRC20)'],
+                                ];
+                                $ui = $methodUi[$key] ?? null;
+                            @endphp
+                            <label class="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm cursor-pointer hover:bg-gray-50 transition">
+                                <input type="radio" name="payment_method" value="{{ $key }}"
+                                       class="accent-yellow-500"
+                                       {{ $selectedMethod === $key ? 'checked' : '' }}>
+                                <span class="text-base">{{ $ui['emoji'] ?? '💳' }}</span>
+                                <span class="font-extrabold">{{ $ui['label'] ?? ($m['title'] ?? $key) }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('payment_method')<div class="text-xs text-red-600 mt-1">{{ $message }}</div>@enderror
+                </div>
+
+                <div class="space-y-3">
+                    @foreach($methodKeys as $key)
+                        @php $m = $enabledMethods->get($key, []); @endphp
+                        <div class="payment-card payment-{{ $key }} {{ $selectedMethod === $key ? '' : 'hidden' }} rounded-2xl border border-gray-200 bg-white shadow-sm p-4">
+                            <div class="flex items-center justify-between gap-2">
+                                <div class="font-extrabold text-gray-900">{{ $m['title'] ?? $key }}</div>
+                                <span class="payment-badge text-[11px] font-extrabold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
+                                    محدد
+                                </span>
+                            </div>
+
+                            <div class="mt-3 divide-y divide-gray-100 text-sm text-gray-700">
+                                @if($key === 'sa_bank')
+                                    @if(!empty($m['bank_name']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">البنك</span>
+                                            <span class="font-semibold select-all">{{ $m['bank_name'] }}</span>
+                                        </div>
+                                    @endif
+                                    @if(!empty($m['account_name']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">اسم الحساب</span>
+                                            <span class="font-semibold select-all">{{ $m['account_name'] }}</span>
+                                        </div>
+                                    @endif
+                                    @if(!empty($m['account_number']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">رقم الحساب</span>
+                                            <span class="font-mono font-semibold text-[13px] select-all">{{ $m['account_number'] }}</span>
+                                        </div>
+                                    @endif
+                                    @if(!empty($m['iban']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">IBAN</span>
+                                            <span class="font-mono font-semibold text-[13px] select-all">{{ $m['iban'] }}</span>
+                                        </div>
+                                    @endif
+                                @elseif($key === 'jo_click')
+                                    @if(!empty($m['bank_name']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">البنك</span>
+                                            <span class="font-semibold select-all">{{ $m['bank_name'] }}</span>
+                                        </div>
+                                    @endif
+                                    @if(!empty($m['account_name']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">الاسم</span>
+                                            <span class="font-semibold select-all">{{ $m['account_name'] }}</span>
+                                        </div>
+                                    @endif
+                                    @if(!empty($m['click_id']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">Click ID</span>
+                                            <span class="font-mono font-semibold text-[13px] select-all">{{ $m['click_id'] }}</span>
+                                        </div>
+                                    @endif
+                                @elseif($key === 'binance_trc20')
+                                    <div class="py-2 flex items-center justify-between gap-3">
+                                        <span class="text-xs text-gray-500">Network</span>
+                                        <span class="font-semibold select-all">{{ $m['network'] ?? 'TRC20' }}</span>
+                                    </div>
+                                    @if(!empty($m['address']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">Address</span>
+                                            <span class="font-mono font-semibold text-[13px] select-all">{{ $m['address'] }}</span>
+                                        </div>
+                                    @endif
+                                    @if(!empty($m['link']))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">Link</span>
+                                            <a class="text-blue-600 underline" href="{{ $m['link'] }}" target="_blank">فتح الرابط</a>
+                                        </div>
+                                    @endif
+                                @endif
+
+                                @if(!empty($m['note']))
+                                    <div class="pt-3 text-xs text-gray-500">{{ $m['note'] }}</div>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
             <div>
                 <label class="block text-sm font-extrabold mb-2">إيصال التحويل (صورة أو PDF)</label>
                 <input type="file" name="receipt" accept="image/*,.pdf"
@@ -94,5 +214,29 @@
     update();
   });
 </script>
+@if(count($methodKeys ?? []))
+<script>
+  (function () {
+    const radios = document.querySelectorAll('input[name="payment_method"]');
+    if (!radios.length) return;
+    const toggle = (key) => {
+      document.querySelectorAll('.payment-card').forEach(el => {
+        el.classList.add('hidden');
+        const badge = el.querySelector('.payment-badge');
+        if (badge) badge.classList.add('hidden');
+      });
+      const target = document.querySelector('.payment-' + key);
+      if (target) {
+        target.classList.remove('hidden');
+        const badge = target.querySelector('.payment-badge');
+        if (badge) badge.classList.remove('hidden');
+      }
+    };
+    radios.forEach(r => r.addEventListener('change', () => toggle(r.value)));
+    const checked = document.querySelector('input[name="payment_method"]:checked');
+    if (checked) toggle(checked.value);
+  })();
+</script>
+@endif
 @endpush
 

@@ -38,6 +38,7 @@
                 <th class="p-3 font-extrabold">المستخدم</th>
                 <th class="p-3 font-extrabold">النقاط</th>
                 <th class="p-3 font-extrabold">المبلغ</th>
+                <th class="p-3 font-extrabold">طريقة الدفع</th>
                 <th class="p-3 font-extrabold">الحالة</th>
                 <th class="p-3 font-extrabold">التاريخ</th>
                 <th class="p-3 font-extrabold">الإيصال</th>
@@ -69,6 +70,9 @@
                     <td class="p-3">
                         <div class="font-extrabold text-green-700">ر.س {{ number_format((float) $r->amount_sar, 2) }}</div>
                         <div class="text-xs text-gray-500">$ {{ number_format((float) $r->amount_usd, 2) }}</div>
+                    </td>
+                    <td class="p-3">
+                        <span class="font-bold">{{ $r->payment_method ?? '-' }}</span>
                     </td>
                     <td class="p-3">
                         <span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-extrabold {{ $badge }}">
@@ -112,7 +116,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td class="p-6 text-center text-gray-500" colspan="8">لا توجد طلبات.</td></tr>
+                <tr><td class="p-6 text-center text-gray-500" colspan="9">لا توجد طلبات.</td></tr>
             @endforelse
             </tbody>
         </table>
