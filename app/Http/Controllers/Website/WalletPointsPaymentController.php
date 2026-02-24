@@ -8,6 +8,7 @@ use App\Models\ManualPaymentRequest;
 use App\Models\Product;
 use App\Services\Integrations\Shop2TopUp\Shop2TopUpService;
 use App\Services\Wallet\WalletService;
+use App\Support\Shop2TopUp\Shop2TopUpBundle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -169,16 +170,25 @@ class WalletPointsPaymentController extends Controller
             } else {
                 // Gems: submit to Shop2TopUp immediately (no admin approval), refund points on failure.
                 $mprId = null;
-                $trxId = null;
+                $trxIds = [];
+                $trxIdValue = null;
 
                 try {
-                    DB::transaction(function () use ($wallet, $user, $product, $points, $data, $request, &$mprId, &$trxId) {
+                    $offerIds = Shop2TopUpBundle::offerIdsForProduct($product);
+                    if (empty($offerIds)) {
+                        throw new \RuntimeException('هذا المنتج غير مربوط بعرض Shop2TopUp (itemId).');
+                    }
+                    foreach ($offerIds as $_) {
+                        $trxIds[] = (string) Str::uuid();
+                    }
+                    $trxIdValue = Shop2TopUpBundle::encodeTrxIds($trxIds);
+
+                    DB::transaction(function () use ($wallet, $user, $product, $points, $data, $request, &$mprId, $trxIdValue) {
                         $wallet->debit($user, $points, 'purchase_debit', $product, [
                             'product_id' => $product->id,
                             'service_type' => (string) ($product->service_type ?? ''),
                         ]);
 
-                        $trxId = (string) Str::uuid();
                         $mpr = ManualPaymentRequest::create([
                             'reference' => (string) Str::uuid(),
                             'product_id' => $product->id,
@@ -192,7 +202,7 @@ class WalletPointsPaymentController extends Controller
                             'points_spent' => $points,
                             'receipt_path' => null,
                             'status' => 'pending',
-                            'shop2topup_trx_id' => $trxId,
+                            'shop2topup_trx_id' => $trxIdValue,
                             'shop2topup_status' => 'SUBMITTING',
                             'ip' => $request->ip(),
                             'user_agent' => (string) $request->userAgent(),
@@ -205,41 +215,121 @@ class WalletPointsPaymentController extends Controller
 
                 $service = new Shop2TopUpService();
                 $player = trim((string) ($data['player_id'] ?? ''));
-                $offerId = (int) ($product->itemID ?? 0);
-                if ($offerId <= 0) {
+                $offerIds = Shop2TopUpBundle::offerIdsForProduct($product);
+                if (empty($offerIds)) {
                     $this->refundAndRejectMpr($wallet, $user, $points, $mprId, 'هذا المنتج غير مربوط بعرض Shop2TopUp (itemId).');
                     return back()->withErrors(['error' => 'هذا المنتج غير مربوط بعرض Shop2TopUp (itemId).'])->withInput();
                 }
 
-                $top = $service->topup($player, $offerId, (string) $trxId);
-                if (($top['success'] ?? false) !== true) {
-                    $msg = (string) ($top['msg'] ?? 'فشل إرسال الطلب');
-                    $this->refundAndRejectMpr($wallet, $user, $points, $mprId, $msg);
-                    return back()->withErrors(['error' => $msg])->withInput();
+                $topups = [];
+                $providerTrxIds = [];
+                $submittedOkCountSoFar = 0;
+
+                foreach ($offerIds as $idx => $offerId) {
+                    $submitTrx = (string) ($trxIds[$idx] ?? Str::uuid());
+                    $top = $service->topup($player, (int) $offerId, $submitTrx);
+                    $topups[] = [
+                        'offer_id' => (int) $offerId,
+                        'trx_id' => $submitTrx,
+                        'response' => $top,
+                    ];
+
+                    if (($top['success'] ?? false) !== true) {
+                        $msg = (string) ($top['msg'] ?? 'فشل إرسال الطلب');
+
+                        // Persist partial attempt details (best-effort)
+                        try {
+                            ManualPaymentRequest::query()->whereKey($mprId)->update([
+                                'shop2topup_status' => $submittedOkCountSoFar > 0 ? 'PARTIAL_FAILED' : 'FAILED_SUBMIT',
+                                'shop2topup_response' => [
+                                    'bundle' => count($offerIds) > 1,
+                                    'topups' => $topups,
+                                ],
+                                'shop2topup_trx_id' => Shop2TopUpBundle::encodeTrxIds($providerTrxIds),
+                            ]);
+                        } catch (\Throwable $e) {
+                            // ignore
+                        }
+
+                        // If any part was already submitted successfully, do NOT auto-refund (can't reverse later delivery).
+                        $shouldRefund = ($submittedOkCountSoFar === 0);
+                        $this->refundAndRejectMpr($wallet, $user, $points, $mprId, $msg, $shouldRefund);
+
+                        $friendly = $shouldRefund
+                            ? $msg
+                            : ('تعذر إكمال إحدى دفعات الباقة بعد تنفيذ جزء منها. تواصل مع الدعم لإتمامها. (' . $msg . ')');
+
+                        return back()->withErrors(['error' => $friendly])->withInput();
+                    }
+
+                    $providerTrx = (string) (($top['trxID'] ?? '') ?: $submitTrx);
+                    $providerTrxIds[] = $providerTrx;
+                    $submittedOkCountSoFar++;
+                }
+
+                // Save provider trx ids for future refresh runs (best-effort)
+                try {
+                    ManualPaymentRequest::query()->whereKey($mprId)->update([
+                        'shop2topup_trx_id' => Shop2TopUpBundle::encodeTrxIds($providerTrxIds),
+                        'shop2topup_status' => 'SUBMITTED',
+                        'shop2topup_response' => [
+                            'bundle' => count($offerIds) > 1,
+                            'topups' => $topups,
+                        ],
+                    ]);
+                } catch (\Throwable $e) {
+                    // ignore
                 }
 
                 // Update transaction status (best-effort)
                 try {
-                    $trx = $service->getTransaction((string) $trxId);
-                    $status = (string) ($trx['status'] ?? '');
-                    $msg = (string) ($trx['msg'] ?? '');
+                    $transactions = [];
+                    foreach ($providerTrxIds as $pt) {
+                        $trx = $service->getTransaction((string) $pt);
+                        if (is_array($trx)) {
+                            $trx['_trx_id'] = (string) $pt;
+                            $transactions[] = $trx;
+                        }
+                    }
+
+                    $summary = Shop2TopUpBundle::summarizeTransactions($transactions);
+                    $statusLabel = $summary['is_delivered']
+                        ? 'DELIVERED'
+                        : ($summary['is_failed'] ? ($summary['is_partial'] ? 'PARTIAL' : 'FAILED') : 'PROCESSING');
 
                     ManualPaymentRequest::query()->whereKey($mprId)->update([
-                        'shop2topup_status' => $status !== '' ? $status : 'SUBMITTED',
-                        'shop2topup_order_id' => $trx['order_id'] ?? null,
-                        'shop2topup_secure_id' => $trx['secure_id'] ?? null,
-                        'shop2topup_delivery_at' => !empty($trx['delivery_at']) ? $trx['delivery_at'] : null,
-                        'shop2topup_response' => $trx,
+                        'shop2topup_status' => $statusLabel,
+                        'shop2topup_response' => [
+                            'bundle' => count($offerIds) > 1,
+                            'topups' => $topups,
+                            'transactions' => $transactions,
+                            'summary' => $summary,
+                        ],
+                        'shop2topup_delivery_at' => $summary['is_delivered'] && !empty($transactions[0]['delivery_at'])
+                            ? $transactions[0]['delivery_at']
+                            : null,
                     ]);
 
-                    if ($this->isDeliveredStatus($status)) {
+                    if ($summary['is_delivered']) {
                         ManualPaymentRequest::query()->whereKey($mprId)->update([
                             'status' => 'approved',
                             'approved_at' => now(),
                         ]);
-                    } elseif ($this->isRefundOrRejectedStatus($status, $msg)) {
-                        $reason = $msg !== '' ? $msg : ($status !== '' ? $status : 'رفض المزود');
-                        $this->refundAndRejectMpr($wallet, $user, $points, $mprId, $reason);
+                    } elseif ($summary['is_failed']) {
+                        $allFailed = $summary['total'] > 0 && $summary['failed'] === $summary['total'] && $summary['delivered'] === 0;
+                        $reason = 'رفض المزود';
+                        foreach ($transactions as $t) {
+                            $msg = (string) ($t['msg'] ?? '');
+                            $st = (string) ($t['status'] ?? '');
+                            if ($msg !== '' || $st !== '') {
+                                $reason = $msg !== '' ? $msg : $st;
+                                break;
+                            }
+                        }
+                        $this->refundAndRejectMpr($wallet, $user, $points, $mprId, $reason, $allFailed);
+                        if (!$allFailed) {
+                            return back()->withErrors(['error' => 'فشل/رفض جزء من الباقة لدى المزود. إذا تم تنفيذ جزء منها فسيظهر ذلك في الحالة—تواصل مع الدعم لإتمامها.'])->withInput();
+                        }
                         return back()->withErrors(['error' => 'تم رفض الطلب من المزود: ' . $reason . ' — اشحن مرة أخرى.'])->withInput();
                     }
                 } catch (\Throwable $e) {
@@ -286,20 +376,22 @@ class WalletPointsPaymentController extends Controller
             || str_contains($hay, 'ERROR');
     }
 
-    private function refundAndRejectMpr(WalletService $wallet, $user, int $points, ?int $mprId, string $message): void
+    private function refundAndRejectMpr(WalletService $wallet, $user, int $points, ?int $mprId, string $message, bool $refundPoints = true): void
     {
         if (!$mprId) {
-            // Best-effort refund only; debit may have failed before mpr creation.
-            try { $wallet->credit($user, $points, 'refund_credit', null, ['message' => $message]); } catch (\Throwable $e) {}
+            if ($refundPoints) {
+                // Best-effort refund only; debit may have failed before mpr creation.
+                try { $wallet->credit($user, $points, 'refund_credit', null, ['message' => $message]); } catch (\Throwable $e) {}
+            }
             return;
         }
 
         try {
-            DB::transaction(function () use ($wallet, $user, $points, $mprId, $message) {
+            DB::transaction(function () use ($wallet, $user, $points, $mprId, $message, $refundPoints) {
                 $mpr = ManualPaymentRequest::query()->whereKey($mprId)->lockForUpdate()->first();
                 if (!$mpr) return;
 
-                if (empty($mpr->points_refunded_at) && (int) ($mpr->points_spent ?? 0) > 0) {
+                if ($refundPoints && empty($mpr->points_refunded_at) && (int) ($mpr->points_spent ?? 0) > 0) {
                     $wallet->credit($user, $points, 'refund_credit', $mpr, [
                         'reason' => 'points_purchase_failed',
                         'message' => $message,

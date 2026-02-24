@@ -84,6 +84,16 @@
                 </div>
 
                 <div class="mb-3">
+                    <label class="form-label fw-bold">Shop2TopUp Offer ID (itemID) — للشحن فقط</label>
+                    <input type="text" name="itemID" class="form-control"
+                           placeholder="مثال: 2400 أو 2400+2400+210 أو [2400,2400,210]">
+                    <div class="form-text">
+                        هذا الحقل مطلوب فقط عند اختيار <b>شحن جواهر</b>.
+                        للباقات المركبة (مثل باقة 5000): اكتب <b>2400+2400+210</b> وسيتم إرسال 3 شحنات متتالية للمزود.
+                    </div>
+                </div>
+
+                <div class="mb-3">
                     <label class="form-label fw-bold">السعر بالنقاط (اختياري)</label>
                     <input type="number" step="1" min="0" name="points_price" class="form-control" placeholder="مثال: 250">
                     <div class="form-text">لو تركته فارغاً لن يظهر خيار الشراء بالنقاط لهذا المنتج.</div>

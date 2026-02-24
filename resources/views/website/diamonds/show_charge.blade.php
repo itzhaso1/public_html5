@@ -10,6 +10,7 @@
     $imageUrl = $product?->getMediaUrl('product', $product, null, 'media', 'product');
     $productImage = $imageUrl ?: $fallbackImage;
     $isCodes = ($product?->service_type ?? null) === 'codes';
+    $isGems = ($product?->service_type ?? null) === 'gems';
     $title = $product?->name ?? ($isCodes ? 'كود' : 'شحن جواهر');
     $availableCodesCount = $isCodes
         ? \App\Models\DiamondCode::query()
@@ -26,6 +27,10 @@
     $effectiveAvailable = $isCodes ? max(0, ((int) $availableCodesCount) - ((int) $pendingRequestsCount)) : null;
     $isOutOfStock = $isCodes && ((int) $effectiveAvailable) === 0;
     $basePrice = (float) ($product?->price ?? 0);
+    $bundleOfferIds = $isGems
+        ? \App\Support\Shop2TopUp\Shop2TopUpBundle::offerIdsForProduct($product)
+        : [];
+    $isBundle = $isGems && count($bundleOfferIds) > 1;
 @endphp
 
 @include('website.diamonds.partials.header', [
@@ -75,6 +80,16 @@
                     </div>
                 @endif
             </div>
+
+            @if($isBundle)
+                <div class="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 text-sm text-gray-800">
+                    <div class="font-extrabold text-indigo-800">الباقة مركّبة</div>
+                    <div class="mt-1">
+                        سيتم إرسال الشحن كالتالي:
+                        <span class="font-extrabold">{{ implode(' + ', $bundleOfferIds) }}</span>
+                    </div>
+                </div>
+            @endif
 
             <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
                 <div class="flex items-center gap-2 rounded-xl border border-gray-100 p-3">

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\ManualPaymentRequest;
 use App\Services\Integrations\Shop2TopUp\Shop2TopUpService;
 use App\Services\Wallet\WalletService;
+use App\Support\Shop2TopUp\Shop2TopUpBundle;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -59,37 +60,33 @@ class RefreshWalletPointsOrders extends Command
                 foreach ($chunk as $mpr) {
                     $processed++;
 
-                    $trxId = (string) ($mpr->shop2topup_trx_id ?? '');
-                    if ($trxId === '') {
+                    $trxIds = Shop2TopUpBundle::parseTrxIds((string) ($mpr->shop2topup_trx_id ?? ''));
+                    if (empty($trxIds)) {
                         continue;
                     }
 
-                    $trx = $shop2TopUp->getTransaction($trxId);
-                    if (($trx['success'] ?? false) !== true) {
+                    $transactions = [];
+                    $fetchOk = true;
+                    foreach ($trxIds as $tId) {
+                        $trx = $shop2TopUp->getTransaction((string) $tId);
+                        if (($trx['success'] ?? false) !== true) {
+                            $fetchOk = false;
+                            break;
+                        }
+                        $trx['_trx_id'] = (string) $tId;
+                        $transactions[] = $trx;
+                    }
+                    if (!$fetchOk || empty($transactions)) {
                         $failedFetch++;
                         continue;
                     }
 
-                    $status = (string) ($trx['status'] ?? '');
-                    $msg = (string) ($trx['msg'] ?? '');
-                    $hay = strtoupper(trim($status . ' ' . $msg));
+                    $summary = Shop2TopUpBundle::summarizeTransactions($transactions);
+                    $statusLabel = $summary['is_delivered']
+                        ? 'DELIVERED'
+                        : ($summary['is_failed'] ? ($summary['is_partial'] ? 'PARTIAL' : 'FAILED') : 'PROCESSING');
 
-                    $isDelivered = $hay !== '' && (
-                        str_contains($hay, 'DELIVER') ||
-                        str_contains($hay, 'SUCCESS') ||
-                        str_contains($hay, 'COMPLET') ||
-                        str_contains($hay, 'DONE')
-                    );
-                    $isFailed = $hay !== '' && (
-                        str_contains($hay, 'REFUND_REGION') ||
-                        str_contains($hay, 'REFUND') ||
-                        str_contains($hay, 'FAILED') ||
-                        str_contains($hay, 'REJECT') ||
-                        str_contains($hay, 'CANCEL') ||
-                        str_contains($hay, 'ERROR')
-                    );
-
-                    DB::transaction(function () use ($mpr, $trx, $status, $msg, $hay, $isDelivered, $isFailed, $wallet, &$approved, &$rejected) {
+                    DB::transaction(function () use ($mpr, $transactions, $summary, $statusLabel, $wallet, &$approved, &$rejected) {
                         /** @var ManualPaymentRequest $locked */
                         $locked = ManualPaymentRequest::query()->whereKey($mpr->id)->lockForUpdate()->with(['user', 'product'])->first();
                         if (! $locked) return;
@@ -99,26 +96,28 @@ class RefreshWalletPointsOrders extends Command
                         if (($locked->status ?? null) !== 'pending') return;
                         if (($locked->product?->service_type ?? null) !== 'gems') return;
 
-                        $locked->shop2topup_status = $status !== '' ? $status : $locked->shop2topup_status;
-                        $locked->shop2topup_order_id = $trx['order_id'] ?? $locked->shop2topup_order_id;
-                        $locked->shop2topup_secure_id = $trx['secure_id'] ?? $locked->shop2topup_secure_id;
-                        $locked->shop2topup_delivery_at = !empty($trx['delivery_at']) ? $trx['delivery_at'] : $locked->shop2topup_delivery_at;
-                        $locked->shop2topup_response = $trx;
+                        $locked->shop2topup_status = $statusLabel;
+                        $locked->shop2topup_order_id = $summary['total'] === 1 ? ($transactions[0]['order_id'] ?? $locked->shop2topup_order_id) : $locked->shop2topup_order_id;
+                        $locked->shop2topup_secure_id = $summary['total'] === 1 ? ($transactions[0]['secure_id'] ?? $locked->shop2topup_secure_id) : $locked->shop2topup_secure_id;
+                        $locked->shop2topup_delivery_at = !empty($transactions[0]['delivery_at']) ? $transactions[0]['delivery_at'] : $locked->shop2topup_delivery_at;
+                        $locked->shop2topup_response = $summary['total'] > 1
+                            ? ['bundle' => true, 'transactions' => $transactions, 'summary' => $summary]
+                            : $transactions[0];
 
-                        if ($isDelivered) {
+                        if ($summary['is_delivered']) {
                             $locked->status = 'approved';
                             $locked->approved_at = $locked->approved_at ?: now();
                             $approved++;
-                        } elseif ($isFailed) {
+                        } elseif ($summary['is_failed']) {
                             $locked->status = 'rejected';
-                            $reason = $msg !== '' ? $msg : ($status !== '' ? $status : 'رفض المزود');
-                            $locked->admin_note = trim(($locked->admin_note ? ($locked->admin_note . "\n") : '') . 'AUTO: تم رفض/استرجاع من المزود (' . $reason . ')');
+                            $locked->admin_note = trim(($locked->admin_note ? ($locked->admin_note . "\n") : '') . 'AUTO: تم رفض/استرجاع من المزود (bundle)');
 
                             $points = (int) ($locked->points_spent ?? 0);
-                            if ($points > 0 && empty($locked->points_refunded_at) && $locked->user) {
+                            $allFailed = $summary['total'] > 0 && $summary['failed'] === $summary['total'] && $summary['delivered'] === 0;
+                            if ($allFailed && $points > 0 && empty($locked->points_refunded_at) && $locked->user) {
                                 $wallet->credit($locked->user, $points, 'refund_credit', $locked, [
                                     'reason' => 'vendor_reject',
-                                    'message' => $reason,
+                                    'message' => 'bundle_failed',
                                 ]);
                                 $locked->points_refunded_at = now();
                             }
