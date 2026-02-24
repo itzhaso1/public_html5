@@ -2,14 +2,18 @@
 
 namespace App\Observers;
 
+use App\Models\Admin;
 use App\Models\CashExchangeRequest;
 use App\Models\ManualPaymentRequest;
 use App\Models\MoneyExchangeRequest;
 use App\Models\Order;
+use App\Models\Setting;
+use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use App\Support\WhatsApp\WasenderNotifier;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class NewDashboardRequestWhatsAppObserver
 {
@@ -24,20 +28,43 @@ class NewDashboardRequestWhatsAppObserver
             // ignore
         }
 
-        $recipients = $this->recipients();
         $adminText = $this->buildAdminMessage($model);
-        if ($adminText !== '' && !empty($recipients)) {
-            foreach ($recipients as $to) {
-                // After-response so we don't slow down the customer request.
-                $this->dispatchSafely($to, $adminText);
+        if ($adminText !== '') {
+            // WhatsApp admins
+            $recipients = $this->recipients();
+            if (!empty($recipients)) {
+                foreach ($recipients as $to) {
+                    $this->dispatchSafely($to, $adminText);
+                }
+            }
+
+            // Email admins (optional additional channel)
+            if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_admin', true)) {
+                $emails = $this->adminEmails();
+                if (!empty($emails)) {
+                    $subject = $this->adminSubject($model);
+                    EmailNotifier::sendAfterCommit($emails, $subject, $adminText);
+                }
             }
         }
 
-        if ((bool) config('services.wasender.notify_customers', true)) {
-            $customerTo = $this->customerNumber($model);
-            $customerText = $this->buildCustomerMessage($model);
-            if ($customerTo !== '' && $customerText !== '') {
-                $this->dispatchSafely($customerTo, $customerText);
+        $customerText = $this->buildCustomerMessage($model);
+        if ($customerText !== '') {
+            // WhatsApp customers
+            if ((bool) config('services.wasender.notify_customers', true)) {
+                $customerTo = $this->customerNumber($model);
+                if ($customerTo !== '') {
+                    $this->dispatchSafely($customerTo, $customerText);
+                }
+            }
+
+            // Email customers (optional additional channel)
+            if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_customers', true)) {
+                $email = $this->customerEmail($model);
+                if ($email !== '') {
+                    $subject = $this->customerSubject($model);
+                    EmailNotifier::sendAfterCommit($email, $subject, $customerText);
+                }
             }
         }
     }
@@ -219,6 +246,85 @@ class NewDashboardRequestWhatsAppObserver
     private function dispatchSafely(string $to, string $text): void
     {
         WasenderNotifier::sendAfterCommit($to, $text);
+    }
+
+    private function adminEmails(): array
+    {
+        $enabled = (bool) config('services.email_notify.enabled', false);
+        if (! $enabled) return [];
+
+        $cfg = (array) config('services.email_notify.admin_to', []);
+        $emails = [];
+        foreach ($cfg as $e) {
+            $e = trim((string) $e);
+            if (filter_var($e, FILTER_VALIDATE_EMAIL)) $emails[] = $e;
+        }
+
+        // Fallback: all admins + main settings email
+        try {
+            $adminList = Admin::query()->pluck('email')->all();
+            foreach ($adminList as $e) {
+                $e = trim((string) $e);
+                if (filter_var($e, FILTER_VALIDATE_EMAIL)) $emails[] = $e;
+            }
+        } catch (\Throwable $e) {}
+
+        try {
+            $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+            $se = trim((string) ($s?->email ?? ''));
+            if (filter_var($se, FILTER_VALIDATE_EMAIL)) $emails[] = $se;
+        } catch (\Throwable $e) {}
+
+        return array_values(array_unique($emails));
+    }
+
+    private function customerEmail(Model $model): string
+    {
+        try {
+            if ($model instanceof Order) {
+                $model->loadMissing(['user']);
+                $e = trim((string) ($model->user?->email ?? ''));
+                return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
+            }
+            if ($model instanceof ManualPaymentRequest) {
+                $model->loadMissing(['user']);
+                $e = trim((string) ($model->contact_email ?? ''));
+                if (!filter_var($e, FILTER_VALIDATE_EMAIL)) {
+                    $e = trim((string) ($model->user?->email ?? ''));
+                }
+                return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
+            }
+            if ($model instanceof CashExchangeRequest) {
+                $model->loadMissing(['user']);
+                $e = trim((string) ($model->user?->email ?? ''));
+                return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
+            }
+            if ($model instanceof MoneyExchangeRequest) {
+                $model->loadMissing(['user']);
+                $e = trim((string) ($model->user?->email ?? ''));
+                return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
+            }
+        } catch (\Throwable $e) {}
+
+        return '';
+    }
+
+    private function adminSubject(Model $model): string
+    {
+        if ($model instanceof Order) return 'طلب جديد: شراء من المتجر';
+        if ($model instanceof ManualPaymentRequest) return 'طلب جديد: دفع يدوي';
+        if ($model instanceof CashExchangeRequest) return 'طلب جديد: استبدال رصيد كاش';
+        if ($model instanceof MoneyExchangeRequest) return 'طلب جديد: تحويل الأموال';
+        return 'طلب جديد';
+    }
+
+    private function customerSubject(Model $model): string
+    {
+        if ($model instanceof Order) return 'تم استلام طلبك ✅';
+        if ($model instanceof ManualPaymentRequest) return 'تم استلام طلبك ✅';
+        if ($model instanceof CashExchangeRequest) return 'تم استلام طلبك ✅';
+        if ($model instanceof MoneyExchangeRequest) return 'تم استلام طلبك ✅';
+        return 'إشعار';
     }
 }
 

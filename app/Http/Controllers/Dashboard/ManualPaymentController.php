@@ -13,6 +13,7 @@ use App\Services\Wallet\WalletService;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use App\Notifications\ChargeCompletedNotification;
+use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use App\Support\WhatsApp\WasenderNotifier;
 
@@ -477,15 +478,7 @@ class ManualPaymentController extends Controller
 
     private function notifyCustomerDecision(ManualPaymentRequest $mpr, bool $approved): void
     {
-        if (! (bool) config('services.wasender.enabled', false)) return;
-        if (! (bool) config('services.wasender.notify_customers', true)) return;
-
         try { $mpr->loadMissing(['user', 'product', 'user.profile']); } catch (\Throwable $e) {}
-
-        $to = WhatsAppNumber::normalize($mpr->contact_phone ?? '');
-        if ($to === '') $to = WhatsAppNumber::normalize($mpr->user?->phone ?? '');
-        if ($to === '') $to = WhatsAppNumber::normalize($mpr->user?->profile?->phone ?? '');
-        if ($to === '') return;
 
         $app = (string) config('app.name', 'المتجر');
         $status = $approved ? 'تم قبول طلبك ✅' : 'تم رفض طلبك ❌';
@@ -503,7 +496,27 @@ class ManualPaymentController extends Controller
             $noteLine
         );
 
-        WasenderNotifier::sendAfterCommit($to, $text);
+        // WhatsApp (optional)
+        if ((bool) config('services.wasender.enabled', false) && (bool) config('services.wasender.notify_customers', true)) {
+            $to = WhatsAppNumber::normalize($mpr->contact_phone ?? '');
+            if ($to === '') $to = WhatsAppNumber::normalize($mpr->user?->phone ?? '');
+            if ($to === '') $to = WhatsAppNumber::normalize($mpr->user?->profile?->phone ?? '');
+            if ($to !== '') {
+                WasenderNotifier::sendAfterCommit($to, $text);
+            }
+        }
+
+        // Email (optional additional channel)
+        if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_customers', true)) {
+            $email = trim((string) ($mpr->contact_email ?? ''));
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $email = trim((string) ($mpr->user?->email ?? ''));
+            }
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $subject = $approved ? 'تم قبول طلبك ✅' : 'تم رفض طلبك ❌';
+                EmailNotifier::sendAfterCommit($email, $subject, $text);
+            }
+        }
     }
 
     public function destroy(Request $request, ManualPaymentRequest $manualPaymentRequest)
