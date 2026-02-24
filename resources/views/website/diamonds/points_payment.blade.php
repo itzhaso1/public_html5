@@ -188,12 +188,20 @@
     btn.addEventListener('click', check);
 
     form.addEventListener('submit', async (e) => {
+      // Hard block multiple submits
+      if (submitBtn.disabled) {
+        e.preventDefault();
+        return;
+      }
+
       const playerId = (input.value || '').trim();
       if (playerId.length >= 3 && verifiedPlayerId === playerId) return;
 
       e.preventDefault();
       const ok = await check();
       if (ok) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'جارِ الإرسال...';
         // avoid double-check: verifiedPlayerId is set
         form.submit();
       }
