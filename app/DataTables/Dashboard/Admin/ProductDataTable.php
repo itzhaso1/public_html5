@@ -4,6 +4,7 @@ namespace App\DataTables\Dashboard\Admin;
  
 use App\DataTables\Base\BaseDataTable;
 use App\Models\Product;
+use App\Support\Shop2TopUp\Shop2TopUpBundle;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Utilities\Request as DataTableRequest;
@@ -37,13 +38,38 @@ class ProductDataTable extends BaseDataTable {
                 }
                 return $badges;
             })
+            ->addColumn('itemID', function (Product $product) {
+                if (($product->service_type ?? null) !== 'gems') {
+                    return '<span class="text-muted">—</span>';
+                }
+                $raw = trim((string) ($product->itemID ?? ''));
+                if ($raw === '') {
+                    return '<span class="badge bg-light-danger text-danger">غير مربوط</span>';
+                }
+
+                $ids = Shop2TopUpBundle::parseOfferIds($raw);
+                $isBundle = count($ids) > 1;
+                $pretty = $isBundle ? implode(' + ', $ids) : (string) ($ids[0] ?? $raw);
+
+                $html = '<div class="font-monospace small" style="white-space:nowrap">'
+                    . e($raw)
+                    . '</div>';
+
+                if ($isBundle) {
+                    $html .= '<div class="text-muted small" style="white-space:nowrap">'
+                        . 'bundle: ' . e($pretty)
+                        . '</div>';
+                }
+
+                return $html;
+            })
             ->editColumn('created_at', function (Product $product) {
                 return $this->formatBadge($this->formatDate($product->created_at));
             })
             ->editColumn('updated_at', function (Product $product) {
                 return $this->formatBadge($this->formatDate($product->updated_at));
             })
-            ->rawColumns(['category','tags','types','action', 'created_at', 'updated_at', 'product']);
+            ->rawColumns(['category','tags','types','action', 'created_at', 'updated_at', 'product', 'itemID']);
     }
  
     public function query(): QueryBuilder
@@ -89,6 +115,7 @@ class ProductDataTable extends BaseDataTable {
             ['name' => 'brand', 'data' => 'brand', 'title' => 'الماركه', 'orderable' => false, 'searchable' => false],
             ['name' => 'tags', 'data' => 'tags', 'title' => 'الوسوم', 'orderable' => false, 'searchable' => false],
             ['name' => 'price', 'data' => 'price', 'title' => trans('dashboard/admin.product.price')],
+            ['name' => 'itemID', 'data' => 'itemID', 'title' => 'Shop2TopUp itemID', 'orderable' => false, 'searchable' => false],
             ['name' => 'created_at', 'data' => 'created_at', 'title' => trans('dashboard/general.created_at'), 'orderable' => false, 'searchable' => false],
             ['name' => 'updated_at', 'data' => 'updated_at', 'title' => trans('dashboard/general.updated_at'), 'orderable' => false, 'searchable' => false],
             ['name' => 'action', 'data' => 'action', 'title' => trans('dashboard/general.actions'), 'orderable' => false, 'searchable' => false],
