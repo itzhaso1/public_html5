@@ -25,6 +25,7 @@ class Product extends Model implements TranslatableContract {
         'status',
         'published_at',
         'client_number',
+        'client_email',
         'publish_source',
         'review_note',
         'review_reject_reasons',

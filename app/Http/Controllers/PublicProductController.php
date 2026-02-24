@@ -93,10 +93,25 @@ class PublicProductController extends Controller
     private function storeInternal(Request $request, ?string $namePrefix)
     {
         try {
+            $request->validate([
+                'client_email' => ['nullable', 'string', 'email', 'max:255'],
+            ]);
+
             // Normalize customer WhatsApp number (digits only, fixes common formats).
             $normalizedPhone = WhatsAppNumber::normalize((string) $request->input('client_number', ''));
             if ($normalizedPhone !== '') {
                 $request->merge(['client_number' => $normalizedPhone]);
+            }
+
+            $clientEmail = trim((string) $request->input('client_email', ''));
+            if ($clientEmail !== '') {
+                try {
+                    if (Schema::hasColumn('products', 'client_email')) {
+                        $request->merge(['client_email' => $clientEmail]);
+                    }
+                } catch (\Throwable $e) {
+                    // ignore (migrations not yet applied)
+                }
             }
 
             if ($namePrefix) {

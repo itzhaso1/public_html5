@@ -200,11 +200,32 @@
                            value="{{ old('client_number', $product->client_number ?? '') }}">
 
                     <div class="mt-2 text-xs text-gray-500">
-                        سيتم إرسال إشعار واتساب عند <b>قبول</b> أو <b>رفض</b> طلبك.
+                        سيتم إرسال إشعار واتساب (وبريد إذا أضفت بريدك) عند <b>قبول</b> أو <b>رفض</b> طلبك.
                     </div>
                     @error('client_number')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
+
+                    <div class="mt-5">
+                        <label class="text-sm text-gray-600">البريد الإلكتروني (اختياري)</label>
+                        <input
+                            type="email"
+                            name="client_email"
+                            autocomplete="email"
+                            placeholder="example@email.com"
+                            value="{{ old('client_email', $product->client_email ?? '') }}"
+                            class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
+                                   px-4 py-5 text-lg
+                                   placeholder:text-gray-400
+                                   focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                        <div class="mt-2 text-xs text-gray-500">
+                            إذا أدخلت بريدك، سنرسل لك إشعارًا عبر البريد أيضًا.
+                        </div>
+                        @error('client_email')
+                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
 
                 <div>
