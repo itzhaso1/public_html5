@@ -32,7 +32,14 @@ class AppServiceProvider extends ServiceProvider
                 });
 
                 if ($settings) {
-                    $fallbackLogo = asset('dashboard/assets/media/logos/logo-default.svg');
+                    $assetUrl = (string) config('app.asset_url', '');
+                    $assetUrl = trim($assetUrl);
+                    $assetPath = $assetUrl !== '' ? (string) (parse_url($assetUrl, PHP_URL_PATH) ?? '') : '';
+                    $assetPath = rtrim($assetPath, '/');
+                    $hasPublicBase = $assetPath === '/public';
+                    $prefix = $hasPublicBase ? '' : 'public/';
+
+                    $fallbackLogo = asset($prefix . 'dashboard/assets/media/logos/logo-default.svg');
                     $logo = $settings->getMediaUrl('setting', $settings, null, 'media', 'logo') ?: $fallbackLogo;
                     $favicon = $settings->getMediaUrl('setting', $settings, null, 'media', 'favicon') ?: $fallbackLogo;
 
@@ -40,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
                         'settings' => $settings,
                         'logo' => $logo,
                         'favicon' => $favicon,
+                        'fallbackLogo' => $fallbackLogo,
                         'cashExchangeEnabled' => (bool) ($settings->cash_exchange_enabled ?? true),
                         'chargeEnabled' => (bool) ($settings->charge_enabled ?? true),
                         'codesEnabled' => (bool) ($settings->codes_enabled ?? true),

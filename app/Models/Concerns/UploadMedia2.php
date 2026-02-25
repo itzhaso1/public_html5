@@ -11,13 +11,21 @@ trait UploadMedia2 {
     private function publicUploadsUrl(string $disk, string $uploadsPath): string
     {
         $uploadsPath = ltrim($uploadsPath, '/');
+        $assetUrl = (string) config('app.asset_url', '');
+        $assetUrl = trim($assetUrl);
+        $assetPath = $assetUrl !== '' ? (string) (parse_url($assetUrl, PHP_URL_PATH) ?? '') : '';
+        $assetPath = rtrim($assetPath, '/');
+
+        // If ASSET_URL already points to ".../public", don't prepend "public/" again.
+        // Otherwise (shared hosting docroot = repo root), assets live under "/public/...".
+        $hasPublicBase = $assetPath === '/public';
+        $prefix = $hasPublicBase ? '' : 'public/';
+
         if ($disk === 'storage_public') {
-            // On shared hosting this project is often served from the repo root,
-            // so public assets are under /public and the storage symlink is /public/storage.
-            return asset("public/storage/{$uploadsPath}");
+            return asset($prefix . "storage/{$uploadsPath}");
         }
-        // direct_public (or unknown) => /public/uploads/...
-        return asset("public/{$uploadsPath}");
+
+        return asset($prefix . $uploadsPath);
     }
     public function uploadSingleMedia(
         $baseFolder,

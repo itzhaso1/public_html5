@@ -14,7 +14,10 @@
         <div class="flex flex-row-reverse justify-between items-center h-10">
             <div class="flex-shrink-0 flex items-center">
                <a href="{{ route('home') }}">
-                <img class="h-8 w-auto" src="{{ $logo ?: asset('dashboard/assets/media/logos/logo-default.svg') }}" alt="{{ $settings?->name ?? 'logo' }}">
+                <img class="h-8 w-auto"
+                     src="{{ $logo ?: ($fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg')) }}"
+                     onerror="this.onerror=null;this.src='{{ $fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg') }}';"
+                     alt="{{ $settings?->name ?? 'logo' }}">
                </a>
              
              
