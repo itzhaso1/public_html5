@@ -8,6 +8,7 @@ use App\Models\ManualPaymentRequest;
 use App\Models\MoneyExchangeRequest;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\WalletTopupRequest;
 use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use App\Support\WhatsApp\WasenderNotifier;
@@ -138,6 +139,32 @@ class NewDashboardRequestWhatsAppObserver
             );
         }
 
+        if ($model instanceof WalletTopupRequest) {
+            try { $model->loadMissing(['user']); } catch (\Throwable $e) {}
+            $u = $model->user;
+            $uName = trim((string) ($u?->name ?? ''));
+            $uEmail = trim((string) ($u?->email ?? ''));
+            $uPhone = WhatsAppNumber::normalize((string) ($u?->phone ?? ''));
+            $receiptUrl = $this->safeRoute('admin.wallet_topups.receipt', $model->id);
+            $indexUrl = $this->safeRoute('admin.wallet_topups.index');
+
+            return trim(
+                "طلب جديد: إيداع نقاط\n" .
+                "ID: {$model->id}\n" .
+                ($uName !== '' ? "العميل: {$uName}\n" : '') .
+                "User ID: {$model->user_id}\n" .
+                ($uPhone !== '' ? "هاتف: {$uPhone}\n" : '') .
+                (filter_var($uEmail, FILTER_VALIDATE_EMAIL) ? "Email: {$uEmail}\n" : '') .
+                "النقاط: {$model->points}\n" .
+                "المبلغ: {$model->amount_sar} SAR\n" .
+                (!empty($model->amount_usd) ? ("المبلغ: {$model->amount_usd} USD\n") : '') .
+                "الطريقة: {$model->payment_method}\n" .
+                "الحالة: {$model->status}\n" .
+                ($receiptUrl ? "الإيصال: {$receiptUrl}\n" : '') .
+                ($indexUrl ? "قائمة الطلبات: {$indexUrl}\n" : '')
+            );
+        }
+
         return '';
     }
 
@@ -231,12 +258,27 @@ class NewDashboardRequestWhatsAppObserver
             );
         }
 
+        if ($model instanceof WalletTopupRequest) {
+            $link = $this->safeRoute('customer.wallet.index');
+            return trim(
+                "{$app}\n" .
+                "تم استلام طلب إيداع النقاط ✅\n" .
+                "النقاط: {$model->points}\n" .
+                "المبلغ: {$model->amount_sar} SAR\n" .
+                "الحالة: قيد المراجعة\n" .
+                ($link ? "متابعة الطلب: {$link}\n" : ($base ? "متابعة الطلب: {$base}/ar/customer/wallet\n" : ''))
+            );
+        }
+
         return '';
     }
 
-    private function safeRoute(string $name, mixed $param): ?string
+    private function safeRoute(string $name, mixed $param = null): ?string
     {
         try {
+            if ($param === null) {
+                return route($name);
+            }
             return route($name, $param);
         } catch (\Throwable $e) {
             return null;
@@ -304,6 +346,11 @@ class NewDashboardRequestWhatsAppObserver
                 $e = trim((string) ($model->user?->email ?? ''));
                 return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
             }
+            if ($model instanceof WalletTopupRequest) {
+                $model->loadMissing(['user']);
+                $e = trim((string) ($model->user?->email ?? ''));
+                return filter_var($e, FILTER_VALIDATE_EMAIL) ? $e : '';
+            }
         } catch (\Throwable $e) {}
 
         return '';
@@ -315,6 +362,7 @@ class NewDashboardRequestWhatsAppObserver
         if ($model instanceof ManualPaymentRequest) return 'طلب جديد: دفع يدوي';
         if ($model instanceof CashExchangeRequest) return 'طلب جديد: استبدال رصيد كاش';
         if ($model instanceof MoneyExchangeRequest) return 'طلب جديد: تحويل الأموال';
+        if ($model instanceof WalletTopupRequest) return 'طلب جديد: إيداع نقاط';
         return 'طلب جديد';
     }
 
@@ -324,6 +372,7 @@ class NewDashboardRequestWhatsAppObserver
         if ($model instanceof ManualPaymentRequest) return 'تم استلام طلبك ✅';
         if ($model instanceof CashExchangeRequest) return 'تم استلام طلبك ✅';
         if ($model instanceof MoneyExchangeRequest) return 'تم استلام طلبك ✅';
+        if ($model instanceof WalletTopupRequest) return 'تم استلام طلب إيداع النقاط ✅';
         return 'إشعار';
     }
 }

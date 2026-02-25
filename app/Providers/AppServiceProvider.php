@@ -9,6 +9,7 @@ use App\Models\MoneyExchangeRequest;
 use App\Models\MoneyExchangeSetting;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\WalletTopupRequest;
 use App\Observers\NewDashboardRequestWhatsAppObserver;
 use App\Services\Currency\ExchangeRateService;
 use Illuminate\Support\Facades\Cache;
@@ -132,6 +133,7 @@ class AppServiceProvider extends ServiceProvider
             CashExchangeRequest::observe($observer);
             MoneyExchangeRequest::observe($observer);
             Order::observe($observer);
+            WalletTopupRequest::observe($observer);
         } catch (\Throwable $e) {
             // ignore
         }
