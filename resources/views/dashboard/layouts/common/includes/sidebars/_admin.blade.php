@@ -222,8 +222,8 @@
     </div>
 
     <!-- Settings -->
-    <div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ is_active('admin.mainSettings.*') }}">
-        <span class="menu-link {{ is_active('admin.mainSettings.*') }}">
+    <div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ is_active('admin.mainSettings.*') || is_active('admin.sliders.*') }}">
+        <span class="menu-link {{ is_active('admin.mainSettings.*') || is_active('admin.sliders.*') }}">
             <span class="menu-icon"><i class="bi bi-gear fs-2"></i></span>
             <span class="menu-title">الإعدادات</span>
             <span class="menu-arrow"></span>
@@ -233,6 +233,12 @@
                 <a class="menu-link {{ is_active('admin.mainSettings.index') }}" href="{{ route('admin.mainSettings.index') }}">
                     <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
                     <span class="menu-title">الإعدادات العامة</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link {{ is_active('admin.sliders.*') }}" href="{{ route('admin.sliders.index') }}">
+                    <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+                    <span class="menu-title">سلايدر الصفحة الرئيسية</span>
                 </a>
             </div>
         </div>

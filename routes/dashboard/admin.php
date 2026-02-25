@@ -70,6 +70,9 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
         // أقسام الصفحة الرئيسية (Sections)
         Route::resource('sections', Dashboard\SectionController::class);
 
+        // سلايدر الصفحة الرئيسية (صور السلايدر)
+        Route::resource('sliders', Dashboard\SliderController::class);
+
         Route::resource('users', Dashboard\UserController::class)->names('user')->only(['index', 'edit', 'update', 'destroy']);
 
         Route::prefix('manual-payments')->as('manual_payments.')->group(function () {
