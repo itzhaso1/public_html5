@@ -7,6 +7,7 @@ use App\Models\WalletTopupRequest;
 use App\Models\WalletTransaction;
 use App\Services\Wallet\WalletService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class WalletController extends Controller
@@ -72,23 +73,53 @@ class WalletController extends Controller
         $user = $request->user();
         $prices = $wallet->getPointPrices();
         $points = (int) $data['points'];
+        $method = (string) ($data['payment_method'] ?? '');
 
-        $amountSar = round($points * (float) $prices['sar'], 2);
-        $amountUsd = round($points * (float) $prices['usd'], 2);
+        // Prevent double submissions (multi-tap / slow network).
+        $lockKey = 'wallet.topup.submit.' . $user->id . '.' . $points . '.' . sha1($method);
+        $lock = Cache::lock($lockKey, 20);
+        if (! $lock->get()) {
+            return back()->withErrors(['error' => 'طلب الإيداع قيد الإرسال حالياً… انتظر قليلًا ثم أعد المحاولة.'])->withInput();
+        }
 
-        $path = $request->file('receipt')->store('uploads/wallet_topups', 'public');
+        try {
+            // Block duplicate pending requests created moments ago.
+            $dup = WalletTopupRequest::query()
+                ->where('user_id', $user->id)
+                ->where('status', 'pending')
+                ->where('points', $points)
+                ->where('payment_method', $method)
+                ->where('created_at', '>=', now()->subSeconds(60))
+                ->exists();
+            if ($dup) {
+                return back()->withErrors(['error' => 'لديك طلب إيداع مشابه قيد المراجعة بالفعل. انتظر قليلًا ثم راجع “محفظتي”.'])->withInput();
+            }
 
-        WalletTopupRequest::create([
-            'user_id' => $user->id,
-            'points' => $points,
-            'point_price_sar' => (float) $prices['sar'],
-            'point_price_usd' => (float) $prices['usd'],
-            'amount_sar' => $amountSar,
-            'amount_usd' => $amountUsd,
-            'payment_method' => (string) ($data['payment_method'] ?? null),
-            'receipt_path' => $path,
-            'status' => 'pending',
-        ]);
+            $amountSar = round($points * (float) $prices['sar'], 2);
+            $amountUsd = round($points * (float) $prices['usd'], 2);
+
+            $path = null;
+            try {
+                $path = $request->file('receipt')->store('uploads/wallet_topups', 'public');
+            } catch (\Throwable $e) {
+                report($e);
+                return back()->withErrors(['error' => 'تعذر رفع الإيصال الآن. حاول مرة أخرى.'])->withInput();
+            }
+
+            WalletTopupRequest::create([
+                'user_id' => $user->id,
+                'points' => $points,
+                'point_price_sar' => (float) $prices['sar'],
+                'point_price_usd' => (float) $prices['usd'],
+                'amount_sar' => $amountSar,
+                'amount_usd' => $amountUsd,
+                'payment_method' => $method,
+                'receipt_path' => $path,
+                'status' => 'pending',
+            ]);
+        } finally {
+            optional($lock)->release();
+        }
 
         return redirect()
             ->route('customer.wallet.index')

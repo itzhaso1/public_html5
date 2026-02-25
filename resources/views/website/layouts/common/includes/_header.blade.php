@@ -13,9 +13,9 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex flex-row-reverse justify-between items-center h-10">
             <div class="flex-shrink-0 flex items-center">
-               <a href="{{route('home')}}" >
-                <img class="h-8 w-auto" src="{{ $logo}}" alt="{{ $settings?->name }}">
-                      <a>
+               <a href="{{ route('home') }}">
+                <img class="h-8 w-auto" src="{{ $logo ?: asset('dashboard/assets/media/logos/logo-default.svg') }}" alt="{{ $settings?->name ?? 'logo' }}">
+               </a>
              
              
             </div>

@@ -45,7 +45,7 @@
             <div>بالدولار: <span class="font-extrabold text-blue-700">$ {{ number_format($ppUsd, 2) }}</span></div>
         </div>
 
-        <form method="POST" action="{{ route('customer.wallet.topup.store') }}" enctype="multipart/form-data" class="mt-5 space-y-4">
+        <form id="walletTopupForm" method="POST" action="{{ route('customer.wallet.topup.store') }}" enctype="multipart/form-data" class="mt-5 space-y-4">
             @csrf
 
             <div>
@@ -179,13 +179,13 @@
 
             <div>
                 <label class="block text-sm font-extrabold mb-2">إيصال التحويل (صورة أو PDF)</label>
-                <input type="file" name="receipt" accept="image/*,.pdf"
+                <input id="receiptInput" type="file" name="receipt" accept="image/*,.pdf"
                        class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
                        required>
-                <div class="text-xs text-gray-500 mt-1">الحد الأقصى 10MB.</div>
+                <div class="text-xs text-gray-500 mt-1">الحد الأقصى 10MB. (نصيحة: الصورة الصغيرة ترفع أسرع)</div>
             </div>
 
-            <button type="submit"
+            <button id="topupSubmitBtn" type="submit"
                     class="w-full inline-flex items-center justify-center rounded-xl bg-black px-5 py-3 text-sm font-extrabold text-white hover:bg-gray-800 transition">
                 إرسال طلب الإيداع
             </button>
@@ -213,6 +213,92 @@
     pointsInput.addEventListener('input', update);
     update();
   });
+</script>
+<script>
+  (function () {
+    const form = document.getElementById('walletTopupForm');
+    const btn = document.getElementById('topupSubmitBtn');
+    const receiptInput = document.getElementById('receiptInput');
+    if (!form || !btn || !receiptInput) return;
+
+    const MAX_IMG_DIM = 1600;
+    const JPEG_QUALITY = 0.75;
+    let submitting = false;
+
+    async function downscaleToJpeg(file) {
+      if (!file || !file.type || !file.type.startsWith('image/')) return file;
+      const isHeic = file.type === 'image/heic' || (file.name || '').toLowerCase().endsWith('.heic');
+      if (!isHeic && (file.size || 0) < 900 * 1024) return file;
+
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = URL.createObjectURL(file);
+      });
+
+      const w = img.naturalWidth || img.width;
+      const h = img.naturalHeight || img.height;
+      const scale = Math.min(1, MAX_IMG_DIM / Math.max(w, h));
+      const tw = Math.max(1, Math.round(w * scale));
+      const th = Math.max(1, Math.round(h * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = tw;
+      canvas.height = th;
+      const ctx = canvas.getContext('2d', { alpha: false });
+      ctx.drawImage(img, 0, 0, tw, th);
+
+      const blob = await new Promise((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/jpeg', JPEG_QUALITY);
+      });
+
+      try { URL.revokeObjectURL(img.src); } catch (e) {}
+      if (!blob) return file;
+      const base = (file.name || 'receipt').replace(/\.(heic|png|webp|jpeg|jpg)$/i, '');
+      return new File([blob], base + '.jpg', { type: 'image/jpeg' });
+    }
+
+    function setBusy(state, label) {
+      btn.disabled = state;
+      btn.classList.toggle('opacity-60', state);
+      btn.classList.toggle('cursor-not-allowed', state);
+      btn.textContent = state ? (label || 'جاري الإرسال...') : 'إرسال طلب الإيداع';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      if (submitting) return;
+      submitting = true;
+
+      // If the browser is navigating normally, still prevent multi-click.
+      setBusy(true, 'جاري تجهيز الإيصال ثم الرفع...');
+
+      try {
+        const f = receiptInput.files && receiptInput.files[0] ? receiptInput.files[0] : null;
+        if (f && f.type && f.type.startsWith('image/')) {
+          e.preventDefault();
+
+          let compressed = f;
+          try { compressed = await downscaleToJpeg(f); } catch (err) { compressed = f; }
+
+          if (compressed !== f) {
+            const dt = new DataTransfer();
+            dt.items.add(compressed);
+            receiptInput.files = dt.files;
+          }
+
+          setBusy(true, 'جاري رفع الإيصال... لا تغلق الصفحة');
+          form.submit();
+          return;
+        }
+
+        setBusy(true, 'جاري رفع الإيصال... لا تغلق الصفحة');
+      } catch (err) {
+        submitting = false;
+        setBusy(false);
+      }
+    });
+  })();
 </script>
 @if(count($methodKeys ?? []))
 <script>

@@ -32,8 +32,9 @@ class AppServiceProvider extends ServiceProvider
                 });
 
                 if ($settings) {
-                    $logo = $settings->getMediaUrl('setting', $settings, null, 'media', 'logo');
-                    $favicon = $settings->getMediaUrl('setting', $settings, null, 'media', 'favicon');
+                    $fallbackLogo = asset('dashboard/assets/media/logos/logo-default.svg');
+                    $logo = $settings->getMediaUrl('setting', $settings, null, 'media', 'logo') ?: $fallbackLogo;
+                    $favicon = $settings->getMediaUrl('setting', $settings, null, 'media', 'favicon') ?: $fallbackLogo;
 
                     View::share([
                         'settings' => $settings,
