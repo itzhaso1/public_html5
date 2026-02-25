@@ -81,7 +81,12 @@
                     <td class="p-3 font-mono text-xs select-all">{{ $mpr->reference }}</td>
                     <td class="p-3 font-bold">{{ $mpr->product?->name ?? '-' }}</td>
                     <td class="p-3">{{ $mpr->player_id }}</td>
-                    <td class="p-3 font-extrabold text-green-700">ر.س {{ number_format((float)$mpr->amount, 2) }}</td>
+                    <td class="p-3">
+                        <div class="font-extrabold text-green-700">ر.س {{ number_format((float)$mpr->amount, 2) }}</div>
+                        @if(!empty($mpr->points_spent))
+                            <div class="text-xs font-extrabold text-gray-800">نقاط: {{ number_format((int)$mpr->points_spent) }}</div>
+                        @endif
+                    </td>
                     <td class="p-3">{{ $mpr->payment_method ?? '-' }}</td>
                     <td class="p-3">
                         @php

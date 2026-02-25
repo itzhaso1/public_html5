@@ -52,6 +52,9 @@
                         <div class="text-muted mt-3">رقم الزبون (واتساب)</div>
                         <div class="fw-bold">{{ $product->client_number ?? '—' }}</div>
 
+                        <div class="text-muted mt-3">بريد الزبون</div>
+                        <div class="fw-bold">{{ $product->client_email ?? '—' }}</div>
+
                         <div class="text-muted mt-3">الحالة</div>
                         <div><span class="badge {{ $statusLabel[1] }}">{{ $statusLabel[0] }}</span></div>
 

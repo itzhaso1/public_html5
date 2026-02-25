@@ -19,6 +19,8 @@ class ManualPaymentRequest extends Model
         'amount',
         'currency',
         'payment_method',
+        'points_spent',
+        'points_refunded_at',
         'receipt_path',
         'status',
         'approved_at',
@@ -37,6 +39,7 @@ class ManualPaymentRequest extends Model
         'approved_at' => 'datetime',
         'shop2topup_delivery_at' => 'datetime',
         'shop2topup_response' => 'array',
+        'points_refunded_at' => 'datetime',
     ];
 
     public function product()

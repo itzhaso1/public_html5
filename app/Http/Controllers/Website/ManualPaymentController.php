@@ -6,17 +6,72 @@ use App\Http\Controllers\Controller;
 use App\Models\DiamondCode;
 use App\Models\ManualPaymentRequest;
 use App\Models\Product;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Services\Integrations\Shop2TopUp\Shop2TopUpService;
 use Illuminate\Http\JsonResponse;
 use App\Support\WhatsApp\WhatsAppNumber;
+use Illuminate\Validation\Rule;
 
 class ManualPaymentController extends Controller
 {
+    private const WA_DIAL_BY_COUNTRY = [
+        'SA' => '966', // Saudi Arabia
+        'JO' => '962', // Jordan
+        'AE' => '971', // UAE
+        'KW' => '965', // Kuwait
+        'QA' => '974', // Qatar
+        'BH' => '973', // Bahrain
+        'OM' => '968', // Oman
+        'IQ' => '964', // Iraq
+        'LB' => '961', // Lebanon
+        'PS' => '970', // Palestine
+        'YE' => '967', // Yemen
+        'SY' => '963', // Syria
+        'EG' => '20',  // Egypt
+        'SD' => '249', // Sudan
+        'LY' => '218', // Libya
+        'TN' => '216', // Tunisia
+        'DZ' => '213', // Algeria
+        'MA' => '212', // Morocco
+        'MR' => '222', // Mauritania
+        'SO' => '252', // Somalia
+        'DJ' => '253', // Djibouti
+        'KM' => '269', // Comoros
+    ];
+
+    private function dialForCountry(?string $country): string
+    {
+        $c = strtoupper(trim((string) $country));
+        return self::WA_DIAL_BY_COUNTRY[$c] ?? '966';
+    }
+
+    private function isEnabledForProduct(Product $product): bool
+    {
+        $isCodes = ($product->service_type ?? null) === 'codes';
+        $col = $isCodes ? 'codes_enabled' : 'charge_enabled';
+
+        try {
+            if (!Schema::hasTable('settings') || !Schema::hasColumn('settings', $col)) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        try {
+            $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
+            return (bool) ($s?->{$col} ?? true);
+        } catch (\Throwable $e) {
+            return true;
+        }
+    }
+
     private function getEnabledPaymentMethods(): array
     {
         $methods = (array) config('bank.methods', []);
@@ -40,6 +95,7 @@ class ManualPaymentController extends Controller
 
         return $enabled;
     }
+
 
     private function forgetCodesPageCache(): void
     {
@@ -73,6 +129,11 @@ class ManualPaymentController extends Controller
     {
         abort_unless(config('bank.enabled'), 404);
 
+        if (! $this->isEnabledForProduct($product)) {
+            $msg = (($product->service_type ?? null) === 'codes') ? 'قسم الأكواد غير متاح حالياً.' : 'قسم الشحن غير متاح حالياً.';
+            return redirect()->route('home')->withErrors(['error' => $msg]);
+        }
+
         $isCodes = ($product->service_type ?? null) === 'codes';
         if ($isCodes) {
             $redirect = $this->ensureCodesAvailabilityOrRedirect($product);
@@ -90,6 +151,11 @@ class ManualPaymentController extends Controller
     public function store(Request $request, Product $product)
     {
         abort_unless(config('bank.enabled'), 404);
+
+        if (! $this->isEnabledForProduct($product)) {
+            $msg = (($product->service_type ?? null) === 'codes') ? 'قسم الأكواد غير متاح حالياً.' : 'قسم الشحن غير متاح حالياً.';
+            return back()->withErrors(['error' => $msg])->withInput();
+        }
 
         $isCodes = ($product->service_type ?? null) === 'codes';
         if ($isCodes) {
@@ -118,15 +184,14 @@ class ManualPaymentController extends Controller
             ?: WhatsAppNumber::normalize($request->user()?->profile?->phone ?? '');
         // If no phone saved on account, require it so WhatsApp confirmation can be sent.
         $rules['contact_phone'] = ['nullable', 'string', 'max:64'];
-        $rules['contact_phone_country'] = ['nullable', 'in:SA,JO'];
+        $rules['contact_phone_country'] = ['nullable', Rule::in(array_keys(self::WA_DIAL_BY_COUNTRY))];
         $rules['contact_phone_local'] = ['nullable', 'string', 'max:32'];
 
         $data = $request->validate($rules);
 
         $contactPhone = WhatsAppNumber::normalize($data['contact_phone'] ?? '');
         if ($contactPhone === '') {
-            $country = strtoupper(trim((string) ($data['contact_phone_country'] ?? '')));
-            $dial = $country === 'JO' ? '962' : '966';
+            $dial = $this->dialForCountry($data['contact_phone_country'] ?? null);
             $local = WhatsAppNumber::normalize($data['contact_phone_local'] ?? '');
             $local = ltrim($local, '0');
             $contactPhone = $dial . $local;
@@ -191,8 +256,6 @@ class ManualPaymentController extends Controller
 
     public function checkPlayerName(Request $request): JsonResponse
     {
-        abort_unless(config('bank.enabled'), 404);
-
         $data = $request->validate([
             'player_id' => ['required', 'string', 'min:3', 'max:64'],
         ]);

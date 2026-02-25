@@ -48,7 +48,9 @@
             <div class="rounded-3xl border border-gray-200 bg-white shadow-sm p-6 sm:p-8">
                 <div class="flex items-center justify-center">
                     <a href="{{ route('home') }}" class="inline-flex items-center gap-2">
-                        <img src="{{ $logo }}" alt="logo" class="h-10 w-auto">
+                        <img src="{{ $logo ?: ($fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg')) }}"
+                             onerror="this.onerror=null;this.src='{{ $fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg') }}';"
+                             alt="logo" class="h-10 w-auto">
                     </a>
                 </div>
 

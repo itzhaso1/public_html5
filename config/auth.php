@@ -124,8 +124,9 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => 'password_reset_tokens',
-            'expire' => 6000,
-            'throttle' => 6000,
+            // expire is in minutes, throttle is in seconds
+            'expire' => 60,
+            'throttle' => 10,
         ],
     ],
 

@@ -127,6 +127,14 @@
                                     <input type="text" class="form-control" name="home_quick_charge_title"
                                            value="{{ old('home_quick_charge_title', $setting?->home_quick_charge_title) }}"
                                            placeholder="شحن جواهر">
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'charge_enabled'))
+                                        <div class="form-check form-switch mt-3">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   id="charge_enabled" name="charge_enabled" value="1"
+                                                   {{ old('charge_enabled', (bool)($setting?->charge_enabled ?? true)) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="charge_enabled">الخدمة متاحة حالياً</label>
+                                        </div>
+                                    @endif
                                     <div class="mt-2">
                                         <label class="form-label fw-bold">الصورة</label>
                                         <input class="form-control" type="file" name="home_quick_charge_image" accept="image/*">
@@ -144,6 +152,14 @@
                                     <input type="text" class="form-control" name="home_quick_codes_title"
                                            value="{{ old('home_quick_codes_title', $setting?->home_quick_codes_title) }}"
                                            placeholder="أكواد ملابس">
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'codes_enabled'))
+                                        <div class="form-check form-switch mt-3">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   id="codes_enabled" name="codes_enabled" value="1"
+                                                   {{ old('codes_enabled', (bool)($setting?->codes_enabled ?? true)) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="codes_enabled">الخدمة متاحة حالياً</label>
+                                        </div>
+                                    @endif
                                     <div class="mt-2">
                                         <label class="form-label fw-bold">الصورة</label>
                                         <input class="form-control" type="file" name="home_quick_codes_image" accept="image/*">
@@ -187,6 +203,14 @@
                                     <input type="text" class="form-control" name="home_quick_money_exchange_title"
                                            value="{{ old('home_quick_money_exchange_title', $setting?->home_quick_money_exchange_title) }}"
                                            placeholder="تحويل الأموال">
+                                    @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'money_exchange_enabled'))
+                                        <div class="form-check form-switch mt-3">
+                                            <input class="form-check-input" type="checkbox" role="switch"
+                                                   id="money_exchange_enabled" name="money_exchange_enabled" value="1"
+                                                   {{ old('money_exchange_enabled', (bool)($setting?->money_exchange_enabled ?? true)) ? 'checked' : '' }}>
+                                            <label class="form-check-label fw-bold" for="money_exchange_enabled">الخدمة متاحة حالياً</label>
+                                        </div>
+                                    @endif
                                     <div class="mt-2">
                                         <label class="form-label fw-bold">الصورة</label>
                                         <input class="form-control" type="file" name="home_quick_money_exchange_image" accept="image/*">
@@ -198,6 +222,59 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Merchant pricing -->
+                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                        <h4 class="mb-3 fw-bolder">أسعار التجار (قسم شحن الجواهر)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'merchant_usd_rate'))
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">سعر الدولار للتاجر (تحويل SAR → USD)</label>
+                                    <input type="number" step="0.000001" min="0" class="form-control"
+                                           name="merchant_usd_rate"
+                                           value="{{ old('merchant_usd_rate', $setting?->merchant_usd_rate) }}"
+                                           placeholder="مثال: 0.240000">
+                                    <div class="form-text">
+                                        هذا الرقم هو معدل التحويل المستخدم لعرض الأسعار بالدولار داخل قسم شحن الجواهر للتجار فقط (بدون تغيير سعر الريال).
+                                        مثال تقريبي: السعر العادي \(1 SAR ≈ 0.26 USD\). لجعل الدولار أرخص للتاجر ضع قيمة أقل (مثل 0.24).
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل إعدادات التجار شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
+                    </div>
+
+                    <!-- Wallet / Points pricing -->
+                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                        <h4 class="mb-3 fw-bolder">نظام النقاط (المحفظة)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'point_price_sar'))
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">سعر النقطة بالريال (SAR)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           name="point_price_sar"
+                                           value="{{ old('point_price_sar', $setting?->point_price_sar ?? 3.75) }}"
+                                           placeholder="مثال: 3.75">
+                                    <div class="form-text">هذا السعر يستخدم لحساب قيمة الإيداع بالنقاط (عدد النقاط × سعر النقطة).</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">سعر النقطة بالدولار (USD)</label>
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                           name="point_price_usd"
+                                           value="{{ old('point_price_usd', $setting?->point_price_usd ?? 1.00) }}"
+                                           placeholder="مثال: 1.00">
+                                    <div class="form-text">للإظهار للمستخدم عند اختيار الدولار (ليس شرطاً أن يطابق سعر الصرف).</div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل إعدادات النقاط شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
                     </div>
 
                     <!-- End Name & alert message -->

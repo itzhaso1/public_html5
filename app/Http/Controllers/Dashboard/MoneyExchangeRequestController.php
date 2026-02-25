@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\MoneyExchangeRequest;
+use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use App\Support\WhatsApp\WasenderNotifier;
 use Illuminate\Http\Request;
@@ -91,14 +92,7 @@ class MoneyExchangeRequestController extends Controller
 
     private function notifyCustomer(MoneyExchangeRequest $req, bool $completed): void
     {
-        if (! (bool) config('services.wasender.enabled', false)) return;
-        if (! (bool) config('services.wasender.notify_customers', true)) return;
-
         try { $req->loadMissing(['user', 'user.profile']); } catch (\Throwable $e) {}
-
-        $to = WhatsAppNumber::normalize($req->user?->phone ?? '');
-        if ($to === '') $to = WhatsAppNumber::normalize($req->user?->profile?->phone ?? '');
-        if ($to === '') return;
 
         $app = (string) config('app.name', 'المتجر');
         $status = $completed ? 'تم إكمال طلبك ✅' : 'تم رفض طلبك ❌';
@@ -114,7 +108,23 @@ class MoneyExchangeRequestController extends Controller
             $noteLine
         );
 
-        WasenderNotifier::sendAfterCommit($to, $text);
+        // WhatsApp (optional)
+        if ((bool) config('services.wasender.enabled', false) && (bool) config('services.wasender.notify_customers', true)) {
+            $to = WhatsAppNumber::normalize($req->user?->phone ?? '');
+            if ($to === '') $to = WhatsAppNumber::normalize($req->user?->profile?->phone ?? '');
+            if ($to !== '') {
+                WasenderNotifier::sendAfterCommit($to, $text);
+            }
+        }
+
+        // Email (optional additional channel)
+        if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_customers', true)) {
+            $email = trim((string) ($req->user?->email ?? ''));
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $subject = $completed ? 'تم إكمال طلبك ✅' : 'تم رفض طلبك ❌';
+                EmailNotifier::sendAfterCommit($email, $subject, $text);
+            }
+        }
     }
 
     public function destroy(Request $request, MoneyExchangeRequest $moneyExchangeRequest)

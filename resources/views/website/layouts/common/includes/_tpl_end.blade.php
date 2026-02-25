@@ -259,16 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
     <!-- ترتيب المنتجات -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const productsContainer = document.querySelector('.grid.grid-cols-2.md\\:grid-cols-3');
+            const productsContainer = document.querySelector('[data-sort-by-base-price]');
             if (!productsContainer) return;
 
             const products = Array.from(productsContainer.children || []);
             if (products.length < 2) return;
 
             const getPrice = (el) => {
-                const p = el && el.querySelector ? el.querySelector('p.font-semibold') : null;
-                if (!p) return 0;
-                const raw = String(p.textContent || '').replace(/[^\d.]/g,'');
+                const priceEl = el && el.querySelector ? el.querySelector('.product-price[data-base-price]') : null;
+                if (!priceEl) return 0;
+                const raw = String(priceEl.getAttribute('data-base-price') || '').trim();
                 const n = parseFloat(raw);
                 return isNaN(n) ? 0 : n;
             };

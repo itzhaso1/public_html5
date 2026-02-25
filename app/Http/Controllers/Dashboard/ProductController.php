@@ -13,6 +13,7 @@ use App\Services\Services\ERP\ERPService;
 use Illuminate\Support\Str; // مكتبة للنصوص
 use Illuminate\Support\Facades\Cache;
 use App\Services\Integrations\Shop2TopUp\Shop2TopUpService;
+use App\Support\Shop2TopUp\Shop2TopUpBundle;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
  
@@ -74,11 +75,24 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'points_price' => 'nullable|integer|min:0',
+            'itemID' => 'nullable|string|max:255',
             // NOTE: this field is actually the service type (gems/codes)
             'type_id' => 'required|in:gems,codes',
         ]);
  
         try {
+            $itemIDRaw = null;
+            if ($request->type_id === 'gems') {
+                $itemIDRaw = trim((string) $request->input('itemID', ''));
+                $offerIds = Shop2TopUpBundle::parseOfferIds($itemIDRaw);
+                if (empty($offerIds)) {
+                    return redirect()->back()->withErrors([
+                        'error' => 'itemID (Shop2TopUp Offer ID) مطلوب للشحن ويجب أن يكون رقمًا أو باقة مثل 2400+2400+210.'
+                    ])->withInput();
+                }
+            }
+
             // نأخذ أول قسم ونوع موجودين لتجنب الأخطاء
             $categoryId = \DB::table('categories')->value('id');
             $typeId = \DB::table('types')->value('id');
@@ -100,6 +114,8 @@ class ProductController extends Controller
                 'type_id'      => $typeId ?: null,
                 'service_type' => $request->type_id, // gems/codes
                 'price'        => $request->price,
+                'itemID'       => $itemIDRaw,
+                'points_price' => $request->filled('points_price') ? (int) $request->points_price : null,
                 'stock'        => 9999,
                 'sku'          => $sku,
                 'status'       => 'published',

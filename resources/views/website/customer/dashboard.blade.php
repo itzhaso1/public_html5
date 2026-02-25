@@ -45,15 +45,26 @@
     <div class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <div class="text-sm font-extrabold text-gray-900">روابط سريعة</div>
         <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <a href="{{ route('website.diamonds.charge') }}"
-               class="rounded-2xl border border-gray-200 bg-white p-4 hover:bg-gray-50 transition">
+            @php
+                $chargeEnabled = (bool) ($chargeEnabled ?? ($settings?->charge_enabled ?? true));
+                $codesEnabled = (bool) ($codesEnabled ?? ($settings?->codes_enabled ?? true));
+            @endphp
+
+            <a href="{{ $chargeEnabled ? route('website.diamonds.charge') : 'javascript:void(0)' }}"
+               class="rounded-2xl border border-gray-200 bg-white p-4 hover:bg-gray-50 transition {{ $chargeEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
                 <div class="font-extrabold text-gray-900">شحن الجواهر</div>
                 <div class="text-xs text-gray-500 mt-1">اختر الباقة وادفع.</div>
+                @unless($chargeEnabled)
+                    <div class="mt-2 text-xs font-extrabold text-yellow-700">غير متاح حالياً</div>
+                @endunless
             </a>
-            <a href="{{ route('website.diamonds.codes') }}"
-               class="rounded-2xl border border-gray-200 bg-white p-4 hover:bg-gray-50 transition">
+            <a href="{{ $codesEnabled ? route('website.diamonds.codes') : 'javascript:void(0)' }}"
+               class="rounded-2xl border border-gray-200 bg-white p-4 hover:bg-gray-50 transition {{ $codesEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
                 <div class="font-extrabold text-gray-900">أكواد ملابس</div>
                 <div class="text-xs text-gray-500 mt-1">شراء أكواد جاهزة للتسليم.</div>
+                @unless($codesEnabled)
+                    <div class="mt-2 text-xs font-extrabold text-blue-700">غير متاح حالياً</div>
+                @endunless
             </a>
             @php
                 $cashEnabled = (bool) ($cashExchangeEnabled ?? ($settings?->cash_exchange_enabled ?? true));
@@ -75,6 +86,15 @@
                 @unless($moneyEnabled)
                     <div class="mt-2 text-xs font-extrabold text-purple-700">غير متاح حالياً</div>
                 @endunless
+            </a>
+
+            <a href="{{ route('customer.wallet.index') }}"
+               class="rounded-2xl border border-gray-200 bg-white p-4 hover:bg-gray-50 transition">
+                <div class="font-extrabold text-gray-900">محفظتي (نقاط)</div>
+                <div class="text-xs text-gray-500 mt-1">عرض الرصيد + إيداع نقاط.</div>
+                <div class="mt-2 text-xs font-extrabold text-gray-800">
+                    الرصيد: {{ number_format((int)($user?->wallet_points_balance ?? 0)) }} نقطة
+                </div>
             </a>
         </div>
     </div>

@@ -60,6 +60,9 @@
                 <div><span class="text-gray-500">الباقة:</span> <span class="font-bold">{{ $mpr->product?->name ?? '-' }}</span></div>
                 <div><span class="text-gray-500">Player ID:</span> <span class="font-bold select-all">{{ $mpr->player_id }}</span></div>
                 <div><span class="text-gray-500">المبلغ:</span> <span class="font-extrabold text-green-700">ر.س {{ number_format((float)$mpr->amount, 2) }}</span></div>
+                    @if(!empty($mpr->points_spent))
+                        <div><span class="text-gray-500">النقاط:</span> <span class="font-extrabold text-gray-900">{{ number_format((int)$mpr->points_spent) }}</span></div>
+                    @endif
                 <div><span class="text-gray-500">الحالة:</span> <span class="font-extrabold">{{ $mpr->status }}</span></div>
                     <div><span class="text-gray-500">طريقة الدفع:</span> <span class="font-bold">{{ $mpr->payment_method ?? '-' }}</span></div>
                 @if(($mpr->product?->service_type ?? null) === 'gems')
