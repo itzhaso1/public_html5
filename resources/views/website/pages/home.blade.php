@@ -103,7 +103,7 @@
             $cashTitle = $settings?->home_quick_cash_exchange_title ?: 'استبدل رصيدك كاش';
             $moneyTitle = $settings?->home_quick_money_exchange_title ?: 'تحويل الأموال';
 
-            $defaultQuickImg = asset('public/uploads/oki/old.png');
+            $defaultQuickImg = asset('uploads/oki/old.png');
             $chargeImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_charge') ?: $defaultQuickImg;
             $codesImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_codes') ?: $defaultQuickImg;
             $cashImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_cash_exchange') ?: null;

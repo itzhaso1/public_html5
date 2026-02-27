@@ -155,7 +155,7 @@ class Product extends Model implements TranslatableContract {
     public function getImageUrl()
 {
 
-    return asset('public/uploads/product/68f671923ab1a.jpg');
+    return asset('uploads/product/68f671923ab1a.jpg');
 }
 
 }

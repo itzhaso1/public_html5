@@ -214,7 +214,7 @@ video {
    
 <div class="video-container relative w-full aspect-video bg-black">
     <video class="absolute inset-0 w-full h-full object-contain" controls controlsList="nodownload">
-        <source src="{{ asset('public/' . $productVideo->video_path) }}" type="video/mp4">
+        <source src="{{ asset($productVideo->video_path) }}" type="video/mp4">
         متصفحك لا يدعم تشغيل الفيديو.
     </video>
 </div>

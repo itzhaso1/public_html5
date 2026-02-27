@@ -29,20 +29,20 @@
 
     <!--end::Fonts-->
     <!--begin::Page Vendor Stylesheets(used by this page)-->
-    <link href="{{ asset('public/dashboard/assets/plugins/custom/fullcalendar/fullcalendar.bundle.css') }}" rel="stylesheet"
+    <link href="{{ asset('dashboard/assets/plugins/custom/fullcalendar/fullcalendar.bundle.css') }}" rel="stylesheet"
         type="text/css" />
     @if (app()->getLocale() == 'ar')
-        <link href="{{ asset('public/dashboard/assets/plugins/custom/prismjs/prismjs.bundle.rtl.css') }}" rel="stylesheet"
+        <link href="{{ asset('dashboard/assets/plugins/custom/prismjs/prismjs.bundle.rtl.css') }}" rel="stylesheet"
             type="text/css" />
-        <link href="{{ asset('public/dashboard/assets/plugins/global/plugins.bundle.rtl.css') }}" rel="stylesheet"
+        <link href="{{ asset('dashboard/assets/plugins/global/plugins.bundle.rtl.css') }}" rel="stylesheet"
             type="text/css" />
-        <link href="{{ asset('public/dashboard/assets/css/style.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('dashboard/assets/css/style.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
     @else
         <!--end::Page Vendor Stylesheets-->
         <!--begin::Global Stylesheets Bundle(used by all pages)-->
-        <link href="{{ asset('public/dashboard/assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet"
+        <link href="{{ asset('dashboard/assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet"
             type="text/css" />
-        <link href="{{ asset('public/dashboard/assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('dashboard/assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
         <!--end::Global Stylesheets Bundle-->
     @endif
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" />

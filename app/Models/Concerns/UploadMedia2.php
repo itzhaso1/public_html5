@@ -12,12 +12,11 @@ trait UploadMedia2 {
     {
         $uploadsPath = ltrim($uploadsPath, '/');
         if ($disk === 'storage_public') {
-            // On shared hosting this project is often served from the repo root,
-            // so public assets are under /public and the storage symlink is /public/storage.
-            return asset("public/storage/{$uploadsPath}");
+            // storage_public means the file is under storage/app/public/... and is exposed via /public/storage symlink.
+            return asset("storage/{$uploadsPath}");
         }
-        // direct_public (or unknown) => /public/uploads/...
-        return asset("public/{$uploadsPath}");
+        // direct_public (or unknown) => file is under public/...
+        return asset($uploadsPath);
     }
     public function uploadSingleMedia(
         $baseFolder,
