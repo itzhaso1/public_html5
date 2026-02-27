@@ -110,27 +110,57 @@ class ImportSqliteToMysql extends Command
                     $mysql->table($table)->truncate();
                 }
 
-                $columns = collect(DB::connection($sqliteConn)->select("PRAGMA table_info('$table')"))
+                $mysqlColumns = Schema::connection($mysqlConn)->getColumnListing($table);
+                $mysqlColumnsSet = array_fill_keys($mysqlColumns, true);
+
+                $sqliteColumnsRaw = collect(DB::connection($sqliteConn)->select("PRAGMA table_info('$table')"))
                     ->map(fn ($r) => $r->name)
                     ->filter()
                     ->values()
                     ->all();
 
+                // Build a list of allowed "clean" column names that exist in MySQL.
+                // Also protects from legacy SQLite columns with whitespace/newlines in their names.
+                $allowedColumns = [];
+                foreach ($sqliteColumnsRaw as $c) {
+                    $clean = is_string($c) ? trim($c) : (string) $c;
+                    if ($clean === '' || ! isset($mysqlColumnsSet[$clean])) {
+                        continue;
+                    }
+                    $allowedColumns[$clean] = true;
+                }
+                $allowedColumns = array_keys($allowedColumns);
+                $allowedColumnsSet = array_fill_keys($allowedColumns, true);
+
                 // Chunk by primary key if present, else use offset pagination
                 $pk = collect(DB::connection($sqliteConn)->select("PRAGMA table_info('$table')"))
                     ->firstWhere('pk', 1);
                 $pkName = is_object($pk) ? ($pk->name ?? null) : null;
+                $pkName = is_string($pkName) ? trim($pkName) : $pkName;
 
                 $imported = 0;
 
-                if ($pkName && in_array($pkName, $columns, true)) {
+                if ($pkName && in_array($pkName, $allowedColumns, true)) {
                     DB::connection($sqliteConn)->table($table)
                         ->orderBy($pkName)
-                        ->chunk($chunkSize, function ($rows) use ($mysql, $table, $columns, &$imported) {
+                        ->chunk($chunkSize, function ($rows) use ($mysql, $table, $allowedColumnsSet, &$imported) {
                             $payload = [];
                             foreach ($rows as $row) {
                                 $arr = (array) $row;
-                                $payload[] = array_intersect_key($arr, array_flip($columns));
+                                $cleanRow = [];
+                                foreach ($arr as $k => $v) {
+                                    $cleanKey = is_string($k) ? trim($k) : (string) $k;
+                                    if (! isset($allowedColumnsSet[$cleanKey])) {
+                                        continue;
+                                    }
+                                    // If SQLite has duplicate keys after trim, keep the first one.
+                                    if (! array_key_exists($cleanKey, $cleanRow)) {
+                                        $cleanRow[$cleanKey] = $v;
+                                    }
+                                }
+                                if ($cleanRow) {
+                                    $payload[] = $cleanRow;
+                                }
                             }
                             if ($payload) {
                                 $mysql->table($table)->insert($payload);
@@ -152,11 +182,25 @@ class ImportSqliteToMysql extends Command
                         $payload = [];
                         foreach ($rows as $row) {
                             $arr = (array) $row;
-                            $payload[] = array_intersect_key($arr, array_flip($columns));
+                            $cleanRow = [];
+                            foreach ($arr as $k => $v) {
+                                $cleanKey = is_string($k) ? trim($k) : (string) $k;
+                                if (! isset($allowedColumnsSet[$cleanKey])) {
+                                    continue;
+                                }
+                                if (! array_key_exists($cleanKey, $cleanRow)) {
+                                    $cleanRow[$cleanKey] = $v;
+                                }
+                            }
+                            if ($cleanRow) {
+                                $payload[] = $cleanRow;
+                            }
                         }
 
-                        $mysql->table($table)->insert($payload);
-                        $imported += count($payload);
+                        if ($payload) {
+                            $mysql->table($table)->insert($payload);
+                            $imported += count($payload);
+                        }
 
                         $offset += $chunkSize;
                     }
