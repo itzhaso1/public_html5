@@ -24,6 +24,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        if (in_array(config('database.default'), ['mysql', 'mariadb'], true)) {
+            Schema::defaultStringLength(191);
+        }
+
         try {
             if (Schema::hasTable('settings')) {
                 $settings = Cache::remember('app_settings', 60 * 60, function () {

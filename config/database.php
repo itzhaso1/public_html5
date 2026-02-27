@@ -15,8 +15,9 @@ return [
     |
     */
 
-   // Keep Laravel default; production should set DB_CONNECTION explicitly in .env
-   'default' => env('DB_CONNECTION', 'sqlite'),
+   // Production should set DB_CONNECTION explicitly in .env.
+   // Fallback to mysql to match typical production usage.
+   'default' => env('DB_CONNECTION', 'mysql'),
 
 
     /*
