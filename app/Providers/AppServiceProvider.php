@@ -28,6 +28,15 @@ class AppServiceProvider extends ServiceProvider
             Schema::defaultStringLength(191);
         }
 
+        // Ensure these variables always exist in views, even if DB is unavailable
+        // or settings table is empty.
+        View::share([
+            'settings' => null,
+            'logo' => null,
+            'favicon' => null,
+            'cashExchangeEnabled' => true,
+        ]);
+
         try {
             if (Schema::hasTable('settings')) {
                 $settings = Cache::remember('app_settings', 60 * 60, function () {
