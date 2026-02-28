@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Admin;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -17,7 +18,7 @@ class AdminTableSeeder extends Seeder
         $admin = Admin::create([
             'name' => 'Mostafa',
             'email' => 'admin@app.com',
-            'password' => '123123',
+            'password' => Hash::make('123123'),
             'type' => 'admin',
             'status' => 'active',
             'remember_token' => Str::random(10),
@@ -25,7 +26,7 @@ class AdminTableSeeder extends Seeder
         $admin = Admin::create([
             'name' => 'Hesham',
             'email' => 'mm@app.com',
-            'password' => '123123',
+            'password' => Hash::make('123123'),
             'status' => 'inactive',
             'type' => 'supervisor',
             'remember_token' => Str::random(10),
