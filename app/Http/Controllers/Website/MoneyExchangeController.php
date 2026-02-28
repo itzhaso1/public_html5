@@ -5,12 +5,36 @@ namespace App\Http\Controllers\Website;
 use App\Http\Controllers\Controller;
 use App\Models\MoneyExchangeRequest;
 use App\Models\MoneyExchangeSetting;
+use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Support\WhatsApp\WhatsAppNumber;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class MoneyExchangeController extends Controller
 {
+    private function isEnabled(): bool
+    {
+        try {
+            if (!Schema::hasTable('settings') || !Schema::hasColumn('settings', 'money_exchange_enabled')) {
+                return true;
+            }
+        } catch (\Throwable $e) {
+            return true;
+        }
+
+        try {
+            $settings = Cache::get('app_settings');
+            if (!$settings) {
+                $settings = Setting::query()->latest()->first();
+            }
+            return (bool) ($settings?->money_exchange_enabled ?? true);
+        } catch (\Throwable $e) {
+            return true;
+        }
+    }
+
     private function getSettings(): ?MoneyExchangeSetting
     {
         /** @var MoneyExchangeSetting|null $s */
@@ -23,6 +47,10 @@ class MoneyExchangeController extends Controller
 
     public function index()
     {
+        if (! $this->isEnabled()) {
+            return redirect()->route('home')->with('error', 'خدمة تحويل الأموال غير متاحة حالياً.');
+        }
+
         $settings = $this->getSettings();
 
         return view('website.money_exchange.index', [
@@ -33,6 +61,10 @@ class MoneyExchangeController extends Controller
 
     public function store(Request $request)
     {
+        if (! $this->isEnabled()) {
+            return back()->withErrors(['error' => 'الخدمة غير متاحة حالياً.'])->withInput();
+        }
+
         $settings = $this->getSettings();
         if (! $settings) {
             return back()->withErrors(['error' => 'الخدمة غير متاحة حالياً.'])->withInput();

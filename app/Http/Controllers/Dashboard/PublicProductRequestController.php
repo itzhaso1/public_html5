@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WasenderNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use Illuminate\Http\Request;
@@ -152,18 +153,14 @@ class PublicProductRequestController extends Controller
 
     private function notifyPublisher(Product $product, bool $approved): void
     {
-        if (! (bool) config('services.wasender.enabled', false)) return;
-        if (! (bool) config('services.wasender.notify_customers', true)) return;
-
-        $to = WhatsAppNumber::normalize((string) ($product->client_number ?? ''));
-        if ($to === '') return;
-
         $app = (string) config('app.name', 'المتجر');
         $name = (string) ($product->name ?? '');
         $trackUrl = route('public.products.track', ['slug' => $product->slug]);
         $publishUrl = route('public.products.create');
         $note = trim((string) ($product->review_note ?? ''));
         $noteLine = $note !== '' ? ("\nملاحظة الإدارة: " . mb_substr($note, 0, 250)) : '';
+
+        $subject = $approved ? 'تم قبول طلب نشر حسابك ✅' : 'تم رفض طلب نشر حسابك ❌';
 
         if ($approved) {
             $productUrl = route('website.product.show', $product);
@@ -196,7 +193,21 @@ class PublicProductRequestController extends Controller
             );
         }
 
-        WasenderNotifier::sendAfterCommit($to, $text);
+        // WhatsApp (optional)
+        if ((bool) config('services.wasender.enabled', false) && (bool) config('services.wasender.notify_customers', true)) {
+            $to = WhatsAppNumber::normalize((string) ($product->client_number ?? ''));
+            if ($to !== '') {
+                WasenderNotifier::sendAfterCommit($to, $text);
+            }
+        }
+
+        // Email (optional additional channel)
+        if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_customers', true)) {
+            $email = trim((string) ($product->client_email ?? ''));
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                EmailNotifier::sendAfterCommit($email, $subject, $text);
+            }
+        }
     }
 
     public function destroy(Request $request, Product $product)

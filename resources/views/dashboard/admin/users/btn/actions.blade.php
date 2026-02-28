@@ -1,4 +1,7 @@
 <div class="d-flex justify-content-center">
+    <a href="{{ route('admin.user.edit', $user->id) }}" class="mx-1 btn btn-primary btn-sm" title="تعديل">
+        <i class="fas fa-edit"></i>
+    </a>
     <button type="button" class="mx-1 btn btn-danger btn-sm" data-bs-toggle="modal"
             data-bs-target="#deleteModal{{ $user->id }}">
         <i class="fas fa-trash"></i>

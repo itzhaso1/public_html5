@@ -18,6 +18,27 @@ class PublicProductController extends Controller
 {
     protected ProductInterface $productInterface;
 
+    private function publishCommissionFor(float $basePrice): float
+    {
+        $p = (float) $basePrice;
+        if ($p <= 0) return 0.0;
+
+        // Pricing tiers (SAR):
+        // <= 500 => +50
+        // <= 1000 => +75
+        // > 1500 => +100
+        // > 2000 => +175
+        // > 3000 => +250
+        // > 4000 => +270
+        if ($p <= 500) return 50.0;
+        if ($p <= 1000) return 75.0;
+        if ($p <= 1500) return 75.0;
+        if ($p <= 2000) return 100.0;
+        if ($p <= 3000) return 175.0;
+        if ($p <= 4000) return 250.0;
+        return 270.0;
+    }
+
     public function __construct(ProductInterface $productInterface)
     {
         $this->productInterface = $productInterface;
@@ -30,6 +51,24 @@ class PublicProductController extends Controller
     {
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج',
+            'formAction' => route('public.products.store', request()->query()),
+            'data' => [
+                'categories' => Category::all(),
+                'types' => Type::all(),
+                'tags' => Tag::all(),
+            ],
+        ]);
+    }
+
+    /**
+     * نفس صفحة publish-product لكن مخصصة للإدارة (تضيف حرف "ج" تلقائياً لاسم الحساب).
+     */
+    public function createAdmin()
+    {
+        return view('public.products.form', [
+            'pageTitle' => 'نشر منتج (للإدارة)',
+            'formAction' => route('public.products.store_admin', request()->query()),
+            'namePrefix' => 'ج',
             'data' => [
                 'categories' => Category::all(),
                 'types' => Type::all(),
@@ -43,11 +82,56 @@ class PublicProductController extends Controller
      */
     public function store(Request $request)
     {
+        return $this->storeInternal($request, null);
+    }
+
+    public function storeAdmin(Request $request)
+    {
+        return $this->storeInternal($request, 'ج');
+    }
+
+    private function storeInternal(Request $request, ?string $namePrefix)
+    {
         try {
+            $request->validate([
+                'client_email' => ['nullable', 'string', 'email', 'max:255'],
+            ]);
+
             // Normalize customer WhatsApp number (digits only, fixes common formats).
             $normalizedPhone = WhatsAppNumber::normalize((string) $request->input('client_number', ''));
             if ($normalizedPhone !== '') {
                 $request->merge(['client_number' => $normalizedPhone]);
+            }
+
+            $clientEmail = trim((string) $request->input('client_email', ''));
+            if ($clientEmail !== '') {
+                try {
+                    if (Schema::hasColumn('products', 'client_email')) {
+                        $request->merge(['client_email' => $clientEmail]);
+                    }
+                } catch (\Throwable $e) {
+                    // ignore (migrations not yet applied)
+                }
+            }
+
+            if ($namePrefix) {
+                $this->applyNamePrefix($request, $namePrefix, 'ar');
+            }
+
+            // Auto-add commission for public publish price.
+            $basePrice = (float) $request->input('price', 0);
+            if ($basePrice > 0) {
+                $commission = $this->publishCommissionFor($basePrice);
+                $finalPrice = round($basePrice + $commission, 2);
+
+                $note = trim((string) $request->input('review_note', ''));
+                $meta = "Public publish pricing:\n- base: {$basePrice} SAR\n- commission: {$commission} SAR\n- final: {$finalPrice} SAR";
+                $request->merge([
+                    // Persist final price in DB.
+                    'price' => $finalPrice,
+                    // Add a note for admin review (doesn't affect frontend).
+                    'review_note' => $note !== '' ? ($note . "\n\n" . $meta) : $meta,
+                ]);
             }
 
             // Always create as "pending review" before publishing.
@@ -87,6 +171,21 @@ class PublicProductController extends Controller
             return redirect()
                 ->route('home')
                 ->with('error', 'حدث خطأ غير متوقع');
+        }
+    }
+
+    private function applyNamePrefix(Request $request, string $prefix, string $locale = 'ar'): void
+    {
+        $prefix = trim((string) $prefix);
+        if ($prefix === '') return;
+
+        $payload = (array) $request->input($locale, []);
+        $name = trim((string) ($payload['name'] ?? ''));
+        if ($name === '') return;
+
+        if (!str_starts_with($name, $prefix) && !str_starts_with($name, $prefix . ' ')) {
+            $payload['name'] = $prefix . ' ' . $name;
+            $request->merge([$locale => $payload]);
         }
     }
 

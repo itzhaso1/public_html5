@@ -56,6 +56,13 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
             Route::delete('{product}', [Dashboard\PublicProductRequestController::class, 'destroy'])->name('destroy');
         });
 
+        // Merchant requests (diamonds traders)
+        Route::prefix('merchant-requests')->as('merchant_requests.')->group(function () {
+            Route::get('/', [Dashboard\MerchantRequestController::class, 'index'])->name('index');
+            Route::post('{merchantRequest}/approve', [Dashboard\MerchantRequestController::class, 'approve'])->name('approve');
+            Route::post('{merchantRequest}/reject', [Dashboard\MerchantRequestController::class, 'reject'])->name('reject');
+        });
+
         // التصنيفات (الأقسام)
         Route::resource('categories', Dashboard\CategoryController::class);
         Route::post('categories/import', [Dashboard\CategoryController::class, 'import'])->name('categories.import');
@@ -63,7 +70,10 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
         // أقسام الصفحة الرئيسية (Sections)
         Route::resource('sections', Dashboard\SectionController::class);
 
-        Route::resource('users', Dashboard\UserController::class)->names('user');
+        // سلايدر الصفحة الرئيسية (صور السلايدر)
+        Route::resource('sliders', Dashboard\SliderController::class);
+
+        Route::resource('users', Dashboard\UserController::class)->names('user')->only(['index', 'edit', 'update', 'destroy']);
 
         Route::prefix('manual-payments')->as('manual_payments.')->group(function () {
             Route::get('/', [Dashboard\ManualPaymentController::class, 'index'])->name('index');
@@ -75,6 +85,22 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
             Route::post('{manualPaymentRequest}/approve', [Dashboard\ManualPaymentController::class, 'approve'])->name('approve');
             Route::post('{manualPaymentRequest}/reject', [Dashboard\ManualPaymentController::class, 'reject'])->name('reject');
             Route::delete('{manualPaymentRequest}', [Dashboard\ManualPaymentController::class, 'destroy'])->name('destroy');
+        });
+
+        // Wallet points orders (separated from manual bank transfer)
+        Route::prefix('wallet-points-orders')->as('wallet_points_orders.')->group(function () {
+            Route::get('/', [Dashboard\WalletPointsOrderController::class, 'index'])->name('index');
+            Route::get('{manualPaymentRequest}', [Dashboard\WalletPointsOrderController::class, 'show'])->name('show');
+            Route::post('{manualPaymentRequest}/refresh', [Dashboard\WalletPointsOrderController::class, 'refreshTransaction'])->name('refresh');
+            Route::delete('{manualPaymentRequest}', [Dashboard\WalletPointsOrderController::class, 'destroy'])->name('destroy');
+        });
+
+        // Wallet top-ups (points deposits)
+        Route::prefix('wallet-topups')->as('wallet_topups.')->group(function () {
+            Route::get('/', [Dashboard\WalletTopupRequestController::class, 'index'])->name('index');
+            Route::get('{walletTopupRequest}/receipt', [Dashboard\WalletTopupRequestController::class, 'receipt'])->name('receipt');
+            Route::post('{walletTopupRequest}/approve', [Dashboard\WalletTopupRequestController::class, 'approve'])->name('approve');
+            Route::post('{walletTopupRequest}/reject', [Dashboard\WalletTopupRequestController::class, 'reject'])->name('reject');
         });
 
         Route::prefix('diamond-codes')->as('diamond_codes.')->group(function () {

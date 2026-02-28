@@ -10,6 +10,7 @@
     $imageUrl = $product?->getMediaUrl('product', $product, null, 'media', 'product');
     $productImage = $imageUrl ?: $fallbackImage;
     $isCodes = ($product?->service_type ?? null) === 'codes';
+    $isGems = ($product?->service_type ?? null) === 'gems';
     $title = $product?->name ?? ($isCodes ? 'كود' : 'شحن جواهر');
     $availableCodesCount = $isCodes
         ? \App\Models\DiamondCode::query()
@@ -25,6 +26,11 @@
         : null;
     $effectiveAvailable = $isCodes ? max(0, ((int) $availableCodesCount) - ((int) $pendingRequestsCount)) : null;
     $isOutOfStock = $isCodes && ((int) $effectiveAvailable) === 0;
+    $basePrice = (float) ($product?->price ?? 0);
+    $bundleOfferIds = $isGems
+        ? \App\Support\Shop2TopUp\Shop2TopUpBundle::offerIdsForProduct($product)
+        : [];
+    $isBundle = $isGems && count($bundleOfferIds) > 1;
 @endphp
 
 @include('website.diamonds.partials.header', [
@@ -65,10 +71,25 @@
             <div class="mt-5 rounded-2xl bg-gray-50 border border-gray-100 p-4">
                 <div class="text-xs text-gray-500">السعر</div>
                 <div class="mt-1 text-3xl font-extrabold text-green-600 product-price"
-                     data-base-price="{{ (float) $product->price }}">
-                    <span class="current-price">ر.س {{ number_format((float) $product->price, 2) }}</span>
+                     data-base-price="{{ (float) $basePrice }}">
+                    <span class="current-price">ر.س {{ number_format((float) $basePrice, 2) }}</span>
                 </div>
+                @if(!empty($product?->points_price))
+                    <div class="mt-1 text-sm font-extrabold text-gray-900">
+                        بالنقاط: {{ number_format((int) $product->points_price) }} نقطة
+                    </div>
+                @endif
             </div>
+
+            @if($isBundle)
+                <div class="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 text-sm text-gray-800">
+                    <div class="font-extrabold text-indigo-800">الباقة مركّبة</div>
+                    <div class="mt-1">
+                        سيتم إرسال الشحن كالتالي:
+                        <span class="font-extrabold">{{ implode(' + ', $bundleOfferIds) }}</span>
+                    </div>
+                </div>
+            @endif
 
             <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
                 <div class="flex items-center gap-2 rounded-xl border border-gray-100 p-3">
@@ -101,6 +122,19 @@
                        class="inline-flex items-center justify-center rounded-xl bg-black px-5 py-3 text-sm font-extrabold text-white hover:bg-gray-800 transition">
                         الدفع اليدوي (تحويل بنكي)
                     </a>
+                    @if(!empty($product?->points_price))
+                        @auth
+                            <a href="{{ route('website.diamonds.points_payment.create', $product) }}"
+                               class="inline-flex items-center justify-center rounded-xl border border-yellow-200 bg-yellow-50 px-5 py-3 text-sm font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                                الدفع بالنقاط
+                            </a>
+                        @else
+                            <a href="{{ route('auth.login') }}"
+                               class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                                سجّل دخولك للدفع بالنقاط
+                            </a>
+                        @endauth
+                    @endif
                 @else
                     <a href="{{ route('website.diamonds.codes') }}"
                        class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-gray-100 px-5 py-3 text-sm font-extrabold text-gray-700 cursor-not-allowed">

@@ -8,6 +8,8 @@
 @php
     $fallbackImage = asset('img/قريبا.jpg');
     $products = $products ?? collect();
+    $isMerchant = false;
+    try { $isMerchant = auth()->check() && (bool) (auth()->user()?->is_merchant ?? false); } catch (\Throwable $e) {}
 @endphp
 
 @include('website.diamonds.partials.header', [
@@ -18,7 +20,18 @@
 
 <section class="max-w-7xl mx-auto px-4 pb-10" dir="rtl">
     <div class="mt-4">
-        @include('website.partials.currency_picker')
+        @php
+            $rates = $currencyRatesByCountry ?? ['SA' => 1, 'JO' => 0.1885, 'US' => 0.2666];
+            try {
+                if (auth()->check() && (bool) (auth()->user()?->is_merchant ?? false)) {
+                    $merchantRate = (float) ($settings?->merchant_usd_rate ?? 0);
+                    if ($merchantRate > 0) {
+                        $rates['US'] = $merchantRate;
+                    }
+                }
+            } catch (\Throwable $e) {}
+        @endphp
+        @include('website.partials.currency_picker', ['currencyRatesByCountry' => $rates])
     </div>
 
     <div class="bg-white/70 backdrop-blur rounded-2xl border border-gray-200 shadow-sm p-4 sm:p-6">
@@ -39,6 +52,29 @@
                        class="w-full sm:w-80 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-yellow-400/60"
                        placeholder="ابحث باسم الباقة...">
             </div>
+        </div>
+
+        <div class="mt-4">
+            @auth
+                @if((bool) (auth()->user()?->is_merchant ?? false))
+                    <div class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-extrabold text-emerald-800">
+                        <span>✅ حساب تاجر</span>
+                        <span class="text-emerald-600">— سعر أفضل على الدولار</span>
+                    </div>
+                @else
+                    <a href="{{ route('website.merchant.apply') }}"
+                       class="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2 text-xs font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                        تقديم طلب لتصبح تاجر (سعر أفضل)
+                        <span aria-hidden="true">›</span>
+                    </a>
+                @endif
+            @else
+                <a href="{{ route('auth.login') }}"
+                   class="inline-flex items-center justify-center gap-2 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2 text-xs font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                    سجّل دخولك لتقديم طلب تاجر
+                    <span aria-hidden="true">›</span>
+                </a>
+            @endauth
         </div>
 
         <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs sm:text-sm">
@@ -68,6 +104,7 @@
                     $title = $product->name ?? 'باقة شحن';
                     $desc = $product->description ?? $product->short_description ?? null;
                     $descText = $desc ? \Illuminate\Support\Str::limit(trim(strip_tags($desc)), 90) : 'شحن فوري وآمن';
+                    $basePrice = (float) ($product->price ?? 0);
                 @endphp
 
                 <article class="diamond-card bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition overflow-hidden"
@@ -96,9 +133,14 @@
                             <div class="text-right">
                                 <div class="text-xs text-gray-500">السعر</div>
                                 <div class="text-lg font-extrabold text-green-600 product-price"
-                                     data-base-price="{{ (float) $product->price }}">
-                                    <span class="current-price">ر.س {{ number_format((float) $product->price, 2) }}</span>
+                                     data-base-price="{{ (float) $basePrice }}">
+                                    <span class="current-price">ر.س {{ number_format((float) $basePrice, 2) }}</span>
                                 </div>
+                                @if(!empty($product->points_price))
+                                    <div class="mt-1 text-xs font-extrabold text-gray-800">
+                                        بالنقاط: {{ number_format((int) $product->points_price) }} نقطة
+                                    </div>
+                                @endif
                             </div>
 
                             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -113,6 +155,21 @@
                                         دفع يدوي
                                     </a>
                                 @endif
+                                @auth
+                                    @if(!empty($product->points_price))
+                                        <a href="{{ route('website.diamonds.points_payment.create', $product) }}"
+                                           class="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-2 text-xs sm:text-sm font-extrabold text-yellow-800 hover:bg-yellow-100 transition">
+                                            شراء بالنقاط
+                                        </a>
+                                    @endif
+                                @else
+                                    @if(!empty($product->points_price))
+                                        <a href="{{ route('auth.login') }}"
+                                           class="w-full sm:w-auto inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs sm:text-sm font-bold text-gray-800 hover:bg-gray-50 transition">
+                                            سجّل دخولك لشراء بالنقاط
+                                        </a>
+                                    @endif
+                                @endauth
                             </div>
                         </div>
                     </div>

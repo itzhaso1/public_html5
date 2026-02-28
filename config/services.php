@@ -50,4 +50,14 @@ return [
         'notify_customers' => env('WASENDER_NOTIFY_CUSTOMERS', true),
     ],
 
+    // Optional email notifications (additional channel besides WhatsApp)
+    'email_notify' => [
+        'enabled' => env('EMAIL_NOTIFY_ENABLED', false),
+        'notify_admin' => env('EMAIL_NOTIFY_ADMIN', true),
+        'notify_customers' => env('EMAIL_NOTIFY_CUSTOMERS', true),
+        // Comma-separated list of admin recipient emails (optional).
+        // If empty, the app will try to notify all admins + main settings email.
+        'admin_to' => array_values(array_filter(array_map('trim', explode(',', (string) env('EMAIL_NOTIFY_TO', ''))))),
+    ],
+
 ];

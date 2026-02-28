@@ -9,6 +9,7 @@ use App\DataTables\Dashboard\Admin\ProductDataTable;
 use App\Models\Concerns\UploadVideoTrait;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class ProductRepository implements ProductInterface
 {
@@ -277,12 +278,14 @@ if ($request->hasFile('video')) {
             'price_before_discount',
             'deal_ends_at',
             'price',
+            'points_price',
             'stock',
             'sku',
             'status',
             'featured',
             'slug',
             'client_number',
+            'client_email',
             'publish_source',
             'review_note',
             'review_reject_reasons',
@@ -290,6 +293,15 @@ if ($request->hasFile('video')) {
             'reviewed_at',
             'rejected_at',
         ]);
+
+        // Backward-compatible deploy: avoid inserting columns that may not exist yet.
+        try {
+            if (! Schema::hasColumn('products', 'client_email')) {
+                unset($data['client_email']);
+            }
+        } catch (\Throwable $e) {
+            unset($data['client_email']);
+        }
 
         if (empty($data['category_id'])) {
             $data['category_id'] = Category::query()->where('status', 'active')->value('id') ?? Category::query()->value('id');

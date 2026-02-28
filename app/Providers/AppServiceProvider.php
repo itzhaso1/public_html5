@@ -9,6 +9,7 @@ use App\Models\MoneyExchangeRequest;
 use App\Models\MoneyExchangeSetting;
 use App\Models\Order;
 use App\Models\Setting;
+use App\Models\WalletTopupRequest;
 use App\Observers\NewDashboardRequestWhatsAppObserver;
 use App\Services\Currency\ExchangeRateService;
 use Illuminate\Support\Facades\Cache;
@@ -40,18 +41,29 @@ class AppServiceProvider extends ServiceProvider
         try {
             if (Schema::hasTable('settings')) {
                 $settings = Cache::remember('app_settings', 60 * 60, function () {
-                    return Setting::with('media')->latest()->first();
+                    return Setting::with('media')->latest('id')->first();
                 });
 
                 if ($settings) {
-                    $logo = $settings->getMediaUrl('setting', $settings, null, 'media', 'logo');
-                    $favicon = $settings->getMediaUrl('setting', $settings, null, 'media', 'favicon');
+                    $assetUrl = (string) config('app.asset_url', '');
+                    $assetUrl = trim($assetUrl);
+                    $assetPath = $assetUrl !== '' ? (string) (parse_url($assetUrl, PHP_URL_PATH) ?? '') : '';
+                    $assetPath = rtrim($assetPath, '/');
+                    $hasPublicBase = $assetPath === '/public';
+                    $prefix = $hasPublicBase ? '' : 'public/';
+
+                    $fallbackLogo = asset($prefix . 'dashboard/assets/media/logos/logo-default.svg');
+                    $logo = $settings->getMediaUrl('setting', $settings, null, 'media', 'logo') ?: $fallbackLogo;
+                    $favicon = $settings->getMediaUrl('setting', $settings, null, 'media', 'favicon') ?: $fallbackLogo;
 
                     View::share([
                         'settings' => $settings,
                         'logo' => $logo,
                         'favicon' => $favicon,
+                        'fallbackLogo' => $fallbackLogo,
                         'cashExchangeEnabled' => (bool) ($settings->cash_exchange_enabled ?? true),
+                        'chargeEnabled' => (bool) ($settings->charge_enabled ?? true),
+                        'codesEnabled' => (bool) ($settings->codes_enabled ?? true),
                     ]);
                 }
             }
@@ -67,6 +79,21 @@ class AppServiceProvider extends ServiceProvider
                 'JO' => (float) ($fx['JOD'] ?? 0.1885),
                 'US' => (float) ($fx['USD'] ?? 0.2666),
             ];
+
+            // Merchant USD override: affects USD display only.
+            try {
+                if (auth()->check() && (bool) (auth()->user()?->is_merchant ?? false)) {
+                    if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'merchant_usd_rate')) {
+                        $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+                        $m = (float) ($s?->merchant_usd_rate ?? 0);
+                        if ($m > 0) {
+                            $ratesByCountry['US'] = $m;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
 
             try {
                 $locale = app()->getLocale();
@@ -95,6 +122,20 @@ class AppServiceProvider extends ServiceProvider
                 $moneyExchangeEnabled = false;
             }
 
+            // Optional manual toggle from main settings (same UX as cash exchange).
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'money_exchange_enabled')) {
+                    $appSettings = Cache::get('app_settings');
+                    if (!$appSettings) {
+                        $appSettings = Setting::query()->latest()->first();
+                    }
+                    $toggle = (bool) ($appSettings?->money_exchange_enabled ?? true);
+                    $moneyExchangeEnabled = (bool) $moneyExchangeEnabled && $toggle;
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+
             $view->with([
                 'categories' => $categories,
                 'currencyRatesByCountry' => $ratesByCountry,
@@ -114,6 +155,7 @@ class AppServiceProvider extends ServiceProvider
             CashExchangeRequest::observe($observer);
             MoneyExchangeRequest::observe($observer);
             Order::observe($observer);
+            WalletTopupRequest::observe($observer);
         } catch (\Throwable $e) {
             // ignore
         }
