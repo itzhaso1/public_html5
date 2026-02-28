@@ -15,8 +15,8 @@
             <div class="flex-shrink-0 flex items-center">
                <a href="{{ route('home') }}">
                 <img class="h-8 w-auto"
-                     src="{{ $logo ?: ($fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg')) }}"
-                     onerror="this.onerror=null;this.src='{{ $fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg') }}';"
+                     src="{{ $logo ?: ($fallbackLogo ?? asset('dashboard/assets/media/logos/lpgp11.png')) }}"
+                     onerror="this.onerror=null;this.src='{{ $fallbackLogo ?? asset('dashboard/assets/media/logos/lpgp11.png') }}';"
                      alt="{{ $settings?->name ?? 'logo' }}">
                </a>
              
