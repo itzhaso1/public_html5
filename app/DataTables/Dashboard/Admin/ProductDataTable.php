@@ -22,7 +22,23 @@ class ProductDataTable extends BaseDataTable {
                 return view('dashboard.admin.products.btn.actions', compact('product'));
             })
             ->editColumn('product', function (Product $product) {
-                return '<img src="' . $product->getMediaUrl('product', $product, null, 'media', 'product') . '" class="img-fluid" alt="' . $product?->name . '" style="max-width: 100px; max-height: 100px; object-fit: cover; border-radius: 5px;"/>';
+                $url = '';
+                try {
+                    $url = (string) $product->getMediaUrl('product', $product, null, 'media', 'product');
+                } catch (\Throwable $e) {
+                    $url = '';
+                }
+
+                if ($url === '') {
+                    try { $url = (string) $product->getImageUrl(); } catch (\Throwable $e) {}
+                }
+                if ($url === '') {
+                    $url = asset('img/قريبا.jpg');
+                }
+
+                $alt = e((string) ($product?->name ?? ''));
+
+                return '<img src="' . e($url) . '" class="img-fluid" alt="' . $alt . '" style="max-width: 100px; max-height: 100px; object-fit: cover; border-radius: 5px;"/>';
             })
             ->addColumn('category', function (Product $product) {
                 return $product?->category?->name;
@@ -47,9 +63,18 @@ class ProductDataTable extends BaseDataTable {
                     return '<span class="badge bg-light-danger text-danger">غير مربوط</span>';
                 }
 
-                $ids = Shop2TopUpBundle::parseOfferIds($raw);
-                $isBundle = count($ids) > 1;
-                $pretty = $isBundle ? implode(' + ', $ids) : (string) ($ids[0] ?? $raw);
+                $ids = [];
+                $isBundle = false;
+                $pretty = $raw;
+                try {
+                    $ids = Shop2TopUpBundle::parseOfferIds($raw);
+                    $isBundle = count($ids) > 1;
+                    $pretty = $isBundle ? implode(' + ', $ids) : (string) ($ids[0] ?? $raw);
+                } catch (\Throwable $e) {
+                    $ids = [];
+                    $isBundle = false;
+                    $pretty = $raw;
+                }
 
                 $html = '<div class="font-monospace small" style="white-space:nowrap">'
                     . e($raw)
@@ -74,6 +99,11 @@ class ProductDataTable extends BaseDataTable {
         // Custom, reliable search for accounts list (name is translatable).
         $routeName = request()->route()?->getName();
         if ($routeName === 'admin.products.accounts') {
+            // Force stable ordering to avoid ordering by translatable columns.
+            $table->order(function (QueryBuilder $query) {
+                $query->orderByDesc('products.id');
+            });
+
             $table->filter(function (QueryBuilder $query) {
                 $search = trim((string) data_get(request()->input('search'), 'value', ''));
                 if ($search === '') return;
