@@ -9,6 +9,7 @@ use App\Support\WhatsApp\WasenderNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class PublicProductRequestController extends Controller
 {
@@ -218,6 +219,65 @@ class PublicProductRequestController extends Controller
             'confirm' => ['required', 'in:DELETE'],
         ]);
 
+        $this->deletePublicProductRequest($product);
+
+        return redirect()
+            ->route('admin.public_products.index', ['status' => 'all'])
+            ->with('success', 'تم حذف الطلب ✅');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer', 'min:1'],
+            'confirm' => ['required', 'in:DELETE'],
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', (array) ($data['ids'] ?? []))));
+        if (count($ids) === 0) {
+            return back()->withErrors(['error' => 'اختر عنصر واحد على الأقل.']);
+        }
+
+        $q = Product::query()
+            ->whereIn('id', $ids)
+            ->where('publish_source', 'public')
+            ->whereNull('service_type');
+
+        $found = $q->get();
+        if ($found->isEmpty()) {
+            return back()->withErrors(['error' => 'لم يتم العثور على الطلبات المحددة.']);
+        }
+
+        $deleted = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($found as $product) {
+                try {
+                    $this->deletePublicProductRequest($product, false);
+                    $deleted++;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        $this->flushWebsiteProductCaches();
+
+        return redirect()
+            ->route('admin.public_products.index', ['status' => 'all'])
+            ->with('success', "تم حذف {$deleted} طلب(ات) ✅");
+    }
+
+    private function deletePublicProductRequest(Product $product, bool $flushCaches = true): void
+    {
+        $this->ensurePublic($product);
+
         try { $product->loadMissing(['media', 'translations']); } catch (\Throwable $e) {}
 
         // Remove uploaded files + media records (best-effort)
@@ -263,11 +323,9 @@ class PublicProductRequestController extends Controller
 
         $product->delete();
 
-        $this->flushWebsiteProductCaches();
-
-        return redirect()
-            ->route('admin.public_products.index', ['status' => 'all'])
-            ->with('success', 'تم حذف الطلب ✅');
+        if ($flushCaches) {
+            $this->flushWebsiteProductCaches();
+        }
     }
 }
 

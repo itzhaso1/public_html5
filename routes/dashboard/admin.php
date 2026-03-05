@@ -50,6 +50,7 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
         // طلبات نشر الحسابات من صفحة /publish-product (تحتاج موافقة قبل النشر)
         Route::prefix('public-products')->as('public_products.')->group(function () {
             Route::get('/', [Dashboard\PublicProductRequestController::class, 'index'])->name('index');
+            Route::post('bulk-delete', [Dashboard\PublicProductRequestController::class, 'bulkDelete'])->name('bulk_delete');
             Route::get('{product}', [Dashboard\PublicProductRequestController::class, 'show'])->name('show');
             Route::post('{product}/approve', [Dashboard\PublicProductRequestController::class, 'approve'])->name('approve');
             Route::post('{product}/reject', [Dashboard\PublicProductRequestController::class, 'reject'])->name('reject');
