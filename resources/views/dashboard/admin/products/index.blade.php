@@ -128,12 +128,13 @@
 
 /* أخفي الأعمدة الثقيلة على الجوال فقط */
 @media (max-width: 992px){
-    #products-table thead th:nth-child(4),
-    #products-table tbody td:nth-child(4),
+    /* بعد إضافة عمود تحديد (checkbox) صار ترتيب الأعمدة مختلف */
     #products-table thead th:nth-child(5),
     #products-table tbody td:nth-child(5),
     #products-table thead th:nth-child(6),
-    #products-table tbody td:nth-child(6){
+    #products-table tbody td:nth-child(6),
+    #products-table thead th:nth-child(7),
+    #products-table tbody td:nth-child(7){
         display:none !important;
     }
 
@@ -175,6 +176,16 @@ div.dt-buttons{ display:none !important; }
 
                 @php $group = $group ?? null; @endphp
                 <div class="d-flex flex-wrap gap-2 w-100 w-lg-auto">
+                    <button type="button" class="btn btn-danger w-100 w-lg-auto" id="products-bulk-delete-selected" disabled>
+                        حذف المحدد <span class="ms-1" id="products-bulk-delete-selected-count"></span>
+                    </button>
+                    <form id="products-bulk-delete-selected-form" method="POST" action="{{ route('admin.products.bulk_delete_selected') }}" class="d-none">
+                        @csrf
+                        <input type="hidden" name="confirm" id="products-bulk-delete-confirm" value="">
+                        <input type="hidden" name="group" value="{{ $group ?? 'all' }}">
+                        <span id="products-bulk-delete-ids"></span>
+                    </form>
+
                     @if(in_array($group, ['accounts','charge','codes']))
                         <form method="POST" action="{{ route('admin.products.bulk_delete', $group) }}" class="w-100 w-lg-auto bulk-delete-form">
                             @csrf
@@ -276,6 +287,69 @@ div.dt-buttons{ display:none !important; }
 $(function () {
     // يمسك نفس الجدول (بدون إعادة تهيئة)
     const table = $('#products-table').DataTable();
+
+    // Bulk delete selected (checkboxes)
+    const $bulkBtn = $('#products-bulk-delete-selected');
+    const $bulkCount = $('#products-bulk-delete-selected-count');
+    const $bulkIdsWrap = $('#products-bulk-delete-ids');
+    const $bulkConfirm = $('#products-bulk-delete-confirm');
+    const $bulkForm = $('#products-bulk-delete-selected-form');
+
+    const selectedIds = () => $('.js-product-select:checked').map(function(){ return $(this).val(); }).get();
+    const refreshBulkUi = () => {
+        const ids = selectedIds();
+        $bulkBtn.prop('disabled', ids.length === 0);
+        $bulkCount.text(ids.length ? `(${ids.length})` : '');
+
+        const $all = $('#products-select-all');
+        const total = $('.js-product-select').length;
+        if ($all.length) {
+            if (total === 0 || ids.length === 0) {
+                $all.prop('checked', false).prop('indeterminate', false);
+            } else if (ids.length === total) {
+                $all.prop('checked', true).prop('indeterminate', false);
+            } else {
+                $all.prop('checked', false).prop('indeterminate', true);
+            }
+        }
+    };
+
+    $(document).on('change', '.js-product-select', refreshBulkUi);
+    $(document).on('change', '#products-select-all', function () {
+        const checked = $(this).is(':checked');
+        $('.js-product-select').prop('checked', checked);
+        refreshBulkUi();
+    });
+    table.on('draw', function () {
+        refreshBulkUi();
+    });
+
+    $bulkBtn.on('click', function () {
+        const ids = selectedIds();
+        if (!ids.length) return;
+
+        Swal.fire({
+            title: 'تأكيد الحذف',
+            html: `سيتم حذف <b>${ids.length}</b> عنصر/عناصر (المسموح حذفها فقط).<br><b>هذا الإجراء لا يمكن التراجع عنه.</b>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            const v = prompt('اكتب DELETE لتأكيد حذف المحدد');
+            if (v !== 'DELETE') return;
+
+            $bulkIdsWrap.empty();
+            $bulkConfirm.val('DELETE');
+            ids.forEach(id => {
+                $('<input>').attr({type:'hidden', name:'ids[]'}).val(id).appendTo($bulkIdsWrap);
+            });
+            $bulkForm.trigger('submit');
+        });
+    });
 
     // Search UX for accounts list
     const isAccounts = @json(($group ?? null) === 'accounts');

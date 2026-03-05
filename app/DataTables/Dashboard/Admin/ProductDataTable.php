@@ -18,6 +18,9 @@ class ProductDataTable extends BaseDataTable {
  
     public function dataTable($query): EloquentDataTable {
         $table = (new EloquentDataTable($query))
+            ->addColumn('select', function (Product $product) {
+                return '<input type="checkbox" class="form-check-input js-product-select" value="' . (int) $product->id . '" aria-label="Select ' . (int) $product->id . '">';
+            })
             ->addColumn('action', function (Product $product) {
                 return view('dashboard.admin.products.btn.actions', compact('product'));
             })
@@ -94,7 +97,7 @@ class ProductDataTable extends BaseDataTable {
             ->editColumn('updated_at', function (Product $product) {
                 return $this->formatBadge($this->formatDate($product->updated_at));
             })
-            ->rawColumns(['category','tags','types','action', 'created_at', 'updated_at', 'product', 'itemID']);
+            ->rawColumns(['select','category','tags','types','action', 'created_at', 'updated_at', 'product', 'itemID']);
 
         // Custom, reliable search for accounts list (name is translatable).
         $routeName = request()->route()?->getName();
@@ -167,11 +170,11 @@ class ProductDataTable extends BaseDataTable {
         $params = parent::getParameters();
 
         // Stable default order (avoid ordering by translatable "name" column)
-        $params['order'] = [[0, 'desc']];
+        $params['order'] = [[1, 'desc']];
 
-        // Bigger default page size for accounts list (requested).
+        // Bigger default page size for products lists (requested).
         $routeName = request()->route()?->getName();
-        if ($routeName === 'admin.products.accounts') {
+        if (in_array($routeName, ['admin.products.index', 'admin.products.accounts', 'admin.products.charge', 'admin.products.codes'], true)) {
             $params['pageLength'] = 50;
             $params['lengthMenu'] = [[10, 25, 50, 100, 200, -1], [10, 25, 50, 100, 200, 'الكل']];
         }
@@ -182,6 +185,7 @@ class ProductDataTable extends BaseDataTable {
     public function getColumns(): array
     {
         return [
+            ['name' => 'select', 'data' => 'select', 'title' => '<input type="checkbox" class="form-check-input" id="products-select-all" aria-label="Select all">', 'orderable' => false, 'searchable' => false],
             ['name' => 'id', 'data' => 'id', 'title' => '#', 'orderable' => true, 'searchable' => false],
             ['name' => 'name', 'data' => 'name', 'title' => trans('dashboard/admin.product.name'), 'orderable' => false],
             ['name' => 'product', 'data' => 'product', 'title' => 'الصوره', 'orderable' => false, 'searchable' => false],

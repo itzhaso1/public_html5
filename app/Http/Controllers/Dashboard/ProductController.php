@@ -227,6 +227,79 @@ class ProductController extends Controller
         return back()->with('success', "تم حذف {$deleted} منتج بنجاح ✅");
     }
 
+    public function bulkDeleteSelected(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer', 'min:1'],
+            'confirm' => ['required', 'in:DELETE'],
+            'group' => ['nullable', 'in:accounts,charge,codes,all'],
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', (array) ($data['ids'] ?? []))));
+        if (count($ids) === 0) {
+            return back()->withErrors(['error' => 'اختر عنصر واحد على الأقل.']);
+        }
+
+        $group = strtolower(trim((string) ($data['group'] ?? 'all')));
+        if ($group === '') $group = 'all';
+
+        $query = Product::query()->with('media')->whereIn('id', $ids);
+
+        if ($group === 'accounts') {
+            $query->whereNull('service_type');
+        } elseif ($group === 'charge') {
+            $query->where('service_type', 'gems');
+        } elseif ($group === 'codes') {
+            $query->where('service_type', 'codes');
+        }
+
+        // Safety: never delete products tied to manual payments / carts / orders.
+        $query->whereDoesntHave('manualPaymentRequests');
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('carts')->whereNotNull('product_id');
+        });
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('order_items')->whereNotNull('product_id');
+        });
+
+        if ($group === 'codes') {
+            $query->whereNotIn('id', function ($q) {
+                $q->select('product_id')->from('diamond_codes')->where('status', 'delivered');
+            });
+        }
+
+        $deleted = 0;
+
+        $query->orderBy('id')->chunkById(50, function ($products) use (&$deleted) {
+            foreach ($products as $product) {
+                try {
+                    if (method_exists($product, 'deleteExistingMedia')) {
+                        $product->deleteExistingMedia('product', $product, null, 'media', true, 'product');
+                        $product->deleteExistingMedia('gallery', $product, null, 'media', true, 'gallery');
+                    }
+                    $product->delete();
+                    $deleted++;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+
+        foreach (['ar', 'en'] as $locale) {
+            Cache::forget("home.products.$locale");
+            Cache::forget("home.sections.$locale");
+            Cache::forget("diamonds.charge.$locale");
+            Cache::forget("diamonds.codes.$locale");
+        }
+
+        if ($deleted === 0) {
+            return back()->with('success', 'لم يتم حذف أي عنصر (قد تكون العناصر مرتبطة بطلبات/سلة/مبيعات).');
+        }
+
+        return back()->with('success', "تم حذف {$deleted} عنصر/عناصر ✅");
+    }
+
     /**
      * Sync Shop2TopUp offers into gems products (service_type=gems).
      * Stores vendor offer id in products.itemID.
