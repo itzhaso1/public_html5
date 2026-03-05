@@ -98,12 +98,13 @@ class ProductDataTable extends BaseDataTable {
 
         // Custom, reliable search for accounts list (name is translatable).
         $routeName = request()->route()?->getName();
-        if ($routeName === 'admin.products.accounts') {
+        if (in_array($routeName, ['admin.products.index', 'admin.products.accounts', 'admin.products.charge', 'admin.products.codes'], true)) {
             // Force stable ordering to avoid ordering by translatable columns.
             $table->order(function (QueryBuilder $query) {
                 $query->orderByDesc('products.id');
             });
 
+            // Override global search to avoid "products.name" SQL errors (name is translatable).
             $table->filter(function (QueryBuilder $query) {
                 $search = trim((string) data_get(request()->input('search'), 'value', ''));
                 if ($search === '') return;
@@ -117,6 +118,7 @@ class ProductDataTable extends BaseDataTable {
 
                     $q->orWhere('products.slug', 'like', $like)
                       ->orWhere('products.sku', 'like', $like)
+                      ->orWhere('products.itemID', 'like', $like)
                       ->orWhereHas('translations', function (QueryBuilder $t) use ($like) {
                           $t->where('name', 'like', $like);
                       });
