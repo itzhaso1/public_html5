@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Website;
 use App\Http\Controllers\Controller;
 use App\Models\DiamondCode;
 use App\Models\ManualPaymentRequest;
+use App\Models\PaymentMethod;
 use App\Models\Product;
 use App\Models\Setting;
 use Illuminate\Http\Request;
@@ -74,6 +75,36 @@ class ManualPaymentController extends Controller
 
     private function getEnabledPaymentMethods(): array
     {
+        // Prefer DB-defined methods if table exists & has rows.
+        try {
+            if (Schema::hasTable('payment_methods')) {
+                $rows = PaymentMethod::query()
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->get();
+
+                if ($rows->count() > 0) {
+                    $enabled = [];
+                    foreach ($rows as $pm) {
+                        if (!($pm->enabled ?? false)) continue;
+                        $key = (string) ($pm->key ?? '');
+                        if ($key === '') continue;
+
+                        $details = (array) ($pm->details ?? []);
+                        $enabled[$key] = array_merge([
+                            'enabled' => true,
+                            'title' => (string) ($pm->title ?? $key),
+                        ], $details);
+                    }
+
+                    return $enabled;
+                }
+            }
+        } catch (\Throwable $e) {
+            // fallback to config
+        }
+
+        // Fallback: env/config based methods
         $methods = (array) config('bank.methods', []);
         $enabled = [];
 
@@ -94,6 +125,31 @@ class ManualPaymentController extends Controller
         }
 
         return $enabled;
+    }
+
+    private function getAllowedChargeMethodKeys(): array
+    {
+        try {
+            if (Schema::hasTable('payment_methods')) {
+                $rows = PaymentMethod::query()
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->get();
+
+                if ($rows->count() > 0) {
+                    return $rows
+                        ->where('enabled', true)
+                        ->where('allowed_for_charge', true)
+                        ->pluck('key')
+                        ->values()
+                        ->all();
+                }
+            }
+        } catch (\Throwable $e) {
+            // fallback
+        }
+
+        return (array) config('bank.charge_method_keys', []);
     }
 
 
@@ -144,7 +200,7 @@ class ManualPaymentController extends Controller
             'product' => $product,
             'pageTitle' => 'الدفع اليدوي',
             'paymentMethods' => $this->getEnabledPaymentMethods(),
-            'allowedChargeMethodKeys' => (array) config('bank.charge_method_keys', []),
+            'allowedChargeMethodKeys' => $this->getAllowedChargeMethodKeys(),
         ]);
     }
 
@@ -167,7 +223,7 @@ class ManualPaymentController extends Controller
         $allowedKeys = array_keys($paymentMethods);
         $isGems = ! $isCodes;
         if ($isGems) {
-            $allowedKeys = array_values(array_intersect($allowedKeys, (array) config('bank.charge_method_keys', [])));
+            $allowedKeys = array_values(array_intersect($allowedKeys, $this->getAllowedChargeMethodKeys()));
         }
 
         $rules = [

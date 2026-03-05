@@ -76,6 +76,9 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
         // سلايدر الصفحة الرئيسية (صور السلايدر)
         Route::resource('sliders', Dashboard\SliderController::class);
 
+        // Payment methods (manual payment methods editable from dashboard)
+        Route::resource('payment-methods', Dashboard\PaymentMethodController::class)->names('payment_methods');
+
         Route::resource('users', Dashboard\UserController::class)->names('user')->only(['index', 'edit', 'update', 'destroy']);
 
         Route::prefix('manual-payments')->as('manual_payments.')->group(function () {

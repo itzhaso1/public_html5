@@ -164,6 +164,40 @@
                                         </span>
                                     </div>
                                 @endif
+                            @else
+                                @php
+                                    $labels = [
+                                        'bank_name' => 'البنك',
+                                        'account_name' => 'اسم الحساب',
+                                        'account_number' => 'رقم الحساب',
+                                        'iban' => 'IBAN',
+                                        'click_id' => 'Click ID',
+                                        'network' => 'Network',
+                                        'address' => 'Address',
+                                        'link' => 'Link',
+                                    ];
+                                @endphp
+                                @foreach($labels as $field => $label)
+                                    @php $val = $m[$field] ?? null; @endphp
+                                    @if(!empty($val))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">{{ $label }}</span>
+                                            <span class="flex items-center gap-2">
+                                                @if($field === 'link')
+                                                    <a class="text-blue-600 underline" href="{{ $val }}" target="_blank">فتح الرابط</a>
+                                                    <button type="button" class="copy-trigger text-blue-600 hover:text-blue-800" data-copy-text="{{ $val }}" aria-label="Copy">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                                    </button>
+                                                @else
+                                                    <span class="{{ in_array($field, ['account_number','iban','address','click_id'], true) ? 'font-mono' : 'font-semibold' }} font-semibold text-[13px] select-all">{{ $val }}</span>
+                                                    <button type="button" class="copy-trigger text-blue-600 hover:text-blue-800" data-copy-text="{{ $val }}" aria-label="Copy">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                                    </button>
+                                                @endif
+                                            </span>
+                                        </div>
+                                    @endif
+                                @endforeach
                             @endif
 
                             @if(!empty($m['note']))

@@ -93,6 +93,14 @@
         </a>
     </div>
 
+    <!-- Payment methods -->
+    <div class="menu-item">
+        <a class="menu-link {{ is_active('admin.payment_methods.*') }}" href="{{ route('admin.payment_methods.index') }}">
+            <span class="menu-icon"><i class="bi bi-credit-card fs-2"></i></span>
+            <span class="menu-title">طرق الدفع</span>
+        </a>
+    </div>
+
     <!-- Wallet points orders -->
     <div class="menu-item">
         <a class="menu-link {{ is_active('admin.wallet_points_orders.*') }}" href="{{ route('admin.wallet_points_orders.index') }}">
