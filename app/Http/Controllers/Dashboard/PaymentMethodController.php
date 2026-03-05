@@ -5,11 +5,25 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\PaymentMethod;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class PaymentMethodController extends Controller
 {
+    private function ensureTableExists()
+    {
+        if (! Schema::hasTable('payment_methods')) {
+            return redirect()
+                ->route('admin.dashboard')
+                ->withErrors(['error' => 'جدول طرق الدفع غير موجود بعد. شغّل: php artisan migrate']);
+        }
+
+        return null;
+    }
+
     public function index()
     {
+        if ($r = $this->ensureTableExists()) return $r;
+
         $methods = PaymentMethod::query()
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -23,6 +37,8 @@ class PaymentMethodController extends Controller
 
     public function create()
     {
+        if ($r = $this->ensureTableExists()) return $r;
+
         return view('dashboard.admin.payment_methods.form', [
             'pageTitle' => 'إضافة طريقة دفع',
             'method' => new PaymentMethod(),
@@ -31,6 +47,8 @@ class PaymentMethodController extends Controller
 
     public function store(Request $request)
     {
+        if ($r = $this->ensureTableExists()) return $r;
+
         $data = $this->validated($request);
 
         PaymentMethod::create($data);
@@ -42,6 +60,8 @@ class PaymentMethodController extends Controller
 
     public function edit(PaymentMethod $paymentMethod)
     {
+        if ($r = $this->ensureTableExists()) return $r;
+
         return view('dashboard.admin.payment_methods.form', [
             'pageTitle' => 'تعديل طريقة دفع',
             'method' => $paymentMethod,
@@ -50,6 +70,8 @@ class PaymentMethodController extends Controller
 
     public function update(Request $request, PaymentMethod $paymentMethod)
     {
+        if ($r = $this->ensureTableExists()) return $r;
+
         $data = $this->validated($request, $paymentMethod->id);
 
         $paymentMethod->update($data);
@@ -61,6 +83,8 @@ class PaymentMethodController extends Controller
 
     public function destroy(PaymentMethod $paymentMethod)
     {
+        if ($r = $this->ensureTableExists()) return $r;
+
         $paymentMethod->delete();
 
         return redirect()
