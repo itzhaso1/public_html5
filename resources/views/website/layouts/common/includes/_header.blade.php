@@ -14,10 +14,29 @@
         <div class="flex flex-row-reverse justify-between items-center h-10">
             <div class="flex-shrink-0 flex items-center">
                <a href="{{ route('home') }}">
-                <img class="h-8 w-auto"
-                     src="{{ $logo ?: ($fallbackLogo ?? asset('dashboard/assets/media/logos/lpgp11.png')) }}"
-                     onerror="this.onerror=null;this.src='{{ $fallbackLogo ?? asset('dashboard/assets/media/logos/lpgp11.png') }}';"
-                     alt="{{ $settings?->name ?? 'logo' }}">
+                @auth
+                    @php
+                        $u = auth()->user();
+                        $displayName = trim((string) ($u?->name ?? ''));
+                        if ($displayName === '') {
+                            $displayName = trim((string) (($u?->first_name ?? '') . ' ' . ($u?->last_name ?? '')));
+                        }
+                        if ($displayName === '') {
+                            $displayName = trim((string) ($u?->email ?? ''));
+                        }
+                        if ($displayName === '') {
+                            $displayName = 'حسابي';
+                        }
+                    @endphp
+                    <span class="text-yellow-400 font-extrabold text-sm sm:text-base whitespace-nowrap">
+                        {{ $displayName }}
+                    </span>
+                @else
+                    <img class="h-8 w-auto"
+                         src="{{ $logo ?: ($fallbackLogo ?? asset('dashboard/assets/media/logos/lpgp11.png')) }}"
+                         onerror="this.onerror=null;this.src='{{ $fallbackLogo ?? asset('dashboard/assets/media/logos/lpgp11.png') }}';"
+                         alt="{{ $settings?->name ?? 'logo' }}">
+                @endauth
                </a>
              
              
