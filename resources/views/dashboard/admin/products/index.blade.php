@@ -237,6 +237,26 @@ div.dt-buttons{ display:none !important; }
                     </div>
                 </div>
 
+                @if(($group ?? null) === 'accounts')
+                    <div class="mb-4">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <div class="input-group w-100 w-lg-400px">
+                                <span class="input-group-text">بحث</span>
+                                <input type="text"
+                                       class="form-control"
+                                       id="accounts-search"
+                                       placeholder="ابحث عن الحساب (ID / الاسم / slug / SKU)"
+                                       autocomplete="off" />
+                                <button class="btn btn-primary" type="button" id="accounts-search-btn">بحث</button>
+                                <button class="btn btn-light" type="button" id="accounts-search-clear">مسح</button>
+                            </div>
+                            <div class="text-muted small">
+                                سيتم البحث داخل أسماء الحسابات (الترجمات) + رقم المنتج + slug + SKU.
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 <div class="table-wrap">
                     {!! $dataTable->table(['id' => 'products-table', 'class' => 'table table-striped table-row-bordered gy-5 gs-7 align-middle text-center w-100']) !!}
                 </div>
@@ -256,6 +276,37 @@ div.dt-buttons{ display:none !important; }
 $(function () {
     // يمسك نفس الجدول (بدون إعادة تهيئة)
     const table = $('#products-table').DataTable();
+
+    // Search UX for accounts list
+    const isAccounts = @json(($group ?? null) === 'accounts');
+    if (isAccounts) {
+        const $input = $('#accounts-search');
+        const $btn = $('#accounts-search-btn');
+        const $clear = $('#accounts-search-clear');
+        let t = null;
+
+        const doSearch = () => {
+            const v = ($input.val() || '').toString();
+            table.search(v).draw();
+        };
+
+        $btn.on('click', doSearch);
+        $clear.on('click', function () {
+            $input.val('');
+            table.search('').draw();
+            $input.trigger('focus');
+        });
+        $input.on('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                doSearch();
+            }
+        });
+        $input.on('input', function () {
+            clearTimeout(t);
+            t = setTimeout(doSearch, 300);
+        });
+    }
 
     $(document).on('submit', '.bulk-delete-form', function (e) {
         e.preventDefault();

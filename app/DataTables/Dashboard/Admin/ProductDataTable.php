@@ -17,7 +17,7 @@ class ProductDataTable extends BaseDataTable {
     }
  
     public function dataTable($query): EloquentDataTable {
-        return (new EloquentDataTable($query))
+        $table = (new EloquentDataTable($query))
             ->addColumn('action', function (Product $product) {
                 return view('dashboard.admin.products.btn.actions', compact('product'));
             })
@@ -70,6 +70,31 @@ class ProductDataTable extends BaseDataTable {
                 return $this->formatBadge($this->formatDate($product->updated_at));
             })
             ->rawColumns(['category','tags','types','action', 'created_at', 'updated_at', 'product', 'itemID']);
+
+        // Custom, reliable search for accounts list (name is translatable).
+        $routeName = request()->route()?->getName();
+        if ($routeName === 'admin.products.accounts') {
+            $table->filter(function (QueryBuilder $query) {
+                $search = trim((string) data_get(request()->input('search'), 'value', ''));
+                if ($search === '') return;
+
+                $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $search) . '%';
+
+                $query->where(function (QueryBuilder $q) use ($search, $like) {
+                    if (ctype_digit($search)) {
+                        $q->orWhere('products.id', (int) $search);
+                    }
+
+                    $q->orWhere('products.slug', 'like', $like)
+                      ->orWhere('products.sku', 'like', $like)
+                      ->orWhereHas('translations', function (QueryBuilder $t) use ($like) {
+                          $t->where('name', 'like', $like);
+                      });
+                });
+            }, true);
+        }
+
+        return $table;
     }
  
     public function query(): QueryBuilder
@@ -103,6 +128,20 @@ class ProductDataTable extends BaseDataTable {
         }
 
         return $query;
+    }
+
+    protected function getParameters(): array
+    {
+        $params = parent::getParameters();
+
+        // Bigger default page size for accounts list (requested).
+        $routeName = request()->route()?->getName();
+        if ($routeName === 'admin.products.accounts') {
+            $params['pageLength'] = 50;
+            $params['lengthMenu'] = [[10, 25, 50, 100, 200, -1], [10, 25, 50, 100, 200, 'الكل']];
+        }
+
+        return $params;
     }
  
     public function getColumns(): array
