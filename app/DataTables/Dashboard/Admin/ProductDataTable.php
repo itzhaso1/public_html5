@@ -99,7 +99,7 @@ class ProductDataTable extends BaseDataTable {
  
     public function query(): QueryBuilder
     {
-        $query = Product::with(['media','category', 'brand', 'tags'])->latest();
+        $query = Product::with(['media','category', 'brand', 'tags'])->orderByDesc('id');
 
         // Important: DataTables loads data via AJAX; don't rely on ad-hoc query params.
         // Instead, infer the group from the current route name.
@@ -134,6 +134,9 @@ class ProductDataTable extends BaseDataTable {
     {
         $params = parent::getParameters();
 
+        // Stable default order (avoid ordering by translatable "name" column)
+        $params['order'] = [[0, 'desc']];
+
         // Bigger default page size for accounts list (requested).
         $routeName = request()->route()?->getName();
         if ($routeName === 'admin.products.accounts') {
@@ -147,8 +150,8 @@ class ProductDataTable extends BaseDataTable {
     public function getColumns(): array
     {
         return [
-            ['name' => 'id', 'data' => 'id', 'title' => '#', 'orderable' => false, 'searchable' => false],
-            ['name' => 'name', 'data' => 'name', 'title' => trans('dashboard/admin.product.name')],
+            ['name' => 'id', 'data' => 'id', 'title' => '#', 'orderable' => true, 'searchable' => false],
+            ['name' => 'name', 'data' => 'name', 'title' => trans('dashboard/admin.product.name'), 'orderable' => false],
             ['name' => 'product', 'data' => 'product', 'title' => 'الصوره', 'orderable' => false, 'searchable' => false],
             ['name' => 'category', 'data' => 'category', 'title' => 'التصنيف', 'orderable' => false, 'searchable' => false],
             ['name' => 'brand', 'data' => 'brand', 'title' => 'الماركه', 'orderable' => false, 'searchable' => false],
