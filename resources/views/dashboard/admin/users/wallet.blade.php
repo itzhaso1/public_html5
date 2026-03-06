@@ -14,6 +14,7 @@
                     <h3 class="fw-bolder mb-1">سجل نقاط: {{ $user->name }}</h3>
                     <div class="text-muted fw-bold fs-7">
                         الرصيد الحالي: <span class="badge badge-light-success">{{ number_format((int) ($user->wallet_points_balance ?? 0)) }}</span>
+                        <span class="ms-2">مجموع الشحن: <span class="badge badge-light-primary">{{ number_format((int) ($totalDeposited ?? 0)) }}</span></span>
                         <span class="ms-2 font-monospace">ID: {{ $user->id }}</span>
                     </div>
                 </div>

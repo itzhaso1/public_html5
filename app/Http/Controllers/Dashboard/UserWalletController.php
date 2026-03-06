@@ -14,6 +14,11 @@ class UserWalletController extends Controller
 {
     public function show(User $user)
     {
+        $totalDeposited = (int) WalletTransaction::query()
+            ->where('user_id', $user->id)
+            ->where('type', 'deposit_credit')
+            ->sum('points_delta');
+
         $transactions = WalletTransaction::query()
             ->where('user_id', $user->id)
             ->latest()
@@ -29,6 +34,7 @@ class UserWalletController extends Controller
             'user' => $user,
             'transactions' => $transactions,
             'topups' => $topups,
+            'totalDeposited' => $totalDeposited,
         ]);
     }
 
