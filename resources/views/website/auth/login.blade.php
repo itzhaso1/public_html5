@@ -69,6 +69,7 @@
 
                 <form action="{{ route('auth.login.submit') }}" method="POST" class="mt-5 space-y-4">
                     @csrf
+                    <input type="hidden" name="redirect_to" value="{{ old('redirect_to', $redirectTo ?? url()->previous()) }}">
 
                     <div>
                         <label for="email" class="block text-sm font-bold text-gray-800 mb-1">{{ trans('site/site.email') }}</label>

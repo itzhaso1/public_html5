@@ -14,6 +14,7 @@ class AuthController extends Controller
     {
         return view('website.auth.login', [
             'pageTitle' => trans('site/site.login_page_title'),
+            'redirectTo' => url()->previous(),
             'breadcrumbs' => [
                 ['title' => __('site/site.login_page_title')],
             ]
@@ -25,12 +26,28 @@ class AuthController extends Controller
         $request->validate([
             'email' => ['required', 'string', 'email'],
             'password' => ['required', 'string'],
+            'redirect_to' => ['nullable', 'string', 'max:2048'],
         ]);
 
         $credentials = $request->only('email', 'password');
 
         if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
+            $intended = (string) ($request->session()->get('url.intended') ?? '');
+            $redirectTo = trim((string) ($request->input('redirect_to') ?? ''));
+
+            // If intended is the generic customer dashboard, prefer sending user back to the page they came from.
+            $customerDash = route('customer.dashboard');
+            $shouldPreferBack = $intended !== '' && $customerDash !== '' && rtrim($intended, '/') === rtrim($customerDash, '/');
+
+            if ($redirectTo !== '' && $shouldPreferBack) {
+                // Basic safety: avoid redirecting back to auth pages.
+                if (! str_contains($redirectTo, '/login') && ! str_contains($redirectTo, '/register')) {
+                    $request->session()->forget('url.intended');
+                    return redirect()->to($redirectTo);
+                }
+            }
+
             return redirect()->intended(route('home'));
         }
 

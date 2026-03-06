@@ -79,6 +79,10 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
         // Payment methods (manual payment methods editable from dashboard)
         Route::resource('payment-methods', Dashboard\PaymentMethodController::class)->names('payment_methods');
 
+        // User wallet points ledger
+        Route::get('users/{user}/wallet', [Dashboard\UserWalletController::class, 'show'])->name('user.wallet');
+        Route::post('users/{user}/wallet/adjust', [Dashboard\UserWalletController::class, 'adjust'])->name('user.wallet.adjust');
+
         Route::resource('users', Dashboard\UserController::class)->names('user')->only(['index', 'edit', 'update', 'destroy']);
 
         Route::prefix('manual-payments')->as('manual_payments.')->group(function () {

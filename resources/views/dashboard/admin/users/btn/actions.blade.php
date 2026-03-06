@@ -2,6 +2,9 @@
     <a href="{{ route('admin.user.edit', $user->id) }}" class="mx-1 btn btn-primary btn-sm" title="تعديل">
         <i class="fas fa-edit"></i>
     </a>
+    <a href="{{ route('admin.user.wallet', $user->id) }}" class="mx-1 btn btn-success btn-sm" title="سجل النقاط">
+        <i class="fas fa-coins"></i>
+    </a>
     <button type="button" class="mx-1 btn btn-danger btn-sm" data-bs-toggle="modal"
             data-bs-target="#deleteModal{{ $user->id }}">
         <i class="fas fa-trash"></i>
