@@ -62,6 +62,8 @@
                            onclick="document.querySelectorAll('input[name=&quot;ids[]&quot;]').forEach(c=>c.checked=this.checked);">
                 </th>
                 <th class="p-3 font-extrabold">المرجع</th>
+                <th class="p-3 font-extrabold">المستخدم</th>
+                <th class="p-3 font-extrabold">رصيد النقاط</th>
                 <th class="p-3 font-extrabold">الباقة</th>
                 <th class="p-3 font-extrabold">Player ID</th>
                 <th class="p-3 font-extrabold">المبلغ</th>
@@ -79,6 +81,24 @@
                         <input form="mprBulkDeleteForm" type="checkbox" name="ids[]" value="{{ $mpr->id }}" class="h-4 w-4">
                     </td>
                     <td class="p-3 font-mono text-xs select-all">{{ $mpr->reference }}</td>
+                    <td class="p-3">
+                        @if($mpr->user)
+                            <div class="font-bold">{{ $mpr->user->name ?? ('User#' . $mpr->user->id) }}</div>
+                            <div class="text-xs text-gray-500 font-mono">ID: {{ $mpr->user->id }}</div>
+                        @else
+                            <span class="text-gray-400">—</span>
+                        @endif
+                    </td>
+                    <td class="p-3">
+                        @if($mpr->user)
+                            <a href="{{ route('admin.user.wallet', $mpr->user) }}"
+                               class="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-extrabold text-green-800">
+                                {{ number_format((int) ($mpr->user->wallet_points_balance ?? 0)) }}
+                            </a>
+                        @else
+                            <span class="text-gray-400">—</span>
+                        @endif
+                    </td>
                     <td class="p-3 font-bold">{{ $mpr->product?->name ?? '-' }}</td>
                     <td class="p-3">{{ $mpr->player_id }}</td>
                     <td class="p-3">
@@ -126,7 +146,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td class="p-6 text-center text-gray-500" colspan="10">لا توجد طلبات.</td></tr>
+                <tr><td class="p-6 text-center text-gray-500" colspan="12">لا توجد طلبات.</td></tr>
             @endforelse
             </tbody>
         </table>

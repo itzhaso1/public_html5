@@ -11,10 +11,19 @@
             <h1 class="text-2xl font-extrabold text-gray-900">مشترياتي</h1>
             <p class="text-sm text-gray-600 mt-1">طلبات الشحن والدفع اليدوي والأكواد التي تم تسليمها.</p>
         </div>
-        <a href="{{ route('customer.dashboard') }}"
-           class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold hover:bg-gray-50 transition">
-            العودة للحساب
-        </a>
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ route('customer.wallet.index') }}"
+               class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-extrabold hover:bg-gray-50 transition">
+                رصيد نقاطي:
+                <span class="ms-2 inline-flex items-center justify-center min-w-[22px] h-[18px] px-2 rounded-full bg-yellow-400 text-black text-[11px] font-extrabold">
+                    {{ number_format((int)(auth()->user()?->wallet_points_balance ?? 0)) }}
+                </span>
+            </a>
+            <a href="{{ route('customer.dashboard') }}"
+               class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold hover:bg-gray-50 transition">
+                العودة للحساب
+            </a>
+        </div>
     </div>
 
     @php
