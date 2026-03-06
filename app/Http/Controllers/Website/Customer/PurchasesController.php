@@ -15,11 +15,29 @@ class PurchasesController extends Controller
 {
     public function index(Request $request)
     {
-        $manualRequests = ManualPaymentRequest::query()
+        $status = (string) $request->query('status', 'all');
+        if (!in_array($status, ['all', 'pending', 'approved', 'rejected'], true)) {
+            $status = 'all';
+        }
+
+        $base = ManualPaymentRequest::query()
             ->where('user_id', auth()->id())
             ->with(['product', 'diamondCode'])
-            ->latest()
-            ->paginate(20);
+            ->latest();
+
+        if ($status !== 'all') {
+            $base->where('status', $status);
+        }
+
+        $manualRequests = $base->paginate(20)->withQueryString();
+
+        // counts for tabs
+        $counts = ManualPaymentRequest::query()
+            ->where('user_id', auth()->id())
+            ->selectRaw("sum(case when status = 'pending' then 1 else 0 end) as pending_count")
+            ->selectRaw("sum(case when status = 'approved' then 1 else 0 end) as approved_count")
+            ->selectRaw("sum(case when status = 'rejected' then 1 else 0 end) as rejected_count")
+            ->first();
 
         $cashRequests = CashExchangeRequest::query()
             ->where('user_id', auth()->id())
@@ -31,6 +49,8 @@ class PurchasesController extends Controller
             'pageTitle' => 'مشترياتي',
             'requests' => $manualRequests,
             'cashRequests' => $cashRequests,
+            'status' => $status,
+            'counts' => $counts,
         ]);
     }
 

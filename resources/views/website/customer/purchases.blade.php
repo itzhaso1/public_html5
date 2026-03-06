@@ -17,6 +17,33 @@
         </a>
     </div>
 
+    @php
+        $status = $status ?? 'all';
+        $counts = $counts ?? null;
+        $pendingCount = (int) ($counts?->pending_count ?? 0);
+        $approvedCount = (int) ($counts?->approved_count ?? 0);
+        $rejectedCount = (int) ($counts?->rejected_count ?? 0);
+        $tab = function(string $key, string $label, int $count = 0) use ($status) {
+            $active = $status === $key;
+            $cls = $active
+                ? 'bg-black text-white border-black'
+                : 'bg-white text-gray-800 border-gray-200 hover:bg-gray-50';
+            $url = route('customer.purchases', $key === 'all' ? [] : ['status' => $key]);
+            return '<a href="' . e($url) . '" class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-xs font-extrabold transition ' . $cls . '">'
+                . e($label)
+                . '<span class="inline-flex items-center justify-center min-w-[22px] h-[18px] px-1 rounded-full ' . ($active ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-700') . '">'
+                . e((string) $count)
+                . '</span></a>';
+        };
+    @endphp
+
+    <div class="mt-5 flex flex-wrap gap-2">
+        {!! $tab('all', 'الكل', $pendingCount + $approvedCount + $rejectedCount) !!}
+        {!! $tab('pending', 'قيد المراجعة', $pendingCount) !!}
+        {!! $tab('approved', 'مقبول', $approvedCount) !!}
+        {!! $tab('rejected', 'مرفوض', $rejectedCount) !!}
+    </div>
+
     <div class="mt-5 space-y-3">
         @forelse($requests as $mpr)
             @php
