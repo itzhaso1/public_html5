@@ -104,6 +104,46 @@ Route::group(
             return view('website.diamonds.codes', compact('products'));
         })->name('website.diamonds.codes');
 
+        // أنت وحظك (Lucky draw codes)
+        Route::get('diamonds/lucky-codes', function () {
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'codes_enabled')) {
+                    $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
+                    if (! (bool) ($s?->codes_enabled ?? true)) {
+                        return redirect()->route('home')->with('error', 'قسم الأكواد غير متاح حالياً.');
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            $product = Product::query()
+                ->where('service_type', 'codes')
+                ->where('is_lucky_draw_codes', true)
+                ->with(['media', 'translations'])
+                ->latest('id')
+                ->first();
+
+            if (! $product) {
+                return redirect()
+                    ->route('website.diamonds.codes')
+                    ->withErrors(['error' => 'قسم (انت وحظك) غير جاهز بعد. أنشئ منتج أكواد وضع عليه خيار “انت وحظك” ثم أضف أكواد.']);
+            }
+
+            $samples = \App\Models\DiamondCode::query()
+                ->where('product_id', $product->id)
+                ->whereNotNull('image_path')
+                ->where('image_path', '!=', '')
+                ->where('status', 'available')
+                ->latest('id')
+                ->limit(12)
+                ->get(['id', 'image_path', 'luck_label']);
+
+            return view('website.diamonds.lucky_codes', [
+                'product' => $product,
+                'samples' => $samples,
+                'pageTitle' => 'انت وحظك - أكواد ملابس فري فاير',
+            ]);
+        })->name('website.diamonds.lucky_codes');
+
         // Manual bank transfer flow (upload receipt, pending approval)
         Route::get('diamonds/{product}/manual-payment', [Website\ManualPaymentController::class, 'create'])
             ->middleware('auth')

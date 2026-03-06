@@ -12,6 +12,7 @@ class ManualPaymentRequest extends Model
     protected $fillable = [
         'reference',
         'product_id',
+        'reserved_diamond_code_id',
         'user_id',
         'player_id',
         'contact_phone',
@@ -55,6 +56,11 @@ class ManualPaymentRequest extends Model
     public function diamondCode()
     {
         return $this->hasOne(DiamondCode::class, 'manual_payment_request_id');
+    }
+
+    public function reservedDiamondCode()
+    {
+        return $this->belongsTo(DiamondCode::class, 'reserved_diamond_code_id');
     }
 }
 

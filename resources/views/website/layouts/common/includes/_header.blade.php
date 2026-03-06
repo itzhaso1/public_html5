@@ -45,6 +45,7 @@
                 <a href="{{route('home')}}" class="text-white hover:text-yellow-400 font-medium">الرئيسية</a>
                 <a href="#" class="text-white hover:text-yellow-400 font-medium">المنتجات</a>
                 <a href="#" class="text-white hover:text-yellow-400 font-medium">العروض</a>
+                <a href="{{ route('website.diamonds.lucky_codes') }}" class="text-white hover:text-yellow-400 font-medium">انت وحظك</a>
                 @auth
                     <a href="{{ route('customer.purchases') }}" class="text-white hover:text-yellow-400 font-medium">مشترياتي</a>
                     <a href="{{ route('customer.wallet.index') }}" class="text-white hover:text-yellow-400 font-medium">
@@ -110,6 +111,7 @@
         <a href="#" class="block text-white px-3 py-2 rounded hover:bg-gray-700">الرئيسية</a>
         <a href="#" class="block text-white px-3 py-2 rounded hover:bg-gray-700">المنتجات</a>
         <a href="#" class="block text-white px-3 py-2 rounded hover:bg-gray-700">العروض</a>
+        <a href="{{ route('website.diamonds.lucky_codes') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">انت وحظك</a>
         @auth
             <a href="{{ route('customer.purchases') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">مشترياتي</a>
             <a href="{{ route('customer.wallet.index') }}" class="block text-white px-3 py-2 rounded hover:bg-gray-700">

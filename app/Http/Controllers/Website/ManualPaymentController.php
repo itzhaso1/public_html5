@@ -11,6 +11,7 @@ use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -285,9 +286,69 @@ class ManualPaymentController extends Controller
             return back()->withErrors(['receipt' => 'حدث خطأ أثناء رفع الإيصال.'])->withInput();
         }
 
+        $reservedDiamondCodeId = null;
+        if ($isCodes && (bool) ($product->is_lucky_draw_codes ?? false)) {
+            // Reserve a lucky code (weighted random) to avoid duplicates on concurrent requests.
+            try {
+                $reservedDiamondCodeId = DB::transaction(function () use ($product) {
+                    // Exclude already reserved codes by other pending requests.
+                    $reservedIds = ManualPaymentRequest::query()
+                        ->where('product_id', $product->id)
+                        ->where('status', 'pending')
+                        ->whereNotNull('reserved_diamond_code_id')
+                        ->pluck('reserved_diamond_code_id')
+                        ->all();
+
+                    $candidates = \App\Models\DiamondCode::query()
+                        ->where('product_id', $product->id)
+                        ->where('status', 'available')
+                        ->when(!empty($reservedIds), fn($q) => $q->whereNotIn('id', $reservedIds))
+                        ->select(['id', 'luck_weight'])
+                        ->lockForUpdate()
+                        ->get();
+
+                    if ($candidates->isEmpty()) {
+                        return null;
+                    }
+
+                    $total = 0;
+                    $items = [];
+                    foreach ($candidates as $c) {
+                        $w = (int) ($c->luck_weight ?? 1);
+                        if ($w <= 0) $w = 1;
+                        $total += $w;
+                        $items[] = ['id' => (int) $c->id, 'w' => $w];
+                    }
+
+                    if ($total <= 0) {
+                        return (int) ($items[0]['id'] ?? 0) ?: null;
+                    }
+
+                    $r = random_int(1, $total);
+                    $acc = 0;
+                    foreach ($items as $it) {
+                        $acc += $it['w'];
+                        if ($r <= $acc) {
+                            return (int) $it['id'];
+                        }
+                    }
+
+                    return (int) ($items[count($items) - 1]['id'] ?? 0) ?: null;
+                });
+            } catch (\Throwable $e) {
+                report($e);
+                $reservedDiamondCodeId = null;
+            }
+
+            if (! $reservedDiamondCodeId) {
+                return back()->withErrors(['error' => 'لا يوجد أكواد متاحة للقرعة حالياً.'])->withInput();
+            }
+        }
+
         $mpr = ManualPaymentRequest::create([
             'reference' => (string) Str::uuid(),
             'product_id' => $product->id,
+            'reserved_diamond_code_id' => $reservedDiamondCodeId,
             'user_id' => Auth::id(),
             // `player_id` is required for gems and not required for codes.
             'player_id' => $data['player_id'] ?? '-',

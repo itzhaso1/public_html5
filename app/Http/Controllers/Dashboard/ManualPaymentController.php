@@ -441,11 +441,22 @@ class ManualPaymentController extends Controller
                 return back()->withErrors(['error' => 'لا يمكن تسليم الكود بدون مستخدم (تأكد أن العميل مسجّل دخول).']);
             }
 
-            $available = DiamondCode::query()
-                ->where('product_id', $manualPaymentRequest->product_id)
-                ->where('status', 'available')
-                ->orderBy('id')
-                ->first();
+            $available = null;
+            if (! empty($manualPaymentRequest->reserved_diamond_code_id)) {
+                $available = DiamondCode::query()
+                    ->whereKey($manualPaymentRequest->reserved_diamond_code_id)
+                    ->where('product_id', $manualPaymentRequest->product_id)
+                    ->where('status', 'available')
+                    ->first();
+            }
+
+            if (! $available) {
+                $available = DiamondCode::query()
+                    ->where('product_id', $manualPaymentRequest->product_id)
+                    ->where('status', 'available')
+                    ->orderBy('id')
+                    ->first();
+            }
 
             if (! $available) {
                 return back()->withErrors(['error' => 'لا يوجد أكواد متاحة لهذا المنتج. أضف أكواد من الداشبورد أولاً.']);
@@ -500,6 +511,7 @@ class ManualPaymentController extends Controller
         $manualPaymentRequest->update([
             'status' => 'rejected',
             'admin_note' => $request->input('admin_note'),
+            'reserved_diamond_code_id' => null,
         ]);
 
         // Refund points if this request was paid via wallet points.
