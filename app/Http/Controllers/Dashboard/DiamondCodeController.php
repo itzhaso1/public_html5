@@ -240,6 +240,7 @@ class DiamondCodeController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'price' => ['required', 'numeric', 'min:0'],
+            'is_lucky_draw_codes' => ['nullable', 'boolean'],
         ]);
 
         $name = trim($data['name']);
@@ -247,18 +248,31 @@ class DiamondCodeController extends Controller
             return back()->withErrors(['error' => 'اسم المنتج مطلوب.'])->withInput();
         }
 
-        $product->update([
-            'price' => (float) $data['price'],
-        ]);
+        $isLucky = (bool) $request->boolean('is_lucky_draw_codes');
 
-        DB::table('product_translations')->updateOrInsert(
-            ['product_id' => $product->id, 'locale' => 'ar'],
-            ['name' => $name, 'description' => $name]
-        );
-        DB::table('product_translations')->updateOrInsert(
-            ['product_id' => $product->id, 'locale' => 'en'],
-            ['name' => $name, 'description' => $name]
-        );
+        DB::transaction(function () use ($product, $data, $isLucky, $name) {
+            // enforce single lucky draw product (for codes)
+            if ($isLucky) {
+                Product::query()
+                    ->where('service_type', 'codes')
+                    ->where('id', '!=', $product->id)
+                    ->update(['is_lucky_draw_codes' => false]);
+            }
+
+            $product->update([
+                'price' => (float) $data['price'],
+                'is_lucky_draw_codes' => $isLucky,
+            ]);
+
+            DB::table('product_translations')->updateOrInsert(
+                ['product_id' => $product->id, 'locale' => 'ar'],
+                ['name' => $name, 'description' => $name]
+            );
+            DB::table('product_translations')->updateOrInsert(
+                ['product_id' => $product->id, 'locale' => 'en'],
+                ['name' => $name, 'description' => $name]
+            );
+        });
 
         $this->forgetCodesPageCache();
 

@@ -46,6 +46,7 @@
                                 <option value="{{ $p->id }}"
                                         data-name="{{ $p->name }}"
                                         data-price="{{ (float) $p->price }}"
+                                        data-lucky="{{ (int) (($p->is_lucky_draw_codes ?? false) ? 1 : 0) }}"
                                         @selected(old('product_id') == $p->id)>
                                     {{ $p->name }} (ID: {{ $p->id }})
                                 </option>
@@ -197,6 +198,11 @@
                            placeholder="0.00">
                 </div>
 
+                <label class="flex items-center gap-2 text-xs font-extrabold text-gray-800">
+                    <input type="checkbox" name="is_lucky_draw_codes" value="1" class="accent-black" id="editProductLucky">
+                    تفعيل قسم (انت وحظك) لهذا المنتج
+                </label>
+
                 <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-900">
                     ملاحظة: هذا التعديل مخصص لمنتجات “أكواد ملابس” فقط.
                 </div>
@@ -233,6 +239,7 @@
 
     const inputName = document.getElementById('editProductName');
     const inputPrice = document.getElementById('editProductPrice');
+    const inputLucky = document.getElementById('editProductLucky');
 
     const updateTpl = @json(route('admin.diamond_codes.product.update', ['product' => 0]));
     const deleteTpl = @json(route('admin.diamond_codes.product.destroy', ['product' => 0]));
@@ -263,6 +270,7 @@
 
       const name = opt.getAttribute('data-name') || '-';
       const price = opt.getAttribute('data-price') || '0';
+      const lucky = opt.getAttribute('data-lucky') || '0';
       metaBox?.classList.remove('hidden');
       metaName.textContent = name;
       metaPrice.textContent = `ر.س ${Number(price).toFixed(2)}`;
@@ -275,6 +283,7 @@
       // Pre-fill modal inputs
       inputName.value = name;
       inputPrice.value = Number(price);
+      if (inputLucky) inputLucky.checked = String(lucky) === '1';
     }
 
     function openModal() {
