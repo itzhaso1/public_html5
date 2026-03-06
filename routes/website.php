@@ -6,6 +6,7 @@ use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 use Illuminate\Support\Facades\Cache;
  
 use App\Http\Controllers\Website;
+use App\Http\Controllers\Website\Auction as WebsiteAuction;
 use App\Http\Controllers\Website\Customer;
 use App\Http\Controllers\PublicProductController;
 use App\Models\Product;
@@ -125,10 +126,34 @@ Route::group(
         // ===============================
         // Website pages
         // ===============================
-        Route::get('/', Website\WebsiteController::class)->name('home');
+        Route::get('/', WebsiteAuction\HomeController::class)->name('home');
         Route::get('about-us', Website\AboutController::class)->name('about');
         Route::get('contact-us', Website\ContactUsController::class)->name('contact');
         Route::get('privacy-policy', Website\PrivacyController::class)->name('privacy');
+
+        // ===============================
+        // Auctions
+        // ===============================
+        Route::get('auctions', [WebsiteAuction\AuctionController::class, 'index'])->name('auctions.index');
+        Route::get('auctions/my', [WebsiteAuction\AuctionController::class, 'myAuctions'])
+            ->middleware('auth')
+            ->name('auctions.my');
+        Route::get('subscriptions', [WebsiteAuction\SubscriptionController::class, 'index'])
+            ->middleware('auth')
+            ->name('subscriptions.index');
+
+        Route::get('auctions/{auction}', [WebsiteAuction\AuctionController::class, 'show'])->name('auctions.show');
+        Route::get('auctions/{auction}/stream', [WebsiteAuction\AuctionController::class, 'stream'])->name('auctions.stream');
+        Route::post('auctions/{auction}/bid', [WebsiteAuction\AuctionController::class, 'placeBid'])
+            ->middleware(['auth', 'throttle:40,1'])
+            ->name('auctions.bid');
+
+        Route::get('auctions/{auction}/subscribe', [WebsiteAuction\SubscriptionController::class, 'create'])
+            ->middleware('auth')
+            ->name('auctions.subscribe.create');
+        Route::post('auctions/{auction}/subscribe', [WebsiteAuction\SubscriptionController::class, 'store'])
+            ->middleware('auth')
+            ->name('auctions.subscribe.store');
  
         // ===============================
         // Shop
