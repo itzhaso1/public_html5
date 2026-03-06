@@ -20,6 +20,11 @@ class UserDataTable extends BaseDataTable
     public function dataTable($query): EloquentDataTable
     {
         return (new EloquentDataTable($query))
+            ->addColumn('wallet_points_total_credited', function (User $user) {
+                $total = (int) ($user->wallet_points_total_credited ?? 0);
+                $url = route('admin.user.wallet', $user);
+                return '<a href="' . e($url) . '" class="badge badge-light-warning">' . e(number_format($total)) . '</a>';
+            })
             ->addColumn('wallet_points_total_deposited', function (User $user) {
                 $total = (int) ($user->wallet_points_total_deposited ?? 0);
                 $url = route('admin.user.wallet', $user);
@@ -45,7 +50,7 @@ class UserDataTable extends BaseDataTable
             ->editColumn('status', function (User $user) {
                 return $this->formatStatus($user->status);
             })
-            ->rawColumns(['wallet_points_total_deposited', 'wallet_points_balance', 'action', 'created_at', 'updated_at', 'status', 'name']);
+            ->rawColumns(['wallet_points_total_credited', 'wallet_points_total_deposited', 'wallet_points_balance', 'action', 'created_at', 'updated_at', 'status', 'name']);
     }
 
     public function query(): QueryBuilder
@@ -53,6 +58,9 @@ class UserDataTable extends BaseDataTable
         return User::query()
             ->select('users.*')
             ->addSelect([
+                'wallet_points_total_credited' => WalletTransaction::query()
+                    ->selectRaw('COALESCE(SUM(CASE WHEN points_delta > 0 THEN points_delta ELSE 0 END), 0)')
+                    ->whereColumn('wallet_transactions.user_id', 'users.id'),
                 'wallet_points_total_deposited' => WalletTransaction::query()
                     ->selectRaw('COALESCE(SUM(points_delta), 0)')
                     ->whereColumn('wallet_transactions.user_id', 'users.id')
@@ -69,6 +77,7 @@ class UserDataTable extends BaseDataTable
             ['name' => 'email', 'data' => 'email', 'title' => 'الايميل'],
             ['name' => 'phone', 'data' => 'phone', 'title' => 'رقم الهاتف'],
             ['name' => 'wallet_points_total_deposited', 'data' => 'wallet_points_total_deposited', 'title' => 'مجموع الشحن', 'orderable' => false, 'searchable' => false],
+            ['name' => 'wallet_points_total_credited', 'data' => 'wallet_points_total_credited', 'title' => 'إجمالي الزيادات', 'orderable' => false, 'searchable' => false],
             ['name' => 'wallet_points_balance', 'data' => 'wallet_points_balance', 'title' => 'رصيد النقاط', 'orderable' => false, 'searchable' => false],
             ['name' => 'status', 'data' => 'status', 'title' => trans('dashboard/general.status')],
             ['name' => 'created_at', 'data' => 'created_at', 'title' => trans('dashboard/general.created_at'), 'orderable' => false, 'searchable' => false],

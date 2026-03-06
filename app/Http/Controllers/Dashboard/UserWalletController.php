@@ -19,6 +19,11 @@ class UserWalletController extends Controller
             ->where('type', 'deposit_credit')
             ->sum('points_delta');
 
+        $totalCredited = (int) WalletTransaction::query()
+            ->where('user_id', $user->id)
+            ->where('points_delta', '>', 0)
+            ->sum('points_delta');
+
         $transactions = WalletTransaction::query()
             ->where('user_id', $user->id)
             ->latest()
@@ -35,6 +40,7 @@ class UserWalletController extends Controller
             'transactions' => $transactions,
             'topups' => $topups,
             'totalDeposited' => $totalDeposited,
+            'totalCredited' => $totalCredited,
         ]);
     }
 
