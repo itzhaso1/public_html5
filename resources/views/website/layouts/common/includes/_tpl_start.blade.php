@@ -34,6 +34,7 @@
     <meta property="og:image" content="https://king2game.com/public/assets/images/logo/aaa.jpeg">
     <meta property="og:url" content="https://king2game.com">
     <meta property="og:type" content="website">
+    @stack('css')
 </head>
 
 

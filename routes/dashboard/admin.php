@@ -1,6 +1,7 @@
 <?php
  
 use App\Http\Controllers\Dashboard;
+use App\Http\Controllers\Dashboard\Auction as DashboardAuction;
 use Illuminate\Support\Facades\Route;
 use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
  
@@ -120,6 +121,34 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
             Route::post('requests/{moneyExchangeRequest}/complete', [Dashboard\MoneyExchangeRequestController::class, 'complete'])->name('requests.complete');
             Route::post('requests/{moneyExchangeRequest}/reject', [Dashboard\MoneyExchangeRequestController::class, 'reject'])->name('requests.reject');
             Route::delete('requests/{moneyExchangeRequest}', [Dashboard\MoneyExchangeRequestController::class, 'destroy'])->name('requests.destroy');
+        });
+
+        // Auctions (game accounts)
+        Route::prefix('auctions')->as('auctions.')->group(function () {
+            Route::get('/', [DashboardAuction\AuctionController::class, 'index'])->name('index');
+            Route::get('create', [DashboardAuction\AuctionController::class, 'create'])->name('create');
+            Route::post('/', [DashboardAuction\AuctionController::class, 'store'])->name('store');
+
+            Route::prefix('payment-methods')->as('payment_methods.')->group(function () {
+                Route::get('/', [DashboardAuction\PaymentMethodController::class, 'index'])->name('index');
+                Route::get('create', [DashboardAuction\PaymentMethodController::class, 'create'])->name('create');
+                Route::post('/', [DashboardAuction\PaymentMethodController::class, 'store'])->name('store');
+                Route::get('{paymentMethod}/edit', [DashboardAuction\PaymentMethodController::class, 'edit'])->name('edit');
+                Route::put('{paymentMethod}', [DashboardAuction\PaymentMethodController::class, 'update'])->name('update');
+                Route::delete('{paymentMethod}', [DashboardAuction\PaymentMethodController::class, 'destroy'])->name('destroy');
+            });
+
+            Route::prefix('subscriptions')->as('subscriptions.')->group(function () {
+                Route::get('/', [DashboardAuction\SubscriptionController::class, 'index'])->name('index');
+                Route::get('{subscription}', [DashboardAuction\SubscriptionController::class, 'show'])->name('show');
+                Route::post('{subscription}/approve', [DashboardAuction\SubscriptionController::class, 'approve'])->name('approve');
+                Route::post('{subscription}/reject', [DashboardAuction\SubscriptionController::class, 'reject'])->name('reject');
+            });
+
+            Route::get('{auction}', [DashboardAuction\AuctionController::class, 'show'])->name('show');
+            Route::get('{auction}/edit', [DashboardAuction\AuctionController::class, 'edit'])->name('edit');
+            Route::put('{auction}', [DashboardAuction\AuctionController::class, 'update'])->name('update');
+            Route::post('{auction}/toggle-status', [DashboardAuction\AuctionController::class, 'toggleStatus'])->name('toggle_status');
         });
         
         Route::get('dashboard', Dashboard\DashboardController::class)->name('dashboard');
