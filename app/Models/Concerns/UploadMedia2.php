@@ -8,15 +8,87 @@ use Illuminate\Http\UploadedFile;
 use Intervention\Image\Facades\Image;
 
 trait UploadMedia2 {
+    private function webPublicPrefix(): string
+    {
+        try {
+            $docRoot = realpath((string) ($_SERVER['DOCUMENT_ROOT'] ?? ''));
+            $publicRoot = realpath(public_path());
+            if (!$docRoot || !$publicRoot) {
+                return '';
+            }
+
+            $docRoot = rtrim(str_replace('\\', '/', $docRoot), '/');
+            $publicRoot = rtrim(str_replace('\\', '/', $publicRoot), '/');
+
+            if ($docRoot === $publicRoot) {
+                return '';
+            }
+
+            $prefixProbe = $docRoot . '/';
+            if (str_starts_with($publicRoot, $prefixProbe)) {
+                return trim(substr($publicRoot, strlen($prefixProbe)), '/');
+            }
+        } catch (\Throwable $e) {
+            // ignore and fallback to empty prefix
+        }
+
+        return '';
+    }
+
+    private function withPublicPrefix(string $path): string
+    {
+        $path = ltrim($path, '/');
+        $prefix = $this->webPublicPrefix();
+        if ($prefix === '') {
+            return $path;
+        }
+        if (str_starts_with($path, $prefix . '/')) {
+            return $path;
+        }
+        return "{$prefix}/{$path}";
+    }
+
+    private function resolveStoredPath(string $uploadsBase, string $fileName): string
+    {
+        $fileName = trim((string) $fileName);
+        if ($fileName === '') {
+            return '';
+        }
+
+        if (preg_match('#^https?://#i', $fileName)) {
+            return $fileName;
+        }
+
+        $fileName = str_replace('\\', '/', $fileName);
+        $fileName = ltrim($fileName, '/');
+
+        // Legacy rows may already contain full relative path.
+        if (str_starts_with($fileName, 'uploads/') || str_starts_with($fileName, 'storage/uploads/')) {
+            return $fileName;
+        }
+
+        return trim($uploadsBase, '/') . '/' . basename($fileName);
+    }
+
     private function publicUploadsUrl(string $disk, string $uploadsPath): string
     {
+        if (preg_match('#^https?://#i', $uploadsPath)) {
+            return $uploadsPath;
+        }
+
         $uploadsPath = ltrim($uploadsPath, '/');
         $disk = strtolower(trim($disk));
 
-        $directFilePath = public_path($uploadsPath);
-        $storageFilePath = storage_path("app/public/{$uploadsPath}");
-        $directUrl = asset($uploadsPath);
-        $storageUrl = asset("storage/{$uploadsPath}");
+        $directRelative = $uploadsPath;
+        $storageRelative = str_starts_with($uploadsPath, 'storage/')
+            ? $uploadsPath
+            : "storage/{$uploadsPath}";
+        $storageInternal = ltrim(preg_replace('#^storage/#', '', $storageRelative), '/');
+
+        $directFilePath = public_path($directRelative);
+        $storageFilePath = storage_path("app/public/{$storageInternal}");
+        $directUrl = asset($this->withPublicPrefix($directRelative));
+        $storageUrl = asset($this->withPublicPrefix($storageRelative));
 
         if ($disk === 'storage_public') {
             // Prefer storage path, then fallback to direct public if legacy/migrated files are mixed.
@@ -204,8 +276,10 @@ trait UploadMedia2 {
         if ($column && in_array($column, $model->getFillable())) {
             $fileName = $model->{$column};
             if ($fileName) {
-                $images['original'] = $this->publicUploadsUrl('direct_public', "{$base}/{$fileName}");
-                $images['thumbnail'] = $this->publicUploadsUrl('direct_public', "{$base}/thumbnails/{$fileName}");
+                $path = $this->resolveStoredPath($base, (string) $fileName);
+                $thumb = $this->resolveStoredPath("{$base}/thumbnails", (string) $fileName);
+                $images['original'] = $this->publicUploadsUrl('direct_public', $path);
+                $images['thumbnail'] = $this->publicUploadsUrl('direct_public', $thumb);
             }
         } elseif ($relation && method_exists($model, $relation)) {
             $query = $model->$relation();
@@ -213,11 +287,17 @@ trait UploadMedia2 {
                 $query->where('collection_name', $collectionName);
             }
             $media = $query->first();
+            if (!$media && $collectionName) {
+                // Backward compatibility for older rows that used different/empty collection names.
+                $media = $model->$relation()->first();
+            }
             if ($media) {
                 $disk = (string) ($media->disk ?? '');
                 $fileName = $media->file_name;
-                $images['original'] = $this->publicUploadsUrl($disk, "{$base}/{$fileName}");
-                $images['thumbnail'] = $this->publicUploadsUrl($disk, "{$base}/thumbnails/{$fileName}");
+                $path = $this->resolveStoredPath($base, (string) $fileName);
+                $thumb = $this->resolveStoredPath("{$base}/thumbnails", (string) $fileName);
+                $images['original'] = $this->publicUploadsUrl($disk, $path);
+                $images['thumbnail'] = $this->publicUploadsUrl($disk, $thumb);
             }
         }
         return $images;
@@ -236,7 +316,8 @@ trait UploadMedia2 {
         if ($column && in_array($column, $model->getFillable())) {
             $fileName = $model->{$column};
             if ($fileName) {
-                return $this->publicUploadsUrl('direct_public', "{$uploadsBase}/{$fileName}");
+                $path = $this->resolveStoredPath($uploadsBase, (string) $fileName);
+                return $this->publicUploadsUrl('direct_public', $path);
             }
         }
         if ($relation && method_exists($model, $relation)) {
@@ -245,10 +326,15 @@ trait UploadMedia2 {
                 $query->where('collection_name', $collectionName);
             }
             $media = $query->first();
+            if (!$media && $collectionName) {
+                // Backward compatibility for older rows that used different/empty collection names.
+                $media = $model->$relation()->first();
+            }
             if ($media) {
                 $fileName = $media->file_name;
                 $disk = (string) ($media->disk ?? '');
-                return $this->publicUploadsUrl($disk, "{$uploadsBase}/{$fileName}");
+                $path = $this->resolveStoredPath($uploadsBase, (string) $fileName);
+                return $this->publicUploadsUrl($disk, $path);
             }
         }
         return null;
@@ -450,14 +536,20 @@ trait UploadMedia2 {
             }
 
             $mediaItems = $query->get();
+            if ($mediaItems->isEmpty() && $collectionName) {
+                // Backward compatibility for older rows that used different/empty collection names.
+                $mediaItems = $model->$relation()->get();
+            }
 
             foreach ($mediaItems as $media) {
                 $fileName = $media->file_name;
                 $disk = (string) ($media->disk ?? 'direct_public');
+                $path = $this->resolveStoredPath($uploadsBase, (string) $fileName);
+                $thumb = $this->resolveStoredPath("{$uploadsBase}/thumbnails", (string) $fileName);
 
                 $images[] = [
-                    'original'   => $this->publicUploadsUrl($disk, "{$uploadsBase}/{$fileName}"),
-                    'thumbnail'  => $this->publicUploadsUrl($disk, "{$uploadsBase}/thumbnails/{$fileName}"),
+                    'original'   => $this->publicUploadsUrl($disk, $path),
+                    'thumbnail'  => $this->publicUploadsUrl($disk, $thumb),
                 ];
             }
         }
