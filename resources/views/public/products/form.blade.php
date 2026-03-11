@@ -328,7 +328,7 @@
                     </div>
 
                     <!-- Guided gallery (12 slots) -->
-                    <div id="guidedGalleryWrap" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div id="guidedGalleryWrap" class="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
                         @php
                             $slots = [
                                 ['key' => 'weapons_gallery', 'title' => '1) معرض أسلحة', 'hint' => 'صورة واضحة للأسلحة/الاسكنات'],

@@ -96,7 +96,9 @@ class PublicProductRequestController extends Controller
         $this->flushWebsiteProductCaches();
         $this->notifyPublisher($product, true);
 
-        return back()->with('success', 'تمت الموافقة وتم نشر الحساب ✅');
+        return redirect()
+            ->route('admin.public_products.index', ['status' => 'approved'])
+            ->with('success', 'تمت الموافقة وتم نشر الحساب ✅');
     }
 
     public function reject(Request $request, Product $product)
@@ -126,7 +128,9 @@ class PublicProductRequestController extends Controller
         $this->flushWebsiteProductCaches();
         $this->notifyPublisher($product, false);
 
-        return back()->with('success', 'تم رفض الطلب ❌');
+        return redirect()
+            ->route('admin.public_products.index', ['status' => 'rejected'])
+            ->with('success', 'تم رفض الطلب ❌');
     }
 
     private function ensurePublic(Product $product): void
