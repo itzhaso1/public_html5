@@ -133,40 +133,54 @@ class PublicProductController extends Controller
                 $this->applyNamePrefix($request, $namePrefix, 'ar');
             }
 
-            // Build gallery files for guided mode (ordered by sections) if user didn't use advanced uploader.
-            if (! $request->hasFile('gallery')) {
-                $guided = (array) $request->file('gallery_guided', []);
-                if (!empty($guided)) {
-                    $order = [
-                        'weapons_gallery',
-                        'shotgun',
-                        'hair',
-                        'face',
-                        'tops',
-                        'pants',
-                        'emotes',
-                        'login_emotes',
-                        'banners',
-                        'fire_pass',
-                        'extra_1',
-                        'extra_2',
-                    ];
-                    $files = [];
-                    foreach ($order as $key) {
-                        $f = $guided[$key] ?? null;
-                        if ($f) {
-                            $files[] = $f;
-                        }
+            // Build gallery files for guided mode (ordered by sections).
+            // We do this explicitly when gallery_mode=guided to avoid stale hidden advanced input affecting validation.
+            $guidedOrder = [
+                'weapons_gallery',
+                'shotgun',
+                'hair',
+                'face',
+                'tops',
+                'pants',
+                'emotes',
+                'login_emotes',
+                'banners',
+                'fire_pass',
+                'extra_1',
+                'extra_2',
+            ];
+            if ($galleryMode === 'guided') {
+                $guidedRaw = $request->file('gallery_guided', []);
+                $guided = is_array($guidedRaw) ? $guidedRaw : [];
+                $files = [];
+                foreach ($guidedOrder as $key) {
+                    $f = $guided[$key] ?? null;
+                    if ($f instanceof \Illuminate\Http\UploadedFile) {
+                        $files[] = $f;
                     }
-
-                    if (!empty($files)) {
-                        $request->files->set('gallery', $files);
+                }
+                $request->files->set('gallery', $files);
+            } elseif (! $request->hasFile('gallery')) {
+                // Backward compatibility: if old clients miss gallery_mode but send guided files, still accept.
+                $guidedRaw = $request->file('gallery_guided', []);
+                $guided = is_array($guidedRaw) ? $guidedRaw : [];
+                $files = [];
+                foreach ($guidedOrder as $key) {
+                    $f = $guided[$key] ?? null;
+                    if ($f instanceof \Illuminate\Http\UploadedFile) {
+                        $files[] = $f;
                     }
+                }
+                if (!empty($files)) {
+                    $request->files->set('gallery', $files);
                 }
             }
 
             // Validate gallery minimum (security & UX parity with frontend).
             $galleryFiles = $request->file('gallery');
+            if ($galleryFiles instanceof \Illuminate\Http\UploadedFile) {
+                $galleryFiles = [$galleryFiles];
+            }
             if (!is_array($galleryFiles) || count($galleryFiles) === 0) {
                 throw ValidationException::withMessages([
                     'gallery' => 'يجب رفع صور المعرض في الخطوة 6.',

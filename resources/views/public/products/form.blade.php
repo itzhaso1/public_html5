@@ -1042,6 +1042,22 @@ function copyStoreOnly() {
 <script>
 let galleryFiles = [];
 
+function clearAdvancedGallerySelection() {
+    galleryFiles = [];
+    const input = document.getElementById('gallery_images_advanced');
+    const preview = document.getElementById('galleryPreview');
+    const nameLabel = document.getElementById('gallery_images_name');
+    if (input) {
+        try { input.value = ''; } catch (e) {}
+    }
+    if (preview) preview.innerHTML = '';
+    if (nameLabel) {
+        nameLabel.textContent = 'لم يتم اختيار أي ملفات';
+        nameLabel.classList.remove('text-red-600', 'text-green-600');
+        nameLabel.classList.add('text-gray-500');
+    }
+}
+
 function setGalleryMode(mode) {
     const m = (mode === 'advanced') ? 'advanced' : 'guided';
     const inp = document.getElementById('galleryMode');
@@ -1051,6 +1067,11 @@ function setGalleryMode(mode) {
     const adv = document.getElementById('advancedGalleryWrap');
     if (guided) guided.classList.toggle('hidden', m === 'advanced');
     if (adv) adv.classList.toggle('hidden', m !== 'advanced');
+
+    // Prevent stale hidden advanced files from interfering with guided submit.
+    if (m === 'guided') {
+        clearAdvancedGallerySelection();
+    }
 }
 
 function initGalleryModeToggle() {
