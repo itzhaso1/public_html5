@@ -11,12 +11,45 @@ trait UploadMedia2 {
     private function publicUploadsUrl(string $disk, string $uploadsPath): string
     {
         $uploadsPath = ltrim($uploadsPath, '/');
+        $disk = strtolower(trim($disk));
+
+        $directFilePath = public_path($uploadsPath);
+        $storageFilePath = storage_path("app/public/{$uploadsPath}");
+        $directUrl = asset($uploadsPath);
+        $storageUrl = asset("storage/{$uploadsPath}");
+
         if ($disk === 'storage_public') {
-            // storage_public means the file is under storage/app/public/... and is exposed via /public/storage symlink.
-            return asset("storage/{$uploadsPath}");
+            // Prefer storage path, then fallback to direct public if legacy/migrated files are mixed.
+            if (is_file($storageFilePath)) {
+                return $storageUrl;
+            }
+            if (is_file($directFilePath)) {
+                return $directUrl;
+            }
+            return $storageUrl;
         }
-        // direct_public (or unknown) => file is under public/...
-        return asset($uploadsPath);
+
+        if ($disk === 'direct_public') {
+            // Prefer direct public path, then fallback to storage path if needed.
+            if (is_file($directFilePath)) {
+                return $directUrl;
+            }
+            if (is_file($storageFilePath)) {
+                return $storageUrl;
+            }
+            return $directUrl;
+        }
+
+        // Unknown/empty disk from legacy rows: auto-detect existing file location.
+        if (is_file($directFilePath)) {
+            return $directUrl;
+        }
+        if (is_file($storageFilePath)) {
+            return $storageUrl;
+        }
+
+        // Final fallback keeps old behavior stable even if file is missing.
+        return $directUrl;
     }
     public function uploadSingleMedia(
         $baseFolder,
@@ -171,8 +204,8 @@ trait UploadMedia2 {
         if ($column && in_array($column, $model->getFillable())) {
             $fileName = $model->{$column};
             if ($fileName) {
-                $images['original'] = asset("{$base}/{$fileName}");
-                $images['thumbnail'] = asset("{$base}/thumbnails/{$fileName}");
+                $images['original'] = $this->publicUploadsUrl('direct_public', "{$base}/{$fileName}");
+                $images['thumbnail'] = $this->publicUploadsUrl('direct_public', "{$base}/thumbnails/{$fileName}");
             }
         } elseif ($relation && method_exists($model, $relation)) {
             $query = $model->$relation();
@@ -181,16 +214,10 @@ trait UploadMedia2 {
             }
             $media = $query->first();
             if ($media) {
-                $disk = $media->disk;
+                $disk = (string) ($media->disk ?? '');
                 $fileName = $media->file_name;
-
-                if ($disk === 'direct_public') {
-                    $images['original'] = asset("{$base}/{$fileName}");
-                    $images['thumbnail'] = asset("{$base}/thumbnails/{$fileName}");
-                } elseif ($disk === 'storage_public') {
-                    $images['original'] = asset("storage/{$base}/{$fileName}");
-                    $images['thumbnail'] = asset("storage/{$base}/thumbnails/{$fileName}");
-                }
+                $images['original'] = $this->publicUploadsUrl($disk, "{$base}/{$fileName}");
+                $images['thumbnail'] = $this->publicUploadsUrl($disk, "{$base}/thumbnails/{$fileName}");
             }
         }
         return $images;
@@ -220,13 +247,8 @@ trait UploadMedia2 {
             $media = $query->first();
             if ($media) {
                 $fileName = $media->file_name;
-                $disk = $media->disk;
-
-                if ($disk === 'direct_public') {
-                    return $this->publicUploadsUrl($disk, "{$uploadsBase}/{$fileName}");
-                } elseif ($disk === 'storage_public') {
-                    return $this->publicUploadsUrl($disk, "{$uploadsBase}/{$fileName}");
-                }
+                $disk = (string) ($media->disk ?? '');
+                return $this->publicUploadsUrl($disk, "{$uploadsBase}/{$fileName}");
             }
         }
         return null;

@@ -850,17 +850,27 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     if (uploadBox) uploadBox.classList.remove('hidden');
 
     // If SweetAlert2 didn't load yet, fallback to alert later
-    const showSuccess = () => {
+    const showSuccess = (message = 'تم رفع المنتج بنجاح', redirectUrl = '') => {
         if (window.Swal && Swal.fire) {
             Swal.fire({
                 icon: 'success',
                 title: 'تم تحميل الحساب',
-                text: 'تم رفع المنتج بنجاح',
+                text: message,
                 confirmButtonText: 'تمام'
-            }).then(() => window.location.reload());
+            }).then(() => {
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                } else {
+                    window.location.reload();
+                }
+            });
         } else {
-            alert('تم رفع المنتج بنجاح');
-            window.location.reload();
+            alert(message);
+            if (redirectUrl) {
+                window.location.href = redirectUrl;
+            } else {
+                window.location.reload();
+            }
         }
     };
     const showError = (msg) => {
@@ -897,6 +907,8 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
 
     xhr.open('POST', form.action, true);
     xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.setRequestHeader('Accept', 'application/json');
     xhr.timeout = 12 * 60 * 1000; // 12 minutes
 
     xhr.upload.onprogress = function (e) {
@@ -918,12 +930,29 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     };
 
     xhr.onload = function () {
+        let payload = null;
+        try {
+            payload = JSON.parse(xhr.responseText || '{}');
+        } catch (e) {}
+
         if (xhr.status >= 200 && xhr.status < 300) {
-            showSuccess();
-        } else {
-            console.error(xhr.responseText);
-            showError('حدث خطأ أثناء رفع المنتج');
+            const redirectUrl = (payload && payload.track_url) ? String(payload.track_url) : '';
+            const message = (payload && payload.message) ? String(payload.message) : 'تم رفع المنتج بنجاح';
+            showSuccess(message, redirectUrl);
+            return;
         }
+
+        if (xhr.status === 422 && payload && payload.errors) {
+            const firstField = Object.keys(payload.errors)[0];
+            const firstError = firstField && Array.isArray(payload.errors[firstField])
+                ? payload.errors[firstField][0]
+                : null;
+            showError(firstError || (payload.message || 'تحقق من البيانات في الخطوات المطلوبة.'));
+            return;
+        }
+
+        console.error(xhr.responseText);
+        showError((payload && payload.message) ? payload.message : 'حدث خطأ أثناء رفع المنتج');
     };
 
     xhr.onerror = function () {
