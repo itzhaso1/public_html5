@@ -8,6 +8,18 @@ use Illuminate\Http\UploadedFile;
 use Intervention\Image\Facades\Image;
 
 trait UploadMedia2 {
+    private function normalizeImageExtension(string $extension): string
+    {
+        $ext = strtolower(trim($extension));
+        if ($ext === 'jpeg' || $ext === 'jfif' || $ext === 'pjpeg') {
+            return 'jpg';
+        }
+        if ($ext === '') {
+            return 'jpg';
+        }
+        return $ext;
+    }
+
     private function webPublicPrefix(): string
     {
         try {
@@ -150,7 +162,7 @@ trait UploadMedia2 {
                 mkdir($storagePath, 0777, true);
             }
         }
-        $extension = $file->getClientOriginalExtension();
+        $extension = $this->normalizeImageExtension((string) $file->getClientOriginalExtension());
         $fileName = uniqid() . '.' . $extension;
         $filePath = "$folderPath/$fileName";
         $image = Image::make($file->getPathname());
@@ -428,7 +440,7 @@ trait UploadMedia2 {
                 continue;
             }
 
-            $extension = $file->getClientOriginalExtension();
+            $extension = $this->normalizeImageExtension((string) $file->getClientOriginalExtension());
             $fileName = uniqid() . '.' . $extension;
             $filePath = $fullPath . '/' . $fileName;
 
