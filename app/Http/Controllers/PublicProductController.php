@@ -90,6 +90,14 @@ class PublicProductController extends Controller
         return $this->storeInternal($request, 'ج');
     }
 
+    private function expectsAjaxJson(Request $request): bool
+    {
+        return $request->expectsJson()
+            || $request->wantsJson()
+            || $request->ajax()
+            || strtolower((string) $request->header('X-Requested-With')) === 'xmlhttprequest';
+    }
+
     private function storeInternal(Request $request, ?string $namePrefix)
     {
         try {
@@ -205,13 +213,26 @@ class PublicProductController extends Controller
 
             $this->productInterface->store($request);
 
-            $product = Product::query()->where('slug', $slug)->first();
+            if ($this->expectsAjaxJson($request)) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'تم إرسال طلبك للمراجعة وسيتم نشر الحساب بعد موافقة الإدارة.',
+                    'track_url' => route('public.products.track', ['slug' => $slug]),
+                ], 201);
+            }
 
             return redirect()
                 ->route('public.products.track', ['slug' => $slug])
                 ->with('success', 'تم إرسال طلبك للمراجعة وسيتم نشر الحساب بعد موافقة الإدارة.');
 
         } catch (ValidationException $e) {
+            if ($this->expectsAjaxJson($request)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'يرجى تصحيح البيانات المرفوعة ثم المحاولة مرة أخرى.',
+                    'errors' => $e->errors(),
+                ], 422);
+            }
 
             return redirect()
                 ->back()
@@ -219,6 +240,12 @@ class PublicProductController extends Controller
                 ->withInput();
 
         } catch (\Throwable $e) {
+            if ($this->expectsAjaxJson($request)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'حدث خطأ غير متوقع أثناء رفع الطلب. حاول مرة أخرى.',
+                ], 500);
+            }
 
             return redirect()
                 ->route('home')
