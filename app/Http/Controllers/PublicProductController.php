@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Schema;
@@ -150,27 +151,11 @@ class PublicProductController extends Controller
                 'extra_2',
             ];
             if ($galleryMode === 'guided') {
-                $guidedRaw = $request->file('gallery_guided', []);
-                $guided = is_array($guidedRaw) ? $guidedRaw : [];
-                $files = [];
-                foreach ($guidedOrder as $key) {
-                    $f = $guided[$key] ?? null;
-                    if ($f instanceof \Illuminate\Http\UploadedFile) {
-                        $files[] = $f;
-                    }
-                }
+                $files = $this->collectGuidedGalleryFiles($request, $guidedOrder);
                 $request->files->set('gallery', $files);
             } elseif (! $request->hasFile('gallery')) {
                 // Backward compatibility: if old clients miss gallery_mode but send guided files, still accept.
-                $guidedRaw = $request->file('gallery_guided', []);
-                $guided = is_array($guidedRaw) ? $guidedRaw : [];
-                $files = [];
-                foreach ($guidedOrder as $key) {
-                    $f = $guided[$key] ?? null;
-                    if ($f instanceof \Illuminate\Http\UploadedFile) {
-                        $files[] = $f;
-                    }
-                }
+                $files = $this->collectGuidedGalleryFiles($request, $guidedOrder);
                 if (!empty($files)) {
                     $request->files->set('gallery', $files);
                 }
@@ -280,6 +265,29 @@ class PublicProductController extends Controller
             $payload['name'] = $prefix . ' ' . $name;
             $request->merge([$locale => $payload]);
         }
+    }
+
+    /**
+     * Robust extractor for guided gallery files.
+     * Some hosts/framework combinations expose nested file arrays differently.
+     */
+    private function collectGuidedGalleryFiles(Request $request, array $order): array
+    {
+        $files = [];
+        $allFiles = $request->allFiles();
+
+        foreach ($order as $key) {
+            $file = $request->file("gallery_guided.$key");
+            if (!$file) {
+                $file = data_get($allFiles, "gallery_guided.$key");
+            }
+
+            if ($file instanceof UploadedFile) {
+                $files[] = $file;
+            }
+        }
+
+        return $files;
     }
 
     /**
