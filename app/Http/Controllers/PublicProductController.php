@@ -287,7 +287,72 @@ class PublicProductController extends Controller
             }
         }
 
+        if (count($files) >= 12) {
+            return $files;
+        }
+
+        // Extra fallback: some hosts/browsers may submit nested file names in a non-standard shape.
+        // Collect any uploaded files that look like gallery files and exclude main product/video.
+        $fallback = [];
+        foreach ($this->flattenUploadedFiles($allFiles) as $path => $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+            $p = strtolower((string) $path);
+            if ($p === 'product' || str_starts_with($p, 'product.')) {
+                continue;
+            }
+            if ($p === 'video' || str_starts_with($p, 'video.')) {
+                continue;
+            }
+            if (str_contains($p, 'gallery')) {
+                $fallback[] = $file;
+            }
+        }
+
+        if (!empty($fallback)) {
+            return $this->uniqueUploadedFiles($fallback);
+        }
+
         return $files;
+    }
+
+    private function flattenUploadedFiles(array $files, string $prefix = ''): array
+    {
+        $out = [];
+        foreach ($files as $key => $value) {
+            $path = $prefix === '' ? (string) $key : ($prefix . '.' . $key);
+            if (is_array($value)) {
+                $out += $this->flattenUploadedFiles($value, $path);
+                continue;
+            }
+            if ($value instanceof UploadedFile) {
+                $out[$path] = $value;
+            }
+        }
+        return $out;
+    }
+
+    private function uniqueUploadedFiles(array $files): array
+    {
+        $seen = [];
+        $out = [];
+        foreach ($files as $file) {
+            if (!$file instanceof UploadedFile) {
+                continue;
+            }
+            $sig = implode('|', [
+                $file->getClientOriginalName(),
+                (string) $file->getSize(),
+                (string) $file->getMimeType(),
+            ]);
+            if (isset($seen[$sig])) {
+                continue;
+            }
+            $seen[$sig] = true;
+            $out[] = $file;
+        }
+        return $out;
     }
 
     /**

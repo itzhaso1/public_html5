@@ -901,6 +901,22 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     e.preventDefault();
 
     const formData = new FormData(form);
+    try {
+        const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+        if (mode === 'guided') {
+            // Host/browser-safe path: always send guided files again as gallery[].
+            // This bypasses edge cases where nested gallery_guided[...] files are not parsed server-side.
+            formData.delete('gallery[]');
+            formData.delete('gallery');
+            const keys = ['weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'];
+            keys.forEach((k) => {
+                const inp = document.getElementById('gallery_guided_' + k);
+                const f = inp && inp.files && inp.files[0] ? inp.files[0] : null;
+                if (f) formData.append('gallery[]', f);
+            });
+            formData.set('gallery_mode', 'guided');
+        }
+    } catch (e) {}
     const xhr = new XMLHttpRequest();
 
     const startTime = new Date().getTime();
