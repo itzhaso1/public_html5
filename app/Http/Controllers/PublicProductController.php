@@ -97,6 +97,13 @@ class PublicProductController extends Controller
                 'client_email' => ['nullable', 'string', 'email', 'max:255'],
             ]);
 
+            // Gallery mode: guided vs advanced (single multi-upload).
+            // We accept both without breaking old clients.
+            $galleryMode = strtolower(trim((string) $request->input('gallery_mode', 'guided')));
+            if (!in_array($galleryMode, ['guided', 'advanced'], true)) {
+                $galleryMode = 'guided';
+            }
+
             // Normalize customer WhatsApp number (digits only, fixes common formats).
             $normalizedPhone = WhatsAppNumber::normalize((string) $request->input('client_number', ''));
             if ($normalizedPhone !== '') {
@@ -116,6 +123,51 @@ class PublicProductController extends Controller
 
             if ($namePrefix) {
                 $this->applyNamePrefix($request, $namePrefix, 'ar');
+            }
+
+            // Build gallery files for guided mode (ordered by sections) if user didn't use advanced uploader.
+            if (! $request->hasFile('gallery')) {
+                $guided = (array) $request->file('gallery_guided', []);
+                if (!empty($guided)) {
+                    $order = [
+                        'weapons_gallery',
+                        'shotgun',
+                        'hair',
+                        'face',
+                        'tops',
+                        'pants',
+                        'emotes',
+                        'login_emotes',
+                        'banners',
+                        'fire_pass',
+                        'extra_1',
+                        'extra_2',
+                    ];
+                    $files = [];
+                    foreach ($order as $key) {
+                        $f = $guided[$key] ?? null;
+                        if ($f) {
+                            $files[] = $f;
+                        }
+                    }
+
+                    if (!empty($files)) {
+                        $request->files->set('gallery', $files);
+                    }
+                }
+            }
+
+            // Validate gallery minimum (security & UX parity with frontend).
+            $galleryFiles = $request->file('gallery');
+            if (!is_array($galleryFiles) || count($galleryFiles) === 0) {
+                throw ValidationException::withMessages([
+                    'gallery' => 'يجب رفع صور المعرض في الخطوة 6.',
+                ]);
+            }
+            if (count($galleryFiles) < 12) {
+                throw ValidationException::withMessages([
+                    'gallery' => 'يجب رفع 12 صورة على الأقل في الخطوة 6.',
+                ]);
             }
 
             // Auto-add commission for public publish price.

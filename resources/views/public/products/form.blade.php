@@ -314,23 +314,100 @@
                         </span>
                     </label>
 
-                    <label for="gallery_images"
-                           class="flex items-center justify-center gap-2
-                                  w-full py-4 rounded-2xl
-                                  border-2 border-dashed border-emerald-300
-                                  bg-emerald-50 text-emerald-700
-                                  font-semibold text-base
-                                  cursor-pointer
-                                  active:scale-[0.98] transition">
-                        🖼️ اختر صور
-                    </label>
+                    <input type="hidden" name="gallery_mode" id="galleryMode" value="guided">
 
-                    <input id="gallery_images" type="file" name="gallery[]" accept="image/*" multiple
-                           class="hidden" onchange="previewGalleryImages(this)">
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                        <div class="font-bold mb-1">✅ رفع مرتب (الموصى به)</div>
+                        <div class="text-xs text-emerald-800">
+                            ارفع الصور بالترتيب المطلوب. هذا يساعد الإدارة تراجع حسابك بسرعة ويقلل الرفض.
+                        </div>
+                        <button type="button" id="toggleAdvancedGallery"
+                                class="mt-3 inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                            ⚙️ إعدادات متقدمة (رفع 12 صورة دفعة واحدة)
+                        </button>
+                    </div>
 
-                    <p id="gallery_images_name" class="text-xs text-gray-500">لم يتم اختيار أي ملفات</p>
+                    <!-- Guided gallery (12 slots) -->
+                    <div id="guidedGalleryWrap" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        @php
+                            $slots = [
+                                ['key' => 'weapons_gallery', 'title' => '1) معرض أسلحة', 'hint' => 'صورة واضحة للأسلحة/الاسكنات'],
+                                ['key' => 'shotgun', 'title' => '2) الشوت قان', 'hint' => 'صورة الشوت قان أو أفضل سلاح عندك'],
+                                ['key' => 'hair', 'title' => '3) الشعر', 'hint' => 'صورة الشعر/الهيت'],
+                                ['key' => 'face', 'title' => '4) الوجه', 'hint' => 'صورة الوجه/الماسك'],
+                                ['key' => 'tops', 'title' => '5) الصدريات / تيشيرتات', 'hint' => 'أفضل صدرية/تيشيرت'],
+                                ['key' => 'pants', 'title' => '6) السراويل', 'hint' => 'أفضل بنطلون/سروال'],
+                                ['key' => 'emotes', 'title' => '7) الرقصات', 'hint' => 'أشهر الرقصات'],
+                                ['key' => 'login_emotes', 'title' => '8) رقصات تسجيل دخول', 'hint' => 'رقصات الدخول/اللوبي'],
+                                ['key' => 'banners', 'title' => '9) البنرات', 'hint' => 'بنرات/بادجات الحساب'],
+                                ['key' => 'fire_pass', 'title' => '10) الفير باسات', 'hint' => 'صورة الفير باس/الباس'],
+                                ['key' => 'extra_1', 'title' => '11) صورة إضافية 1', 'hint' => 'أي شيء قوي بالحساب'],
+                                ['key' => 'extra_2', 'title' => '12) صورة إضافية 2', 'hint' => 'أي شيء قوي بالحساب'],
+                            ];
+                        @endphp
+                        @foreach($slots as $s)
+                            <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-extrabold text-sm text-gray-900">{{ $s['title'] }}</div>
+                                        <div class="text-xs text-gray-500 mt-1">{{ $s['hint'] }}</div>
+                                    </div>
+                                    <span class="text-[11px] font-extrabold text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">مطلوب</span>
+                                </div>
 
-                    <div id="galleryPreview" class="grid grid-cols-3 gap-2 mt-3"></div>
+                                <div class="mt-3">
+                                    <label for="gallery_guided_{{ $s['key'] }}"
+                                           class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 font-extrabold text-sm cursor-pointer active:scale-[0.98] transition">
+                                        📷 اختر صورة
+                                    </label>
+                                    <input id="gallery_guided_{{ $s['key'] }}"
+                                           type="file"
+                                           name="gallery_guided[{{ $s['key'] }}]"
+                                           accept="image/*"
+                                           class="hidden"
+                                           onchange="previewGuidedGallery('{{ $s['key'] }}', this)">
+
+                                    <div id="guided_preview_box_{{ $s['key'] }}" class="hidden mt-3 relative">
+                                        <img id="guided_preview_img_{{ $s['key'] }}" class="w-full h-36 object-cover rounded-xl border" alt="preview">
+                                        <button type="button"
+                                                onclick="clearGuidedGallery('{{ $s['key'] }}')"
+                                                class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-lg border border-white">
+                                            ✕
+                                        </button>
+                                    </div>
+                                    <p id="guided_file_name_{{ $s['key'] }}" class="text-xs text-gray-500 mt-2">لم يتم اختيار ملف</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <!-- Advanced (old) uploader -->
+                    <div id="advancedGalleryWrap" class="hidden mt-4">
+                        <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                            <div class="text-sm font-extrabold text-yellow-900">⚠️ تنبيه</div>
+                            <div class="text-xs text-yellow-800 mt-1">
+                                الوضع المتقدم يتيح رفع كل الصور دفعة واحدة. استخدمه فقط إذا كنت مرتب صورك بنفس الترتيب.
+                            </div>
+                        </div>
+
+                        <label for="gallery_images_advanced"
+                               class="mt-3 flex items-center justify-center gap-2
+                                      w-full py-4 rounded-2xl
+                                      border-2 border-dashed border-emerald-300
+                                      bg-emerald-50 text-emerald-700
+                                      font-semibold text-base
+                                      cursor-pointer
+                                      active:scale-[0.98] transition">
+                            🖼️ اختر صور (دفعة واحدة)
+                        </label>
+
+                        <input id="gallery_images_advanced" type="file" name="gallery[]" accept="image/*" multiple
+                               class="hidden" onchange="previewGalleryImages(this)">
+
+                        <p id="gallery_images_name" class="text-xs text-gray-500">لم يتم اختيار أي ملفات</p>
+
+                        <div id="galleryPreview" class="grid grid-cols-3 gap-2 mt-3"></div>
+                    </div>
 
                     @error('gallery')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -532,10 +609,25 @@ function validateStep(step) {
         }
     }
     if (step === 6) {
-        const gallery = document.querySelector('input[name="gallery[]"]');
-        if (!gallery || gallery.files.length < 12) {
-            alert('يجب رفع 12 صورة على الأقل');
-            return false;
+        const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+        if (mode === 'advanced') {
+            const gallery = document.getElementById('gallery_images_advanced');
+            if (!gallery || gallery.files.length < 12) {
+                alert('يجب رفع 12 صورة على الأقل (الوضع المتقدم)');
+                return false;
+            }
+        } else {
+            const requiredKeys = [
+                'weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'
+            ];
+            const missing = requiredKeys.filter(k => {
+                const inp = document.getElementById('gallery_guided_' + k);
+                return !inp || !inp.files || inp.files.length === 0;
+            });
+            if (missing.length > 0) {
+                alert('يجب رفع كل الصور بالترتيب (12 صورة).');
+                return false;
+            }
         }
     }
     return true;
@@ -587,7 +679,17 @@ function updateReview() {
     syncClientNumber();
     const phone = document.getElementById('clientNumberFull')?.value?.trim() || '—';
     const mainImage = document.querySelector('input[name="product"]')?.files?.[0]?.name || 'غير مرفوعة';
-    const galleryCount = document.querySelector('input[name="gallery[]"]')?.files?.length || 0;
+    const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+    let galleryCount = 0;
+    if (mode === 'advanced') {
+        galleryCount = document.getElementById('gallery_images_advanced')?.files?.length || 0;
+    } else {
+        const keys = ['weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'];
+        galleryCount = keys.reduce((acc, k) => {
+            const inp = document.getElementById('gallery_guided_' + k);
+            return acc + ((inp && inp.files && inp.files.length) ? 1 : 0);
+        }, 0);
+    }
 
     const toNum = (v) => {
         const n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
@@ -621,6 +723,8 @@ function updateReview() {
 
 document.addEventListener('DOMContentLoaded', () => {
     showStep(currentStep);
+    initGalleryModeToggle();
+    setGalleryMode('guided');
     // Optional name prefix enforcement (admin publish link)
     try {
         const nameInput = document.querySelector('input[name="ar[name]"][data-name-prefix]');
@@ -909,6 +1013,78 @@ function copyStoreOnly() {
 <script>
 let galleryFiles = [];
 
+function setGalleryMode(mode) {
+    const m = (mode === 'advanced') ? 'advanced' : 'guided';
+    const inp = document.getElementById('galleryMode');
+    if (inp) inp.value = m;
+
+    const guided = document.getElementById('guidedGalleryWrap');
+    const adv = document.getElementById('advancedGalleryWrap');
+    if (guided) guided.classList.toggle('hidden', m === 'advanced');
+    if (adv) adv.classList.toggle('hidden', m !== 'advanced');
+}
+
+function initGalleryModeToggle() {
+    const btn = document.getElementById('toggleAdvancedGallery');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+        const current = (document.getElementById('galleryMode')?.value || 'guided').toString();
+        if (current === 'advanced') {
+            setGalleryMode('guided');
+            btn.textContent = '⚙️ إعدادات متقدمة (رفع 12 صورة دفعة واحدة)';
+        } else {
+            setGalleryMode('advanced');
+            btn.textContent = '✅ رجوع للوضع المرتب';
+        }
+        try { updateReview(); } catch (e) {}
+    });
+}
+
+async function previewGuidedGallery(key, input) {
+    setWizardBusy(true);
+    try {
+        let file = input.files && input.files[0] ? input.files[0] : null;
+        if (!file) return;
+
+        try {
+            if (file.type === 'image/heic' || (file.name || '').toLowerCase().endsWith('.heic')) {
+                const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
+                file = new File([blob], (file.name || 'image').replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
+            }
+        } catch (e) {}
+
+        try { file = await downscaleToJpeg(file); } catch (e) {}
+
+        // Replace file on input (best-effort)
+        try {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+        } catch (e) {}
+
+        const box = document.getElementById('guided_preview_box_' + key);
+        const img = document.getElementById('guided_preview_img_' + key);
+        const name = document.getElementById('guided_file_name_' + key);
+        if (name) name.textContent = file.name || 'تم اختيار ملف';
+        if (img) img.src = URL.createObjectURL(file);
+        if (box) box.classList.remove('hidden');
+
+        try { updateReview(); } catch (e) {}
+    } finally {
+        setWizardBusy(false);
+    }
+}
+
+function clearGuidedGallery(key) {
+    const input = document.getElementById('gallery_guided_' + key);
+    const box = document.getElementById('guided_preview_box_' + key);
+    const name = document.getElementById('guided_file_name_' + key);
+    try { if (input) input.value = ''; } catch (e) {}
+    if (box) box.classList.add('hidden');
+    if (name) name.textContent = 'لم يتم اختيار ملف';
+    try { updateReview(); } catch (e) {}
+}
+
 async function previewGalleryImages(input) {
     setWizardBusy(true);
     try {
@@ -976,7 +1152,7 @@ function renderGallery() {
     try {
         const dt = new DataTransfer();
         galleryFiles.forEach(f => dt.items.add(f));
-        const input = document.getElementById('gallery_images');
+        const input = document.getElementById('gallery_images_advanced');
         if (input) input.files = dt.files;
     } catch (e) {
         // DataTransfer may throw on iOS Safari; keep original input.files untouched.
