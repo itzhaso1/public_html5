@@ -239,6 +239,7 @@ class PublicProductController extends Controller
                 ->withInput();
 
         } catch (\Throwable $e) {
+            report($e);
             if ($this->expectsAjaxJson($request)) {
                 return response()->json([
                     'ok' => false,
@@ -344,7 +345,6 @@ class PublicProductController extends Controller
             $sig = implode('|', [
                 $file->getClientOriginalName(),
                 (string) $file->getSize(),
-                (string) $file->getMimeType(),
             ]);
             if (isset($seen[$sig])) {
                 continue;
