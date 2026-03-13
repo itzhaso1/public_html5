@@ -10,6 +10,17 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    private function isBackofficeUrl(string $url): bool
+    {
+        $path = (string) parse_url($url, PHP_URL_PATH);
+        if ($path === '') {
+            return false;
+        }
+
+        // Matches /admin/* or localized /ar/admin/* (same for manager)
+        return (bool) preg_match('#/(?:[a-z]{2}/)?(?:admin|manager)(?:/|$)#i', $path);
+    }
+
     public function showLoginForm()
     {
         return view('website.auth.login', [
@@ -36,13 +47,23 @@ class AuthController extends Controller
             $intended = (string) ($request->session()->get('url.intended') ?? '');
             $redirectTo = trim((string) ($request->input('redirect_to') ?? ''));
 
+            // Never send website user login flow to backoffice dashboard.
+            if ($intended !== '' && $this->isBackofficeUrl($intended)) {
+                $request->session()->forget('url.intended');
+                $intended = '';
+            }
+
             // If intended is the generic customer dashboard, prefer sending user back to the page they came from.
             $customerDash = route('customer.dashboard');
             $shouldPreferBack = $intended !== '' && $customerDash !== '' && rtrim($intended, '/') === rtrim($customerDash, '/');
 
             if ($redirectTo !== '' && $shouldPreferBack) {
                 // Basic safety: avoid redirecting back to auth pages.
-                if (! str_contains($redirectTo, '/login') && ! str_contains($redirectTo, '/register')) {
+                if (
+                    ! str_contains($redirectTo, '/login')
+                    && ! str_contains($redirectTo, '/register')
+                    && ! $this->isBackofficeUrl($redirectTo)
+                ) {
                     $request->session()->forget('url.intended');
                     return redirect()->to($redirectTo);
                 }
