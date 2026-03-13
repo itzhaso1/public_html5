@@ -19,18 +19,18 @@
     <meta property="og:url" content="{{ ($settings ?? null)?->name }}" />
     <meta property="og:site_name" content="{{ ($settings ?? null)?->name }}" />
     <link rel="canonical" href="#" />
-    <link rel="shortcut icon" href="{{ $favicon ?? asset('dashboard/assets/media/logos/logo-demo13-compact.svg') }}" />
+    <link rel="shortcut icon" href="{{ $favicon ?? asset('public/dashboard/assets/media/logos/logo-demo13-compact.svg') }}" />
     <!--begin::Fonts-->
     <link href="https://fonts.googleapis.com/css?family=Cairo:300,400&amp;subset=arabic,latin-ext" rel="stylesheet">
     <!--end::Fonts-->
     <!--begin::Global Stylesheets Bundle(used by all pages)-->
     @if (app()->getLocale() == 'ar')
-        <link href="{{ asset('dashboard/assets/plugins/custom/prismjs/prismjs.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
-        <link href="{{ asset('dashboard/assets/plugins/global/plugins.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
-        <link href="{{ asset('dashboard/assets/css/style.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('public/dashboard/assets/plugins/custom/prismjs/prismjs.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('public/dashboard/assets/plugins/global/plugins.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('public/dashboard/assets/css/style.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
     @else
-        <link href="{{ asset('dashboard/assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet" type="text/css" />
-        <link href="{{ asset('dashboard/assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('public/dashboard/assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('public/dashboard/assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     @endif
     <style>

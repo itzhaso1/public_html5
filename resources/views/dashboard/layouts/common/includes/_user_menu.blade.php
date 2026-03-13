@@ -4,7 +4,7 @@
     <div class="px-3 cursor-pointer topbar-item symbol px-lg-5 me-n3 me-lg-n5 symbol-30px symbol-md-35px"
         data-kt-menu-trigger="click" data-kt-menu-attach="parent" data-kt-menu-placement="bottom-end"
         data-kt-menu-flip="bottom">
-        <img src="{{ asset('dashboard/assets/media/avatars/150-2.jpg') }}" alt="{{ get_user_data()?->name }}" />
+        <img src="{{ asset('public/dashboard/assets/media/avatars/150-2.jpg') }}" alt="{{ get_user_data()?->name }}" />
     </div>
     <!--begin::Menu-->
     <div class="py-4 menu menu-sub menu-sub-dropdown menu-column menu-rounded menu-gray-800 menu-state-bg menu-state-primary fw-bold fs-6 w-275px"
@@ -13,7 +13,7 @@
             <div class="px-3 menu-content d-flex align-items-center">
                 <div class="symbol symbol-50px me-5">
                     <img alt="{{ get_user_data()?->name }}"
-                        src="{{ asset('dashboard/assets/media/avatars/150-26.jpg') }}" />
+                        src="{{ asset('public/dashboard/assets/media/avatars/150-26.jpg') }}" />
                 </div>
                 <div class="d-flex flex-column">
                     <div class="fw-bolder d-flex align-items-center fs-5">{{ get_user_data()?->name }}
@@ -36,10 +36,10 @@
                         {{ LaravelLocalization::getCurrentLocaleNative() }}
                         @if (App::getLocale() == 'ar')
                             <img class="w-15px h-15px rounded-1 ms-2"
-                                src="{{ asset('dashboard/assets/media/flags/egypt.svg') }}" />
+                                src="{{ asset('public/dashboard/assets/media/flags/egypt.svg') }}" />
                         @elseif(App::getLocale() == 'en')
                             <img class="w-15px h-15px rounded-1 ms-2"
-                                src="{{ asset('dashboard/assets/media/flags/united-states.svg') }}" />
+                                src="{{ asset('public/dashboard/assets/media/flags/united-states.svg') }}" />
                         @endif
                     </span>
                 </span>
@@ -51,9 +51,9 @@
                             href="{{ LaravelLocalization::getLocalizedURL($localeCode, null, [], true) }}">
                             <span class="symbol symbol-20px me-4">
                                 @if ($properties['native'] == 'العربية')
-                                    <img class="rounded-1" src="{{ asset('dashboard/assets/media/flags/egypt.svg') }}" />
+                                    <img class="rounded-1" src="{{ asset('public/dashboard/assets/media/flags/egypt.svg') }}" />
                                 @elseif($properties['native'] == 'English')
-                                    <img class="rounded-1" src="{{ asset('dashboard/assets/media/flags/united-states.svg') }}" />
+                                    <img class="rounded-1" src="{{ asset('public/dashboard/assets/media/flags/united-states.svg') }}" />
                                 @endif
                             </span>
                             {{ $properties['native'] }}

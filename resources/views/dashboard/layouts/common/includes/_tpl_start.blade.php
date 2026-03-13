@@ -19,7 +19,7 @@
     <meta property="og:url" content="" />
     <meta property="og:site_name" content="" />
     <link rel="canonical" href="" />
-    <link rel="shortcut icon" href="{{ $favicon ?? asset('dashboard/assets/media/logos/logo-demo13-compact.svg') }}" />
+    <link rel="shortcut icon" href="{{ $favicon ?? asset('public/dashboard/assets/media/logos/logo-demo13-compact.svg') }}" />
     <!--begin::Fonts-->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css?family=Cairo:300,400&amp;subset=arabic,latin-ext" rel="stylesheet">
@@ -29,20 +29,20 @@
 
     <!--end::Fonts-->
     <!--begin::Page Vendor Stylesheets(used by this page)-->
-    <link href="{{ asset('dashboard/assets/plugins/custom/fullcalendar/fullcalendar.bundle.css') }}" rel="stylesheet"
+    <link href="{{ asset('public/dashboard/assets/plugins/custom/fullcalendar/fullcalendar.bundle.css') }}" rel="stylesheet"
         type="text/css" />
     @if (app()->getLocale() == 'ar')
-        <link href="{{ asset('dashboard/assets/plugins/custom/prismjs/prismjs.bundle.rtl.css') }}" rel="stylesheet"
+        <link href="{{ asset('public/dashboard/assets/plugins/custom/prismjs/prismjs.bundle.rtl.css') }}" rel="stylesheet"
             type="text/css" />
-        <link href="{{ asset('dashboard/assets/plugins/global/plugins.bundle.rtl.css') }}" rel="stylesheet"
+        <link href="{{ asset('public/dashboard/assets/plugins/global/plugins.bundle.rtl.css') }}" rel="stylesheet"
             type="text/css" />
-        <link href="{{ asset('dashboard/assets/css/style.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('public/dashboard/assets/css/style.bundle.rtl.css') }}" rel="stylesheet" type="text/css" />
     @else
         <!--end::Page Vendor Stylesheets-->
         <!--begin::Global Stylesheets Bundle(used by all pages)-->
-        <link href="{{ asset('dashboard/assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet"
+        <link href="{{ asset('public/dashboard/assets/plugins/global/plugins.bundle.css') }}" rel="stylesheet"
             type="text/css" />
-        <link href="{{ asset('dashboard/assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
+        <link href="{{ asset('public/dashboard/assets/css/style.bundle.css') }}" rel="stylesheet" type="text/css" />
         <!--end::Global Stylesheets Bundle-->
     @endif
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.10.22/css/jquery.dataTables.min.css" />

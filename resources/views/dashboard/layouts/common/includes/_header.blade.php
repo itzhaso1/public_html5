@@ -13,7 +13,7 @@
         <div class="d-flex align-items-center flex-grow-1 flex-lg-grow-0">
             <a href="{{ route('admin.dashboard') }}" class="d-lg-none">
                 <img alt="Logo"
-                    src="{{ $logo ?? asset('dashboard/assets/media/logos/logo-demo13-compact.svg') }}"
+                    src="{{ $logo ?? asset('public/dashboard/assets/media/logos/logo-demo13-compact.svg') }}"
                     class="h-25px" />
             </a>
         </div>
@@ -65,7 +65,7 @@
                         <!--begin::Menu-->
                         <div class="menu menu-sub menu-sub-dropdown menu-column notification_menu w-350px w-lg-375px" data-kt-menu="true">
                             <div class="d-flex flex-column bgi-no-repeat rounded-top"
-                                style="background-image:url('{{ asset('dashboard/assets/media/misc/pattern-1.jpg') }}')">
+                                style="background-image:url('{{ asset('public/dashboard/assets/media/misc/pattern-1.jpg') }}')">
                                 <h3 class="mt-10 mb-6 text-white fw-bold px-9">الاشعارات</h3>
                                 <ul class="nav nav-line-tabs nav-line-tabs-2x nav-stretch fw-bold px-9">
                                     <li class="nav-item">

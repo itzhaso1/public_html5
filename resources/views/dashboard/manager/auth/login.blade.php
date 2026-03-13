@@ -92,7 +92,7 @@
 <div class="d-flex flex-center flex-column flex-column-fluid p-10 pb-lg-20">
     <!--begin::Logo-->
     <a href="#" class="mb-10 text-center">
-        <img alt="{{ $settings?->name }}" src="{{ $logo ?? asset('dashboard/assets/media/logos/logo-demo13-compact.svg') }}" class="h-80px" />
+        <img alt="{{ $settings?->name }}" src="{{ $logo ?? asset('public/dashboard/assets/media/logos/logo-demo13-compact.svg') }}" class="h-80px" />
     </a>
     <!--end::Logo-->
 
