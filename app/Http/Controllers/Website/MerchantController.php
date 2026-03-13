@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Website;
 
 use App\Http\Controllers\Controller;
 use App\Models\MerchantRequest;
+use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use Illuminate\Http\Request;
 
@@ -58,13 +59,32 @@ class MerchantController extends Controller
         ]);
 
         $phone = WhatsAppNumber::normalize($data['phone'] ?? '');
-        MerchantRequest::create([
+        $created = MerchantRequest::create([
             'user_id' => $user->id,
             'name' => trim((string) $data['name']),
             'phone' => $phone !== '' ? $phone : trim((string) $data['phone']),
             'note' => !empty($data['note']) ? trim((string) $data['note']) : null,
             'status' => 'pending',
         ]);
+
+        // Email admin on new merchant request (optional).
+        if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_admin', true)) {
+            $emails = EmailNotifier::adminRecipients();
+            if (!empty($emails)) {
+                $name = trim((string) ($user->name ?? $created->name ?? ''));
+                $email = trim((string) ($user->email ?? ''));
+                $subject = 'طلب جديد: التقديم كتاجر';
+                $text = trim(
+                    "تم استلام طلب تاجر جديد\n" .
+                    ($name !== '' ? "الاسم: {$name}\n" : '') .
+                    "User ID: {$user->id}\n" .
+                    "الهاتف: {$created->phone}\n" .
+                    (filter_var($email, FILTER_VALIDATE_EMAIL) ? "Email: {$email}\n" : '') .
+                    (!empty($created->note) ? ("ملاحظة: " . $created->note . "\n") : '')
+                );
+                EmailNotifier::sendAfterCommit($emails, $subject, $text);
+            }
+        }
 
         return redirect()->route('website.diamonds.charge')->with('success', 'تم إرسال طلب التاجر بنجاح ✅ سيتم مراجعته من الإدارة.');
     }

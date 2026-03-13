@@ -52,7 +52,7 @@ return [
 
     // Optional email notifications (additional channel besides WhatsApp)
     'email_notify' => [
-        'enabled' => env('EMAIL_NOTIFY_ENABLED', false),
+        'enabled' => env('EMAIL_NOTIFY_ENABLED', true),
         'notify_admin' => env('EMAIL_NOTIFY_ADMIN', true),
         'notify_customers' => env('EMAIL_NOTIFY_CUSTOMERS', true),
         // Comma-separated list of admin recipient emails (optional).

@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\WalletTopupRequest;
+use App\Support\Email\EmailNotifier;
+use App\Support\WhatsApp\WhatsAppNumber;
+use App\Support\WhatsApp\WasenderNotifier;
 use App\Services\Wallet\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -69,6 +72,9 @@ class WalletTopupRequestController extends Controller
             ]);
         });
 
+        try { $walletTopupRequest->refresh()->loadMissing(['user', 'user.profile']); } catch (\Throwable $e) {}
+        $this->notifyCustomerDecision($walletTopupRequest, true);
+
         return back()->with('success', 'تمت الموافقة وإضافة النقاط للمستخدم ✅');
     }
 
@@ -89,7 +95,50 @@ class WalletTopupRequestController extends Controller
             'reviewed_at' => now(),
         ]);
 
+        try { $walletTopupRequest->refresh()->loadMissing(['user', 'user.profile']); } catch (\Throwable $e) {}
+        $this->notifyCustomerDecision($walletTopupRequest, false);
+
         return back()->with('success', 'تم رفض طلب الإيداع.');
+    }
+
+    private function notifyCustomerDecision(WalletTopupRequest $req, bool $approved): void
+    {
+        $app = (string) config('app.name', 'المتجر');
+        $status = $approved ? 'تم قبول طلب إيداع النقاط ✅' : 'تم رفض طلب إيداع النقاط ❌';
+        $note = trim((string) ($req->admin_note ?? ''));
+        $noteLine = $note !== '' ? ("\nملاحظة الإدارة: " . mb_substr($note, 0, 180)) : '';
+        $walletUrl = null;
+        try { $walletUrl = route('customer.wallet.index'); } catch (\Throwable $e) {}
+
+        $text = trim(
+            "{$app}\n" .
+            "{$status}\n" .
+            "رقم الطلب: {$req->id}\n" .
+            "النقاط: {$req->points}\n" .
+            "المبلغ: {$req->amount_sar} SAR\n" .
+            ($walletUrl ? "المحفظة: {$walletUrl}\n" : '') .
+            $noteLine
+        );
+
+        // WhatsApp (optional)
+        if ((bool) config('services.wasender.enabled', false) && (bool) config('services.wasender.notify_customers', true)) {
+            $to = WhatsAppNumber::normalize((string) ($req->user?->phone ?? ''));
+            if ($to === '') {
+                $to = WhatsAppNumber::normalize((string) ($req->user?->profile?->phone ?? ''));
+            }
+            if ($to !== '') {
+                WasenderNotifier::sendAfterCommit($to, $text);
+            }
+        }
+
+        // Email (optional additional channel)
+        if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_customers', true)) {
+            $email = trim((string) ($req->user?->email ?? ''));
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $subject = $approved ? 'تم قبول طلب إيداع النقاط ✅' : 'تم رفض طلب إيداع النقاط ❌';
+                EmailNotifier::sendAfterCommit($email, $subject, $text);
+            }
+        }
     }
 }
 

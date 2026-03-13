@@ -13,6 +13,7 @@ use App\Models\Category;
 use App\Models\Type;
 use App\Models\Tag;
 use App\Models\Product;
+use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 
 class PublicProductController extends Controller
@@ -211,6 +212,7 @@ class PublicProductController extends Controller
             $request->merge($payload);
 
             $this->productInterface->store($request);
+            $this->notifyOnNewPublishRequest($request, $slug);
 
             if ($this->expectsAjaxJson($request)) {
                 return response()->json([
@@ -265,6 +267,45 @@ class PublicProductController extends Controller
         if (!str_starts_with($name, $prefix) && !str_starts_with($name, $prefix . ' ')) {
             $payload['name'] = $prefix . ' ' . $name;
             $request->merge([$locale => $payload]);
+        }
+    }
+
+    private function notifyOnNewPublishRequest(Request $request, string $slug): void
+    {
+        if (! (bool) config('services.email_notify.enabled', false)) {
+            return;
+        }
+
+        $name = trim((string) $request->input('ar.name', ''));
+        $price = (string) $request->input('price', '');
+        $phone = trim((string) $request->input('client_number', ''));
+        $email = trim((string) $request->input('client_email', ''));
+        $track = route('public.products.track', ['slug' => $slug]);
+
+        // Admin notification
+        if ((bool) config('services.email_notify.notify_admin', true)) {
+            $admins = EmailNotifier::adminRecipients();
+            if (!empty($admins)) {
+                $adminText = trim(
+                    "طلب جديد: نشر حساب من صفحة publish-product\n" .
+                    ($name !== '' ? "الاسم: {$name}\n" : '') .
+                    ($price !== '' ? "السعر: {$price}\n" : '') .
+                    ($phone !== '' ? "الهاتف: {$phone}\n" : '') .
+                    (filter_var($email, FILTER_VALIDATE_EMAIL) ? "Email: {$email}\n" : '') .
+                    "متابعة الطلب: {$track}\n"
+                );
+                EmailNotifier::sendAfterCommit($admins, 'طلب جديد: نشر حساب', $adminText);
+            }
+        }
+
+        // Customer acknowledgement
+        if ((bool) config('services.email_notify.notify_customers', true) && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $customerText = trim(
+                "تم استلام طلبك ✅\n" .
+                "سنراجعه ونرسل لك النتيجة (قبول/رفض) قريباً.\n" .
+                "متابعة الطلب: {$track}\n"
+            );
+            EmailNotifier::sendAfterCommit($email, 'تم استلام طلب نشر الحساب ✅', $customerText);
         }
     }
 

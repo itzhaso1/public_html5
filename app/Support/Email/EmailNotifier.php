@@ -2,12 +2,58 @@
 
 namespace App\Support\Email;
 
+use App\Models\Admin;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class EmailNotifier
 {
+    /**
+     * Collect admin recipient emails from config + admins + settings email.
+     *
+     * @return array<int,string>
+     */
+    public static function adminRecipients(): array
+    {
+        $emails = [];
+
+        // Explicit config list (highest priority)
+        foreach ((array) config('services.email_notify.admin_to', []) as $e) {
+            $e = trim((string) $e);
+            if (filter_var($e, FILTER_VALIDATE_EMAIL)) {
+                $emails[] = $e;
+            }
+        }
+
+        // Fallback: all admins in DB
+        try {
+            foreach ((array) Admin::query()->pluck('email')->all() as $e) {
+                $e = trim((string) $e);
+                if (filter_var($e, FILTER_VALIDATE_EMAIL)) {
+                    $emails[] = $e;
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        // Fallback: main settings email
+        try {
+            $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+            $e = trim((string) ($s?->email ?? ''));
+            if (filter_var($e, FILTER_VALIDATE_EMAIL)) {
+                $emails[] = $e;
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        return array_values(array_unique($emails));
+    }
+
     /**
      * @param string|array<int,string> $to
      */

@@ -2,19 +2,15 @@
 
 namespace App\Observers;
 
-use App\Models\Admin;
 use App\Models\CashExchangeRequest;
 use App\Models\ManualPaymentRequest;
 use App\Models\MoneyExchangeRequest;
 use App\Models\Order;
-use App\Models\Setting;
 use App\Models\WalletTopupRequest;
 use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use App\Support\WhatsApp\WasenderNotifier;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 
 class NewDashboardRequestWhatsAppObserver
 {
@@ -294,30 +290,7 @@ class NewDashboardRequestWhatsAppObserver
     {
         $enabled = (bool) config('services.email_notify.enabled', false);
         if (! $enabled) return [];
-
-        $cfg = (array) config('services.email_notify.admin_to', []);
-        $emails = [];
-        foreach ($cfg as $e) {
-            $e = trim((string) $e);
-            if (filter_var($e, FILTER_VALIDATE_EMAIL)) $emails[] = $e;
-        }
-
-        // Fallback: all admins + main settings email
-        try {
-            $adminList = Admin::query()->pluck('email')->all();
-            foreach ($adminList as $e) {
-                $e = trim((string) $e);
-                if (filter_var($e, FILTER_VALIDATE_EMAIL)) $emails[] = $e;
-            }
-        } catch (\Throwable $e) {}
-
-        try {
-            $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
-            $se = trim((string) ($s?->email ?? ''));
-            if (filter_var($se, FILTER_VALIDATE_EMAIL)) $emails[] = $se;
-        } catch (\Throwable $e) {}
-
-        return array_values(array_unique($emails));
+        return EmailNotifier::adminRecipients();
     }
 
     private function customerEmail(Model $model): string

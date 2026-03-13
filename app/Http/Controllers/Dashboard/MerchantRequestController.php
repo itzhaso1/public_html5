@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Dashboard;
 use App\Http\Controllers\Controller;
 use App\Models\MerchantRequest;
 use App\Models\User;
+use App\Support\Email\EmailNotifier;
+use App\Support\WhatsApp\WhatsAppNumber;
+use App\Support\WhatsApp\WasenderNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -41,6 +44,8 @@ class MerchantRequestController extends Controller
             }
         }
 
+        $this->notifyApplicant($merchantRequest, true);
+
         return back()->with('success', 'تمت الموافقة وتحويل المستخدم إلى تاجر ✅');
     }
 
@@ -51,7 +56,39 @@ class MerchantRequestController extends Controller
         $merchantRequest->reviewed_at = now();
         $merchantRequest->save();
 
+        $this->notifyApplicant($merchantRequest, false);
+
         return back()->with('success', 'تم رفض الطلب.');
+    }
+
+    private function notifyApplicant(MerchantRequest $req, bool $approved): void
+    {
+        try { $req->loadMissing(['user', 'user.profile']); } catch (\Throwable $e) {}
+
+        $app = (string) config('app.name', 'المتجر');
+        $status = $approved ? 'تم قبول طلب التاجر ✅' : 'تم رفض طلب التاجر ❌';
+        $text = trim(
+            "{$app}\n" .
+            "{$status}\n" .
+            "رقم الطلب: {$req->id}\n"
+        );
+
+        if ((bool) config('services.wasender.enabled', false) && (bool) config('services.wasender.notify_customers', true)) {
+            $to = WhatsAppNumber::normalize((string) ($req->phone ?? ''));
+            if ($to === '') $to = WhatsAppNumber::normalize((string) ($req->user?->phone ?? ''));
+            if ($to === '') $to = WhatsAppNumber::normalize((string) ($req->user?->profile?->phone ?? ''));
+            if ($to !== '') {
+                WasenderNotifier::sendAfterCommit($to, $text);
+            }
+        }
+
+        if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_customers', true)) {
+            $email = trim((string) ($req->user?->email ?? ''));
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $subject = $approved ? 'تم قبول طلب التاجر ✅' : 'تم رفض طلب التاجر ❌';
+                EmailNotifier::sendAfterCommit($email, $subject, $text);
+            }
+        }
     }
 }
 
