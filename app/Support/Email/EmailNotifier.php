@@ -12,6 +12,28 @@ use Illuminate\Support\Facades\Mail;
 class EmailNotifier
 {
     /**
+     * Defer sending until app termination (after HTTP response), when possible.
+     * Falls back to immediate send in console/edge cases.
+     *
+     * @param string|array<int,string> $to
+     */
+    private static function sendDeferred(string|array $to, string $subject, string $text): void
+    {
+        try {
+            if (! app()->runningInConsole()) {
+                app()->terminating(function () use ($to, $subject, $text) {
+                    self::send($to, $subject, $text);
+                });
+                return;
+            }
+        } catch (\Throwable $e) {
+            // fall through to sync send
+        }
+
+        self::send($to, $subject, $text);
+    }
+
+    /**
      * Collect admin recipient emails from config + admins + settings email.
      *
      * @return array<int,string>
@@ -97,7 +119,7 @@ class EmailNotifier
         try {
             if (DB::transactionLevel() > 0) {
                 DB::afterCommit(function () use ($to, $subject, $text) {
-                    self::send($to, $subject, $text);
+                    self::sendDeferred($to, $subject, $text);
                 });
                 return;
             }
@@ -105,7 +127,7 @@ class EmailNotifier
             // fall through
         }
 
-        self::send($to, $subject, $text);
+        self::sendDeferred($to, $subject, $text);
     }
 }
 
