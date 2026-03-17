@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Website;
 
 use App\Http\Controllers\Controller;
+use App\Support\Email\EmailNotifier;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
@@ -101,6 +102,18 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
             'status'   => 'active',
         ]);
+
+        // Best-effort welcome email via the configured API mailer.
+        try {
+            EmailNotifier::sendAfterCommit(
+                (string) $user->email,
+                'مرحباً بك في King2Game',
+                "أهلاً {$user->name}،\nتم إنشاء حسابك بنجاح. نتمنى لك تجربة ممتعة معنا."
+            );
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         Auth::login($user);
         return redirect()->route('home');
     }

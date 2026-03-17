@@ -97,8 +97,9 @@ class EmailNotifier
         if (empty($emails)) return false;
 
         try {
-            Mail::raw($text, function ($message) use ($emails, $subject) {
+            Mail::send('emails.notification', ['subject' => $subject, 'content' => $text], function ($message) use ($emails, $subject, $text) {
                 $message->to($emails)->subject($subject);
+                $message->text('emails.notification_plain', ['subject' => $subject, 'content' => $text]);
             });
             return true;
         } catch (\Throwable $e) {

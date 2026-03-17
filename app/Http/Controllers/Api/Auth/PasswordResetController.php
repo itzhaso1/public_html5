@@ -26,9 +26,17 @@ class PasswordResetController extends Controller
             ], 422);
         }
 
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        try {
+            $status = Password::sendResetLink(
+                $request->only('email')
+            );
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to send reset link right now. Please check SendGrid settings.',
+            ], 503);
+        }
 
         return $status === Password::RESET_LINK_SENT
             ? response()->json([

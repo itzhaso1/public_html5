@@ -55,7 +55,7 @@ class PasswordResetLinkController extends Controller
             report($e);
             return back()
                 ->withInput($request->only('email'))
-                ->withErrors(['email' => 'تعذر إرسال رابط إعادة التعيين حالياً. تأكد من إعدادات البريد (MAIL_*) ثم أعد المحاولة.']);
+                ->withErrors(['email' => 'تعذر إرسال رابط إعادة التعيين حالياً. تأكد من إعدادات SendGrid ثم أعد المحاولة.']);
         }
 
         return $status == Password::RESET_LINK_SENT

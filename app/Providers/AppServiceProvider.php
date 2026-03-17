@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Mail\Transport\SendGridTransport;
 use App\Models\CashExchangeRequest;
 use App\Models\Category;
 use App\Models\ManualPaymentRequest;
@@ -12,7 +13,9 @@ use App\Models\Setting;
 use App\Models\WalletTopupRequest;
 use App\Observers\NewDashboardRequestWhatsAppObserver;
 use App\Services\Currency\ExchangeRateService;
+use App\Services\SendGridService;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -20,11 +23,21 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Force API mailer when SENDGRID_API_KEY is available, even if MAIL_MAILER=log.
+        if (
+            (string) config('mail.default') === 'log'
+            && trim((string) config('services.sendgrid.key')) !== ''
+        ) {
+            config(['mail.default' => 'sendgrid']);
+        }
     }
 
     public function boot(): void
     {
+        Mail::extend('sendgrid', function (array $config = []) {
+            return new SendGridTransport(app(SendGridService::class));
+        });
+
         if (in_array(config('database.default'), ['mysql', 'mariadb'], true)) {
             Schema::defaultStringLength(191);
         }
