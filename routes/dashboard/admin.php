@@ -46,6 +46,8 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
 
         // الروابط الأصلية للمنتجات
         Route::resource('products', Dashboard\ProductController::class);
+        Route::post('products/{product}/request-price-update', [Dashboard\ProductController::class, 'requestPriceUpdate'])
+            ->name('products.request_price_update');
         Route::post('products/import', [Dashboard\ProductController::class, 'import'])->name('products.import');
         Route::post('products/test-erp-connection', [Dashboard\ProductController::class, 'exportProductsToERP'])->name('test-erp-connection');
 

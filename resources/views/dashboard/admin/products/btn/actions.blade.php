@@ -18,6 +18,18 @@
             title="حذف">
         <i class="fas fa-trash-alt fa-sm"></i>
     </button>
+
+    @if(($product->publish_source ?? null) === 'public')
+        <button type="button"
+                class="btn btn-warning btn-sm d-flex align-items-center justify-content-center shadow-sm text-nowrap"
+                style="transition: all 0.3s ease;"
+                data-bs-toggle="modal"
+                data-bs-target="#priceUpdateRequestModal{{ $product->id }}"
+                title="الرجاء تعديل سعر حسابك">
+            <i class="fas fa-bell fa-sm me-1"></i>
+            <span class="fw-bold">الرجاء تعديل سعر حسابك</span>
+        </button>
+    @endif
 </div>
 
 <!-- Delete Confirmation Modal -->
@@ -55,3 +67,75 @@
         </div>
     </div>
 </div>
+
+@if(($product->publish_source ?? null) === 'public')
+    <div class="modal fade" id="priceUpdateRequestModal{{ $product->id }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold">الرجاء تعديل سعر حسابك</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                </div>
+                <form method="POST" action="{{ route('admin.products.request_price_update', $product) }}">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-light border mb-3">
+                            <div class="fw-bold">{{ $product->name }}</div>
+                            <div class="small text-muted mt-1">السعر الحالي: {{ number_format((float) ($product->price ?? 0), 2) }} ر.س</div>
+                            <div class="small text-muted">رقم التواصل: {{ $product->client_number ?: 'غير متوفر' }}</div>
+                            <div class="small text-muted">البريد: {{ $product->client_email ?: 'غير متوفر' }}</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">عنوان الرسالة</label>
+                            <input type="text"
+                                   name="subject"
+                                   class="form-control"
+                                   value="الرجاء تعديل سعر حسابك"
+                                   maxlength="180">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">نص الرسالة (يمكنك تخصيصه)</label>
+                            <textarea name="message"
+                                      class="form-control"
+                                      rows="6"
+                                      placeholder="اكتب الرسالة التي تريد إرسالها...">مرحباً،
+نرجو منك تعديل سعر حسابك المنشور لدينا.
+الحساب: {{ $product->name }}
+السعر الحالي: {{ number_format((float) ($product->price ?? 0), 2) }} ر.س
+
+شكراً لك.</textarea>
+                            <div class="form-text">يمكنك استخدام: {account_name} و {current_price}</div>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label fw-bold d-block">قنوات الإرسال</label>
+                            <div class="d-flex flex-wrap gap-3">
+                                <label class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="channels[]" value="site" checked>
+                                    <span class="form-check-label">داخل الموقع</span>
+                                </label>
+                                <label class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="channels[]" value="whatsapp" @checked(!empty($product->client_number))>
+                                    <span class="form-check-label">واتساب</span>
+                                </label>
+                                <label class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="channels[]" value="email" @checked(!empty($product->client_email))>
+                                    <span class="form-check-label">بريد إلكتروني</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">إغلاق</button>
+                        <button type="submit" class="btn btn-warning fw-bold">
+                            <i class="fas fa-paper-plane me-1"></i>
+                            إرسال الطلب
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endif
