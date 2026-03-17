@@ -23,13 +23,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        // Force API mailer when SENDGRID_API_KEY is available, even if MAIL_MAILER=log.
-        if (
-            (string) config('mail.default') === 'log'
-            && trim((string) config('services.sendgrid.key')) !== ''
-        ) {
-            config(['mail.default' => 'sendgrid']);
-        }
+        //
     }
 
     public function boot(): void

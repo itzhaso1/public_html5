@@ -2,6 +2,7 @@
 
 namespace App\Support\Email;
 
+use App\Mail\HtmlMessageMail;
 use App\Models\Admin;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Cache;
@@ -97,10 +98,7 @@ class EmailNotifier
         if (empty($emails)) return false;
 
         try {
-            Mail::send('emails.notification', ['subject' => $subject, 'content' => $text], function ($message) use ($emails, $subject, $text) {
-                $message->to($emails)->subject($subject);
-                $message->text('emails.notification_plain', ['subject' => $subject, 'content' => $text]);
-            });
+            Mail::to($emails)->send(new HtmlMessageMail($subject, $text));
             return true;
         } catch (\Throwable $e) {
             Log::warning('EmailNotifier send exception', [
