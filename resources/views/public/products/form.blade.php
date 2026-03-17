@@ -157,7 +157,7 @@
             <!-- STEP 4 -->
             <div class="step hidden" data-step="4">
                 <div>
-                    <label class="text-sm text-gray-600">رقم الواتساب</label>
+                    <label class="text-sm text-gray-600">رقم الواتساب (اختياري)</label>
 
                     <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <select id="clientDial" name="client_dial"
@@ -200,27 +200,28 @@
                            value="{{ old('client_number', $product->client_number ?? '') }}">
 
                     <div class="mt-2 text-xs text-gray-500">
-                        سيتم إرسال إشعار واتساب (وبريد إذا أضفت بريدك) عند <b>قبول</b> أو <b>رفض</b> طلبك.
+                        يمكنك ترك الرقم فارغًا. سنستخدم البريد الإلكتروني لإشعارات حالة الحساب.
                     </div>
                     @error('client_number')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
 
                     <div class="mt-5">
-                        <label class="text-sm text-gray-600">البريد الإلكتروني (اختياري)</label>
+                        <label class="text-sm text-gray-600">البريد الإلكتروني (إجباري)</label>
                         <input
                             type="email"
                             name="client_email"
                             autocomplete="email"
-                            placeholder="example@email.com"
+                            placeholder="اكتب بريدك لإشعارات حالة الحساب"
                             value="{{ old('client_email', $product->client_email ?? '') }}"
                             class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
                                    px-4 py-5 text-lg
                                    placeholder:text-gray-400
                                    focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required
                         >
                         <div class="mt-2 text-xs text-gray-500">
-                            إذا أدخلت بريدك، سنرسل لك إشعارًا عبر البريد أيضًا.
+                            هذا البريد مخصص لإشعارات المتجر: قبول/رفض الطلب وأي ملاحظات على حسابك.
                         </div>
                         @error('client_email')
                             <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -430,6 +431,7 @@
                     <div>الوصف المختصر: <span id="reviewShort" class="font-semibold">—</span></div>
                     <div>السعر: <span id="reviewPrice" class="font-semibold">—</span></div>
                     <div>رقم الهاتف: <span id="reviewPhone" class="font-semibold">—</span></div>
+                    <div>البريد الإلكتروني: <span id="reviewEmail" class="font-semibold">—</span></div>
                     <div>الصورة الرئيسية: <span id="reviewMain" class="font-semibold">—</span></div>
                     <div>صور المعرض: <span id="reviewGallery" class="font-semibold">0</span></div>
                 </div>
@@ -589,16 +591,12 @@ function validateStep(step) {
         }
     }
     if (step === 4) {
-        const dial = document.getElementById('clientDial');
-        const local = document.getElementById('clientLocal');
-        const full = document.getElementById('clientNumberFull');
-        if (dial && local && full) {
-            syncClientNumber();
-            const v = (full.value || '').trim();
-            if (v.length < 9) {
-                alert('رقم الواتساب مطلوب');
-                return false;
-            }
+        const email = document.querySelector('input[name="client_email"]');
+        const value = (email && email.value ? String(email.value) : '').trim();
+        const looksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        if (!looksValid) {
+            alert('البريد الإلكتروني مطلوب وبصيغة صحيحة');
+            return false;
         }
     }
     if (step === 5) {
@@ -647,6 +645,11 @@ function syncClientNumber() {
     // If user pasted full international number into local field, keep it as-is.
     if (dialDigits && localDigits.startsWith(dialDigits) && localDigits.length >= dialDigits.length + 6) {
         full.value = localDigits;
+        return;
+    }
+
+    if (!localDigits) {
+        full.value = '';
         return;
     }
 
@@ -709,6 +712,7 @@ function updateReview() {
     const basePrice = toNum(priceRaw);
     const fee = calcCommission(basePrice);
     const finalPrice = basePrice > 0 ? (basePrice + fee) : 0;
+    const email = document.querySelector('input[name="client_email"]')?.value?.trim() || '—';
 
     document.getElementById('reviewName').textContent = name;
     document.getElementById('reviewShort').textContent = shortDesc;
@@ -717,6 +721,7 @@ function updateReview() {
             ? `${finalPrice} ريال (شامل عمولة ${fee})`
             : '—';
     document.getElementById('reviewPhone').textContent = phone;
+    document.getElementById('reviewEmail').textContent = email;
     document.getElementById('reviewMain').textContent = mainImage;
     document.getElementById('reviewGallery').textContent = galleryCount;
 }

@@ -103,8 +103,17 @@ class PublicProductController extends Controller
     private function storeInternal(Request $request, ?string $namePrefix)
     {
         try {
+            $emailRules = ['required', 'string', 'email', 'max:255'];
+            if (!empty($namePrefix)) {
+                // Admin helper page can keep email optional.
+                $emailRules = ['nullable', 'string', 'email', 'max:255'];
+            }
+
             $request->validate([
-                'client_email' => ['nullable', 'string', 'email', 'max:255'],
+                'client_email' => $emailRules,
+            ], [
+                'client_email.required' => 'البريد الإلكتروني مطلوب لإرسال إشعارات حالة حسابك.',
+                'client_email.email' => 'يرجى إدخال بريد إلكتروني صحيح.',
             ]);
 
             // Gallery mode: guided vs advanced (single multi-upload).
