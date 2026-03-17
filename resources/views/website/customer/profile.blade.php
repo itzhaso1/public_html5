@@ -11,10 +11,16 @@
             <h1 class="text-2xl font-extrabold text-gray-900">الملف الشخصي</h1>
             <p class="text-sm text-gray-600 mt-1">تحديث البريد الإلكتروني وكلمة المرور.</p>
         </div>
-        <a href="{{ route('customer.purchases') }}"
-           class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold hover:bg-gray-50 transition">
-            مشترياتي
-        </a>
+        <div class="flex flex-wrap gap-2">
+            <a href="#admin-messages"
+               class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold hover:bg-gray-50 transition">
+                رسائل الإدارة
+            </a>
+            <a href="{{ route('customer.purchases') }}"
+               class="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold hover:bg-gray-50 transition">
+                مشترياتي
+            </a>
+        </div>
     </div>
 
     @if(session('success'))
@@ -88,6 +94,29 @@
                     تحديث كلمة المرور
                 </button>
             </form>
+        </div>
+    </div>
+
+    <div id="admin-messages" class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+        <div class="text-sm font-extrabold text-gray-900">رسائل الإدارة</div>
+        <div class="mt-3 space-y-3">
+            @forelse(($adminMessages ?? collect()) as $note)
+                @php
+                    $payload = (array) ($note->data ?? []);
+                @endphp
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div class="font-extrabold text-gray-900">{{ $payload['title'] ?? 'رسالة' }}</div>
+                    <div class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ $payload['message'] ?? '' }}</div>
+                    <div class="text-[11px] text-gray-500 mt-2">{{ $note->created_at?->format('Y-m-d H:i') }}</div>
+                </div>
+            @empty
+                <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                    لا توجد رسائل إدارة حالياً.
+                    @if(($notificationsReady ?? true) === false)
+                        <div class="mt-1 text-xs text-red-600">تنبيه تقني: نظام الإشعارات غير جاهز في البيئة الحالية.</div>
+                    @endif
+                </div>
+            @endforelse
         </div>
     </div>
 
