@@ -398,9 +398,23 @@ class PublicProductController extends Controller
             return $files;
         }
 
+        // Strong fallback: JS submit appends guided slots again as gallery[] in order.
+        // Some hosts/browsers fail to expose nested gallery_guided[...] reliably.
+        $directGallery = $request->file('gallery');
+        if ($directGallery instanceof UploadedFile) {
+            $directGallery = [$directGallery];
+        }
+        if (is_array($directGallery) && !empty($directGallery)) {
+            $directGallery = array_values(array_filter($directGallery, fn($f) => $f instanceof UploadedFile));
+            if (count($directGallery) >= count($order)) {
+                return $directGallery;
+            }
+        }
+
         // Extra fallback: some hosts/browsers may submit nested file names in a non-standard shape.
-        // Collect any uploaded files that look like gallery files and exclude main product/video.
-        $fallback = [];
+        // Collect files with preference for guided fields and exclude main product/video.
+        $fallbackGuided = [];
+        $fallbackGallery = [];
         foreach ($this->flattenUploadedFiles($allFiles) as $path => $file) {
             if (!$file instanceof UploadedFile) {
                 continue;
@@ -412,13 +426,33 @@ class PublicProductController extends Controller
             if ($p === 'video' || str_starts_with($p, 'video.')) {
                 continue;
             }
-            if (str_contains($p, 'gallery')) {
-                $fallback[] = $file;
+            if (str_contains($p, 'gallery_guided')) {
+                $fallbackGuided[] = $file;
+                continue;
+            }
+            if ($p === 'gallery' || str_starts_with($p, 'gallery.')) {
+                $fallbackGallery[] = $file;
             }
         }
 
-        if (!empty($fallback)) {
-            return $this->uniqueUploadedFiles($fallback);
+        if (count($fallbackGuided) >= count($order)) {
+            return $fallbackGuided;
+        }
+
+        if (count($fallbackGallery) >= count($order)) {
+            return $fallbackGallery;
+        }
+
+        if (!empty($directGallery)) {
+            return $directGallery;
+        }
+
+        if (!empty($fallbackGuided)) {
+            return $fallbackGuided;
+        }
+
+        if (!empty($fallbackGallery)) {
+            return $fallbackGallery;
         }
 
         return $files;
