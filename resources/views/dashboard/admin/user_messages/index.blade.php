@@ -30,6 +30,31 @@
         </div>
     @endif
 
+    @php
+        $readyTemplates = [
+            'price_update' => [
+                'title' => 'الرجاء تعديل سعر حسابك',
+                'message' => "مرحباً،\nنرجو منك تعديل سعر حسابك المنشور لدينا خلال 24 ساعة.\nفي حال عدم التعديل قد يتم إيقاف عرض الحساب مؤقتًا.\n\nشكراً لتعاونك.",
+            ],
+            'contact_us' => [
+                'title' => 'الرجاء تواصل معنا',
+                'message' => "مرحباً،\nنرجو التواصل معنا عبر واتساب الدعم لإكمال مراجعة حسابك.\n\nفريق متجر الممالك.",
+            ],
+            'high_price' => [
+                'title' => 'السعر الحالي مرتفع',
+                'message' => "مرحباً،\nبعد المراجعة تبيّن أن السعر الحالي للحساب مرتفع مقارنة بالسوق.\nالرجاء تعديل السعر إلى قيمة مناسبة لضمان استمرار نشر الحساب.",
+            ],
+            'images_issue' => [
+                'title' => 'صور الحساب غير مناسبة',
+                'message' => "مرحباً،\nتمت ملاحظة أن الصور المرفوعة غير واضحة أو غير مناسبة.\nالرجاء رفع صور واضحة ومطابقة لمحتوى الحساب.\n\nشكراً لتعاونك.",
+            ],
+            'final_warning' => [
+                'title' => 'تنبيه نهائي قبل حذف الحساب',
+                'message' => "مرحباً،\nهذا تنبيه نهائي: في حال عدم تعديل السعر/البيانات المطلوبة خلال 24 ساعة سيتم حذف الحساب من المنصة.",
+            ],
+        ];
+    @endphp
+
     <div class="mt-6 grid grid-cols-1 xl:grid-cols-2 gap-4">
         <section class="rounded-2xl border border-gray-200 bg-white shadow-sm p-5">
             <h2 class="text-lg font-extrabold">رسالة جماعية لناشري الحسابات</h2>
@@ -41,14 +66,26 @@
             <form method="POST" action="{{ route('admin.user_messages.broadcast_publishers') }}" class="mt-4 space-y-3">
                 @csrf
                 <div>
+                    <label class="block text-sm font-extrabold mb-1">رسائل جاهزة</label>
+                    <select id="broadcastTemplate"
+                            class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10">
+                        <option value="">-- اختر رسالة جاهزة (اختياري) --</option>
+                        <option value="price_update">الرجاء تعديل سعر حسابك</option>
+                        <option value="contact_us">الرجاء تواصل معنا</option>
+                        <option value="high_price">السعر الحالي مرتفع</option>
+                        <option value="images_issue">صور الحساب غير مناسبة</option>
+                        <option value="final_warning">تنبيه نهائي قبل حذف الحساب</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-sm font-extrabold mb-1">العنوان</label>
-                    <input type="text" name="title" value="{{ old('title') }}"
+                    <input type="text" id="broadcastTitle" name="title" value="{{ old('title') }}"
                            class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
                            placeholder="عنوان الرسالة" required>
                 </div>
                 <div>
                     <label class="block text-sm font-extrabold mb-1">نص الرسالة</label>
-                    <textarea name="message" rows="5"
+                    <textarea id="broadcastMessage" name="message" rows="5"
                               class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
                               placeholder="اكتب رسالتك هنا..." required>{{ old('message') }}</textarea>
                 </div>
@@ -81,8 +118,15 @@
             <form method="POST" action="{{ route('admin.user_messages.single') }}" class="mt-4 space-y-3">
                 @csrf
                 <div>
+                    <label class="block text-sm font-extrabold mb-1">بحث عن مستخدم</label>
+                    <input type="text" id="singleUserSearch"
+                           class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
+                           placeholder="اكتب الاسم أو البريد أو رقم المعرّف...">
+                    <div id="singleUserSearchCount" class="mt-1 text-xs text-gray-500"></div>
+                </div>
+                <div>
                     <label class="block text-sm font-extrabold mb-1">المستخدم</label>
-                    <select name="user_id"
+                    <select id="singleUserSelect" name="user_id"
                             class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
                             required>
                         <option value="">-- اختر مستخدم --</option>
@@ -94,14 +138,26 @@
                     </select>
                 </div>
                 <div>
+                    <label class="block text-sm font-extrabold mb-1">رسائل جاهزة</label>
+                    <select id="singleTemplate"
+                            class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10">
+                        <option value="">-- اختر رسالة جاهزة (اختياري) --</option>
+                        <option value="price_update">الرجاء تعديل سعر حسابك</option>
+                        <option value="contact_us">الرجاء تواصل معنا</option>
+                        <option value="high_price">السعر الحالي مرتفع</option>
+                        <option value="images_issue">صور الحساب غير مناسبة</option>
+                        <option value="final_warning">تنبيه نهائي قبل حذف الحساب</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-sm font-extrabold mb-1">العنوان</label>
-                    <input type="text" name="title" value="{{ old('title') }}"
+                    <input type="text" id="singleTitle" name="title" value="{{ old('title') }}"
                            class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
                            placeholder="عنوان الرسالة" required>
                 </div>
                 <div>
                     <label class="block text-sm font-extrabold mb-1">نص الرسالة</label>
-                    <textarea name="message" rows="5"
+                    <textarea id="singleMessage" name="message" rows="5"
                               class="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black/10"
                               placeholder="اكتب رسالتك هنا..." required>{{ old('message') }}</textarea>
                 </div>
@@ -128,6 +184,67 @@
         </section>
     </div>
 </main>
+<script>
+    (function () {
+        const templates = @json($readyTemplates);
+
+        const applyTemplate = (templateKey, titleId, messageId) => {
+            if (!templateKey || !templates[templateKey]) return;
+            const titleEl = document.getElementById(titleId);
+            const msgEl = document.getElementById(messageId);
+            if (titleEl) titleEl.value = templates[templateKey].title || '';
+            if (msgEl) msgEl.value = templates[templateKey].message || '';
+        };
+
+        const broadcastTemplate = document.getElementById('broadcastTemplate');
+        if (broadcastTemplate) {
+            broadcastTemplate.addEventListener('change', function () {
+                applyTemplate(this.value, 'broadcastTitle', 'broadcastMessage');
+            });
+        }
+
+        const singleTemplate = document.getElementById('singleTemplate');
+        if (singleTemplate) {
+            singleTemplate.addEventListener('change', function () {
+                applyTemplate(this.value, 'singleTitle', 'singleMessage');
+            });
+        }
+
+        const searchInput = document.getElementById('singleUserSearch');
+        const userSelect = document.getElementById('singleUserSelect');
+        const counter = document.getElementById('singleUserSearchCount');
+        if (searchInput && userSelect) {
+            const allOptions = Array.from(userSelect.options);
+            const updateCount = () => {
+                if (!counter) return;
+                const visible = allOptions.filter((opt, idx) => idx === 0 || !opt.hidden).length - 1;
+                counter.textContent = visible > 0
+                    ? `نتائج البحث: ${visible} مستخدم`
+                    : 'لا توجد نتائج مطابقة';
+            };
+
+            searchInput.addEventListener('input', function () {
+                const q = (this.value || '').toString().trim().toLowerCase();
+                allOptions.forEach((opt, idx) => {
+                    if (idx === 0) {
+                        opt.hidden = false;
+                        return;
+                    }
+                    const text = (opt.textContent || '').toLowerCase();
+                    opt.hidden = q !== '' && !text.includes(q);
+                });
+
+                const selectedOption = userSelect.options[userSelect.selectedIndex];
+                if (selectedOption && selectedOption.hidden) {
+                    userSelect.value = '';
+                }
+                updateCount();
+            });
+
+            updateCount();
+        }
+    })();
+</script>
 </body>
 </html>
 

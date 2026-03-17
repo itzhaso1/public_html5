@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $subject ?? 'King2Game' }}</title>
+    <title>{{ $subject ?? 'متجر الممالك' }}</title>
 </head>
 <body style="margin:0;padding:0;background:#eef2ff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Tahoma,Arial,sans-serif;color:#0f172a;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef2ff;padding:28px 10px;">
@@ -12,7 +12,9 @@
                 <table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;width:100%;background:#ffffff;border:1px solid #dbe1ff;border-radius:14px;overflow:hidden;">
                     <tr>
                         <td style="padding:18px 22px;background:linear-gradient(120deg,#0b1220,#172554);text-align:center;">
-                            <img src="https://king2game.com/logo.png" alt="King2Game" style="max-width:170px;width:100%;height:auto;display:inline-block;">
+                            <div style="display:inline-block;font-size:22px;line-height:1.3;font-weight:800;letter-spacing:.2px;color:#ffffff;">
+                                متجر الممالك
+                            </div>
                         </td>
                     </tr>
                     <tr>
@@ -23,7 +25,7 @@
                     </tr>
                     <tr>
                         <td style="padding:14px 24px;border-top:1px solid #e2e8f0;text-align:right;font-size:12px;color:#64748b;" dir="rtl">
-                            King2Game
+                            متجر الممالك
                         </td>
                     </tr>
                 </table>
