@@ -54,15 +54,41 @@
     }
 
     .home-featured-accounts-swiper {
-        padding-bottom: 34px;
+        padding: 0 2px 36px;
     }
 
     .home-featured-accounts-swiper .swiper-slide {
+        display: flex;
+        justify-content: center;
         height: auto;
     }
 
+    .home-featured-accounts-swiper .swiper-slide > .product {
+        width: 100%;
+        max-width: 360px;
+        margin-inline: auto;
+    }
+
     .home-featured-accounts-swiper .swiper-pagination {
+        position: relative !important;
         bottom: 0 !important;
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .home-featured-accounts-swiper .swiper-pagination-bullet {
+        width: 7px;
+        height: 7px;
+        opacity: 1;
+        background: #d1d5db;
+        margin: 0 4px !important;
+        transition: all 0.25s ease;
+    }
+
+    .home-featured-accounts-swiper .swiper-pagination-bullet-active {
+        width: 16px;
+        border-radius: 999px;
+        background: #facc15;
     }
 </style>
 @endpush

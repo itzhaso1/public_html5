@@ -331,13 +331,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         new Swiper(el, {
                             loop: slidesCount > 1,
                             autoplay: slidesCount > 1 ? { delay: 3200, disableOnInteraction: false } : false,
-                            slidesPerView: 1.05,
-                            spaceBetween: 12,
+                            centeredSlides: true,
+                            watchOverflow: true,
+                            grabCursor: true,
+                            slidesPerView: 1,
+                            spaceBetween: 10,
                             speed: 550,
                             breakpoints: {
-                                640: { slidesPerView: 1.35, spaceBetween: 14 },
-                                768: { slidesPerView: 1.9, spaceBetween: 16 },
-                                1024: { slidesPerView: 2.5, spaceBetween: 18 },
+                                640: { centeredSlides: true, slidesPerView: 1.3, spaceBetween: 14 },
+                                768: { centeredSlides: false, slidesPerView: 1.9, spaceBetween: 16 },
+                                1024: { centeredSlides: false, slidesPerView: 2.5, spaceBetween: 18 },
                             },
                             pagination: paginationEl ? { el: paginationEl, clickable: true } : undefined,
                         });
