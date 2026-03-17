@@ -922,11 +922,16 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     try {
         const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
         if (mode === 'guided') {
-            // Host/browser-safe path: always send guided files again as gallery[].
-            // This bypasses edge cases where nested gallery_guided[...] files are not parsed server-side.
+            // Host/browser-safe path: send guided files as gallery[] only.
+            // IMPORTANT: remove original gallery_guided[...] entries first to avoid duplicate uploads.
+            // Duplicates can exceed PHP max_file_uploads and randomly drop files.
             formData.delete('gallery[]');
             formData.delete('gallery');
             const keys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
+            formData.delete('gallery_guided');
+            keys.forEach((k) => {
+                formData.delete(`gallery_guided[${k}]`);
+            });
             keys.forEach((k) => {
                 const inp = document.getElementById('gallery_guided_' + k);
                 const f = inp && inp.files && inp.files[0] ? inp.files[0] : null;
