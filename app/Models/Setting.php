@@ -30,10 +30,15 @@ class Setting extends Model
         'charge_enabled',
         'codes_enabled',
         'public_publish_min_gallery_images',
+        'home_featured_product_ids',
         'merchant_usd_rate',
         'merchant_charge_discount_percent',
         'point_price_sar',
         'point_price_usd',
+    ];
+
+    protected $casts = [
+        'home_featured_product_ids' => 'array',
     ];
 
     public function media()

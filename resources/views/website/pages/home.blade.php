@@ -53,15 +53,15 @@
         display: block;
     }
 
-    .home-section-swiper {
+    .home-featured-accounts-swiper {
         padding-bottom: 34px;
     }
 
-    .home-section-swiper .swiper-slide {
+    .home-featured-accounts-swiper .swiper-slide {
         height: auto;
     }
 
-    .home-section-swiper .swiper-pagination {
+    .home-featured-accounts-swiper .swiper-pagination {
         bottom: 0 !important;
     }
 </style>
@@ -291,24 +291,109 @@
 </div>
 
 
+<!-- الحسابات المميزة -->
+@if(($featuredProducts ?? collect())->isNotEmpty())
+<div class="px-4 py-6">
+    <h2 class="text-center font-bold text-xl mb-4 border-b border-gray-300 pb-2 text-yellow-500">
+        الحسابات المميزة
+    </h2>
+
+    <div class="swiper home-featured-accounts-swiper">
+        <div class="swiper-wrapper">
+            @foreach($featuredProducts as $product)
+                @php
+                    $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
+                    $productImage = $imageUrl ?: $fallbackImage;
+                    $isSold = (bool) ($product->featured ?? false);
+                    $discountPercent = null;
+                    $dealEndsAt = $product->deal_ends_at ?? null;
+
+                    if (!empty($product->price_before_discount) && $product->price_before_discount > 0) {
+                        $discountPercent = round((($product->price_before_discount - $product->price) / $product->price_before_discount) * 100);
+                    }
+
+                    $hasCountdown = false;
+                    try {
+                        $hasCountdown = (! $isSold) && ($discountPercent > 0) && $dealEndsAt && $dealEndsAt->isFuture();
+                    } catch (\Throwable $e) {
+                        $hasCountdown = false;
+                    }
+                @endphp
+
+                <div class="swiper-slide">
+                    <div class="relative bg-white p-3 rounded-lg shadow text-center product flex flex-col h-full"
+                         data-status="{{ $isSold ? 'مباع' : '' }}">
+                        @if($isSold)
+                            <div class="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow">
+                                مباع
+                            </div>
+                        @endif
+
+                        @if(!$isSold && !empty($discountPercent) && $discountPercent > 0)
+                            <div class="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded shadow">
+                                خصم {{ $discountPercent }}%
+                            </div>
+                        @endif
+
+                        @if($hasCountdown)
+                            <div class="deal-countdown-wrap absolute top-9 left-1/2 -translate-x-1/2 bg-black/85 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
+                                ⏳ ينتهي خلال:
+                                <span class="deal-countdown font-mono" data-ends="{{ $dealEndsAt->toIso8601String() }}">--:--:--</span>
+                            </div>
+                        @endif
+
+                        <img src="{{ $productImage }}"
+                             class="product-img mx-auto rounded-md object-cover w-full h-auto"
+                             alt="{{ $product->name ?? 'Product' }}"
+                             width="600" height="300"
+                             loading="lazy"
+                             decoding="async">
+
+                        <h2 class="font-bold mt-2">{{ $product->name }}</h2>
+
+                        @if(!empty($product->price_before_discount))
+                            <p class="font-semibold mt-1 product-price text-red-600"
+                               data-base-price="{{ $product->price }}"
+                               data-base-old="{{ $product->price_before_discount }}">
+                                <span class="current-price">ر.س {{ $product->price }}</span>
+                                <span class="old-price text-gray-500 text-sm line-through">
+                                    {{ $product->price_before_discount }}
+                                </span>
+                            </p>
+                        @else
+                            <p class="font-semibold mt-1 product-price" data-base-price="{{ $product->price }}">
+                                <span class="current-price">ر.س {{ $product->price }}</span>
+                            </p>
+                        @endif
+
+                        @if($isSold)
+                            <button class="mt-auto w-full bg-gray-400 text-white py-1 rounded text-sm cursor-not-allowed">
+                                مباع
+                            </button>
+                        @else
+                            <a href="{{ route('website.product.show', $product->id) }}"
+                               class="mt-auto block w-full bg-black text-white py-1 rounded text-sm text-center">
+                                عرض تفاصيل
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        <div class="swiper-pagination"></div>
+    </div>
+</div>
+@endif
+
+
 
 <!-- الأقسام والمنتجات -->
 @foreach($sections as $section)
-    @php
-        $sectionProducts = collect($section->products ?? collect())
-            ->sortByDesc(fn($p) => (float) ($p->price ?? 0))
-            ->values();
-    @endphp
-    @if($sectionProducts->isEmpty())
-        @continue
-    @endif
-
     <div class="px-4 py-6">
         <h2 class="text-center font-bold text-xl mb-4">{{ $section->name }}</h2>
 
-        <div class="swiper home-section-swiper">
-            <div class="swiper-wrapper">
-            @foreach($sectionProducts as $product)
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            @foreach(($section->products ?? collect())->sortByDesc(fn($p) => (float) ($p->price ?? 0)) as $product)
                 @php
                     $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
                     $thumb = ($product->service_type ?? null) === 'codes' ? ($product->codeThumbnail?->image_path ?? null) : null;
@@ -330,7 +415,6 @@
                     }
                 @endphp
 
-                <div class="swiper-slide">
                 <div class="relative bg-white p-3 rounded-lg shadow text-center overflow-hidden flex flex-col h-full">
                     @if($isSold)
                         <div class="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow">
@@ -390,10 +474,7 @@
                         </a>
                     @endif
                 </div>
-                </div>
             @endforeach
-            </div>
-            <div class="swiper-pagination"></div>
         </div>
     </div>
 @endforeach

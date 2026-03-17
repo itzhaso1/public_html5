@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Website;
  
 use App\Http\Controllers\Controller;
-use App\Models\{Category,Slider, Section, Product};
+use App\Models\{Category,Slider, Section, Product, Setting};
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
  
 class WebsiteController extends Controller
 {
@@ -45,18 +46,53 @@ class WebsiteController extends Controller
                 ->orderBy('order')
                 ->get();
         });
-        
+
         $sectionProductIds = $sections->pluck('products')->flatten()->pluck('id')->unique();
+
+        $featuredProductIds = collect();
+        try {
+            if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'home_featured_product_ids')) {
+                $appSettings = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+                $rawIds = $appSettings?->home_featured_product_ids ?? [];
+                if (is_string($rawIds)) {
+                    $decoded = json_decode($rawIds, true);
+                    $rawIds = is_array($decoded) ? $decoded : [];
+                }
+                $featuredProductIds = collect((array) $rawIds)
+                    ->map(fn($id) => (int) $id)
+                    ->filter(fn($id) => $id > 0)
+                    ->unique()
+                    ->values();
+            }
+        } catch (\Throwable $e) {
+            $featuredProductIds = collect();
+        }
+
+        $featuredProducts = collect();
+        if ($featuredProductIds->isNotEmpty()) {
+            $order = array_flip($featuredProductIds->values()->all());
+            $featuredProducts = Product::with(['translations', 'media'])
+                ->where('status', 'published')
+                ->whereNull('service_type')
+                ->whereIn('id', $featuredProductIds->all())
+                ->get()
+                ->sortBy(fn($p) => $order[(int) $p->id] ?? PHP_INT_MAX)
+                ->values();
+        }
+
+        $excludedProductIds = $sectionProductIds->merge($featuredProductIds)->unique()->values();
         
         // تعديل بسيط: إخفاء منتجات الشحن من الصفحة الرئيسية أيضاً
-        $products = Cache::remember("home.products.$locale", 60 * 5, function () use ($sectionProductIds) {
-            return Product::with(['translations', 'media'])
+        $products = Cache::remember("home.products.$locale", 60 * 5, function () use ($excludedProductIds) {
+            $q = Product::with(['translations', 'media'])
                 ->where('status', 'published')
-                ->whereNotIn('id', $sectionProductIds)
                 ->whereNull('service_type') // ✅ إخفاء الجواهر من هنا
                 ->orderByDesc('price')
-                ->orderByDesc('id')
-                ->get();
+                ->orderByDesc('id');
+            if ($excludedProductIds->isNotEmpty()) {
+                $q->whereNotIn('id', $excludedProductIds->all());
+            }
+            return $q->get();
         });
             
         $categoryCount = $categories->count();
@@ -69,6 +105,7 @@ class WebsiteController extends Controller
             'categoryCount' => $categoryCount,
             'slidesPerView' => $slidesPerView,
             'sections' => $sections,
+            'featuredProducts' => $featuredProducts,
             'products' => $products,
         ]);
     }

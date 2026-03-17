@@ -321,8 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {}
             };
 
-            const initHomeSectionSwipers = () => {
-                document.querySelectorAll('.home-section-swiper').forEach((el) => {
+            const initHomeFeaturedAccountsSwiper = () => {
+                document.querySelectorAll('.home-featured-accounts-swiper').forEach((el) => {
                     if (!el || el.swiper) return;
                     const slidesCount = el.querySelectorAll('.swiper-slide').length;
                     if (!slidesCount) return;
@@ -331,13 +331,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         new Swiper(el, {
                             loop: slidesCount > 1,
                             autoplay: slidesCount > 1 ? { delay: 3200, disableOnInteraction: false } : false,
-                            slidesPerView: 1.08,
+                            slidesPerView: 1.05,
                             spaceBetween: 12,
                             speed: 550,
                             breakpoints: {
-                                640: { slidesPerView: 1.4, spaceBetween: 14 },
-                                768: { slidesPerView: 2, spaceBetween: 16 },
-                                1024: { slidesPerView: 3, spaceBetween: 18 },
+                                640: { slidesPerView: 1.35, spaceBetween: 14 },
+                                768: { slidesPerView: 1.9, spaceBetween: 16 },
+                                1024: { slidesPerView: 2.5, spaceBetween: 18 },
                             },
                             pagination: paginationEl ? { el: paginationEl, clickable: true } : undefined,
                         });
@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!window.Swiper) return;
                 initHeroSwipers();
                 initReviewsSwiper();
-                initHomeSectionSwipers();
+                initHomeFeaturedAccountsSwiper();
             };
 
             const loadSwiperOnce = (cb) => {

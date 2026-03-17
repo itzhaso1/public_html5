@@ -3,7 +3,7 @@
 namespace App\Repositories;
 
 use App\Http\Requests\MainSettingRequest;
-use App\Models\{Setting};
+use App\Models\{Product, Setting};
 use App\Services\Contracts\MainSettingInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, Session};
@@ -30,6 +30,36 @@ class MainSettingRepository implements MainSettingInterface
         $homeQuickCashExchangeImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_cash_exchange') ?? null;
         $homeQuickMoneyExchangeImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_money_exchange') ?? null;
 
+        $homeFeaturedProducts = collect();
+        $selectedHomeFeaturedProductIds = [];
+        try {
+            if (Schema::hasColumn('settings', 'home_featured_product_ids')) {
+                $raw = $setting?->home_featured_product_ids ?? [];
+                if (is_string($raw)) {
+                    $decoded = json_decode($raw, true);
+                    $raw = is_array($decoded) ? $decoded : [];
+                }
+                $selectedHomeFeaturedProductIds = collect((array) $raw)
+                    ->map(fn($id) => (int) $id)
+                    ->filter(fn($id) => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $homeFeaturedProducts = Product::query()
+                    ->select(['id', 'price', 'status'])
+                    ->where('status', 'published')
+                    ->whereNull('service_type')
+                    ->with(['translations'])
+                    ->orderByDesc('id')
+                    ->limit(500)
+                    ->get();
+            }
+        } catch (\Throwable $e) {
+            $homeFeaturedProducts = collect();
+            $selectedHomeFeaturedProductIds = [];
+        }
+
         return view('dashboard.admin.settings.index', [
             'title' => 'General Main Settings',
             'setting' => $setting,
@@ -39,6 +69,8 @@ class MainSettingRepository implements MainSettingInterface
             'homeQuickCodesImg' => $homeQuickCodesImg,
             'homeQuickCashExchangeImg' => $homeQuickCashExchangeImg,
             'homeQuickMoneyExchangeImg' => $homeQuickMoneyExchangeImg,
+            'homeFeaturedProducts' => $homeFeaturedProducts,
+            'selectedHomeFeaturedProductIds' => $selectedHomeFeaturedProductIds,
         ]);
     }
 
@@ -60,16 +92,19 @@ class MainSettingRepository implements MainSettingInterface
             $hasChargeToggle = false;
             $hasCodesToggle = false;
             $hasPublishMinGallery = false;
+            $hasHomeFeaturedProducts = false;
             try {
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
                 $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
                 $hasCodesToggle = Schema::hasColumn('settings', 'codes_enabled');
                 $hasPublishMinGallery = Schema::hasColumn('settings', 'public_publish_min_gallery_images');
+                $hasHomeFeaturedProducts = Schema::hasColumn('settings', 'home_featured_product_ids');
             } catch (\Throwable $e) {
                 $hasMoneyToggle = false;
                 $hasChargeToggle = false;
                 $hasCodesToggle = false;
                 $hasPublishMinGallery = false;
+                $hasHomeFeaturedProducts = false;
             }
 
             // Always update the latest settings row (singleton behavior).
@@ -155,6 +190,16 @@ class MainSettingRepository implements MainSettingInterface
                 if ($n > 40) $n = 40;
                 $setting->public_publish_min_gallery_images = $n;
             }
+            if ($hasHomeFeaturedProducts) {
+                $ids = collect((array) $request->input('home_featured_product_ids', []))
+                    ->map(fn($id) => (int) $id)
+                    ->filter(fn($id) => $id > 0)
+                    ->unique()
+                    ->take(100)
+                    ->values()
+                    ->all();
+                $setting->home_featured_product_ids = $ids;
+            }
             $setting->save();
             if ($request->hasFile('logo'))
                 $setting->updateSingleMedia('setting', $request->file('logo'), $setting, null, 'media', true, false, 'logo');
@@ -178,6 +223,13 @@ class MainSettingRepository implements MainSettingInterface
 
             Cache::forget('app_settings');
             Cache::forget('wallet.point_prices');
+            $locales = array_keys(config('laravellocalization.supportedLocales', []));
+            if (empty($locales)) {
+                $locales = ['ar', 'en'];
+            }
+            foreach ($locales as $locale) {
+                Cache::forget("home.products.$locale");
+            }
 
             $msg = 'تم تحديث الإعدادات بنجاح.';
             if (! $hasHomeQuick) {

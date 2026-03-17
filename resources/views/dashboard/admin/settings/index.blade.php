@@ -251,6 +251,46 @@
                         @endif
                     </div>
 
+                    <!-- Home featured accounts -->
+                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                        <h4 class="mb-3 fw-bolder">الحسابات المميزة في الصفحة الرئيسية (سلايدر)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'home_featured_product_ids'))
+                            @php
+                                $selectedFeatured = old('home_featured_product_ids', $selectedHomeFeaturedProductIds ?? []);
+                                if (!is_array($selectedFeatured)) $selectedFeatured = [];
+                                $selectedFeatured = array_map('intval', $selectedFeatured);
+                            @endphp
+                            <div class="row g-3">
+                                <div class="col-12">
+                                    <label class="input-group-text text-dark mb-2">اختر الحسابات المميزة</label>
+                                    <select id="home_featured_product_ids"
+                                            name="home_featured_product_ids[]"
+                                            class="form-select"
+                                            multiple
+                                            size="10">
+                                        @foreach(($homeFeaturedProducts ?? collect()) as $p)
+                                            @php
+                                                $pid = (int) $p->id;
+                                                $pname = trim((string) ($p->name ?? "حساب #{$pid}"));
+                                                $priceText = is_numeric($p->price ?? null) ? number_format((float) $p->price, 2) : '-';
+                                            @endphp
+                                            <option value="{{ $pid }}" {{ in_array($pid, $selectedFeatured, true) ? 'selected' : '' }}>
+                                                #{{ $pid }} — {{ $pname }} — {{ $priceText }} ر.س
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="form-text mt-2">
+                                        الحسابات المختارة هنا ستظهر في سلايدر "الحسابات المميزة" في الصفحة الرئيسية.
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل هذا الخيار شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
+                    </div>
+
                     <!-- Merchant pricing -->
                     <div class="container p-4 mt-4 bg-white rounded shadow">
                         <h4 class="mb-3 fw-bolder">أسعار التجار (قسم شحن الجواهر)</h4>
@@ -354,24 +394,39 @@
         previewImage("logoInput", "logoPreview");
         previewImage("faviconInput", "faviconPreview");
 
+        if (window.jQuery && $.fn && $.fn.select2) {
+            const featuredSelect = $('#home_featured_product_ids');
+            if (featuredSelect.length) {
+                featuredSelect.select2({
+                    placeholder: 'اختر الحسابات المميزة',
+                    width: '100%',
+                    dir: 'rtl',
+                    closeOnSelect: false
+                });
+            }
+        }
+
         function updateLoyaltyPointsDisplay(value) {
             document.getElementById('loyalty_points_display').textContent = value;
             document.getElementById('loyalty_points').value = value;
         }
 
-        document.getElementById('audioInput').addEventListener('change', function (event) {
-            const file = event.target.files[0];
-            if (file) {
-                const audioContainer = document.getElementById('audioContainer');
-                const audio = document.createElement('audio');
-                audio.setAttribute('controls', true);
-                audio.style.width = '100%';
-                audio.src = URL.createObjectURL(file);
+        const audioInput = document.getElementById('audioInput');
+        if (audioInput) {
+            audioInput.addEventListener('change', function (event) {
+                const file = event.target.files[0];
+                if (file) {
+                    const audioContainer = document.getElementById('audioContainer');
+                    const audio = document.createElement('audio');
+                    audio.setAttribute('controls', true);
+                    audio.style.width = '100%';
+                    audio.src = URL.createObjectURL(file);
 
-                audioContainer.innerHTML = '';
-                audioContainer.appendChild(audio);
-                audioContainer.style.display = 'block';
-            }
-        });
+                    audioContainer.innerHTML = '';
+                    audioContainer.appendChild(audio);
+                    audioContainer.style.display = 'block';
+                }
+            });
+        }
     </script>
 @endpush
