@@ -3,5 +3,5 @@
 {{ $content ?? '' }}
 
 --
-{{ config('app.name', 'King2Game') }}
+King2Game
 
