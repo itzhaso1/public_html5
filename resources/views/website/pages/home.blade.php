@@ -368,7 +368,7 @@
         الحسابات المميزة
     </h2>
 
-    <div class="swiper home-featured-accounts-swiper dots-style-pill">
+    <div class="swiper home-featured-accounts-swiper dots-style-progress">
         <div class="swiper-wrapper">
             @foreach($featuredProducts as $product)
                 @php
