@@ -84,6 +84,11 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
         Route::post('users/{user}/wallet/adjust', [Dashboard\UserWalletController::class, 'adjust'])->name('user.wallet.adjust');
 
         Route::resource('users', Dashboard\UserController::class)->names('user')->only(['index', 'edit', 'update', 'destroy']);
+        Route::prefix('user-messages')->as('user_messages.')->group(function () {
+            Route::get('/', [Dashboard\UserMessageController::class, 'index'])->name('index');
+            Route::post('broadcast-publishers', [Dashboard\UserMessageController::class, 'broadcastToPublishers'])->name('broadcast_publishers');
+            Route::post('single', [Dashboard\UserMessageController::class, 'sendToUser'])->name('single');
+        });
 
         Route::prefix('manual-payments')->as('manual_payments.')->group(function () {
             Route::get('/', [Dashboard\ManualPaymentController::class, 'index'])->name('index');

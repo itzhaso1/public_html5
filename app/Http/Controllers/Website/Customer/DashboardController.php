@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Website\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Notifications\AdminUserMessageNotification;
 use Illuminate\Http\Request;
 use App\Models\{Order, Category};
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,17 @@ class DashboardController extends Controller {
     public function index() {
         $user = Auth::user();
         $orders = Order::where('user_id', $user->id)->get();
+        $adminMessages = collect();
+        try {
+            $adminMessages = $user->notifications()
+                ->where('type', AdminUserMessageNotification::class)
+                ->latest()
+                ->limit(8)
+                ->get();
+        } catch (\Throwable $e) {
+            // notifications table might be unavailable on some deployments
+            $adminMessages = collect();
+        }
         $categories = Category::with(['translations', 'media', 'children.translations'])
             ->whereNull('parent_id')
             ->where('status', 'active')
@@ -25,7 +37,7 @@ class DashboardController extends Controller {
             'refunded'   => $orders->where('status', 'refunded')->count(),
             'pageTitle'  => $user?->name . ' | Dashboard',
         ];
-        return view('website.customer.dashboard', compact('data', 'user', 'categories'));
+        return view('website.customer.dashboard', compact('data', 'user', 'categories', 'adminMessages'));
     }
 
     public function ordersByStatus(Request $request) {

@@ -42,6 +42,24 @@
         </div>
     </div>
 
+    @if(($adminMessages ?? collect())->count() > 0)
+        <div class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+            <div class="text-sm font-extrabold text-gray-900">رسائل الإدارة</div>
+            <div class="mt-3 space-y-3">
+                @foreach(($adminMessages ?? collect()) as $note)
+                    @php
+                        $payload = (array) ($note->data ?? []);
+                    @endphp
+                    <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                        <div class="font-extrabold text-gray-900">{{ $payload['title'] ?? 'رسالة' }}</div>
+                        <div class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ $payload['message'] ?? '' }}</div>
+                        <div class="text-[11px] text-gray-500 mt-2">{{ $note->created_at?->format('Y-m-d H:i') }}</div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <div class="text-sm font-extrabold text-gray-900">روابط سريعة</div>
         <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

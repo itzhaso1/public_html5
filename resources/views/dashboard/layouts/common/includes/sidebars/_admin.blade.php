@@ -203,6 +203,12 @@
                     <span class="menu-title">قائمة المستخدمين</span>
                 </a>
             </div>
+            <div class="menu-item">
+                <a class="menu-link {{ is_active('admin.user_messages.*') }}" href="{{ route('admin.user_messages.index') }}">
+                    <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+                    <span class="menu-title">مراسلة المستخدمين</span>
+                </a>
+            </div>
         </div>
     </div>
 
