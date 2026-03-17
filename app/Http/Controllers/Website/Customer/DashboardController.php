@@ -13,6 +13,7 @@ class DashboardController extends Controller {
         $user = Auth::user();
         $orders = Order::where('user_id', $user->id)->get();
         $adminMessages = collect();
+        $notificationsReady = true;
         try {
             $adminMessages = $user->notifications()
                 ->where('type', AdminUserMessageNotification::class)
@@ -22,6 +23,7 @@ class DashboardController extends Controller {
         } catch (\Throwable $e) {
             // notifications table might be unavailable on some deployments
             $adminMessages = collect();
+            $notificationsReady = false;
         }
         $categories = Category::with(['translations', 'media', 'children.translations'])
             ->whereNull('parent_id')
@@ -37,7 +39,7 @@ class DashboardController extends Controller {
             'refunded'   => $orders->where('status', 'refunded')->count(),
             'pageTitle'  => $user?->name . ' | Dashboard',
         ];
-        return view('website.customer.dashboard', compact('data', 'user', 'categories', 'adminMessages'));
+        return view('website.customer.dashboard', compact('data', 'user', 'categories', 'adminMessages', 'notificationsReady'));
     }
 
     public function ordersByStatus(Request $request) {

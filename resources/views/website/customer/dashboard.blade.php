@@ -42,23 +42,28 @@
         </div>
     </div>
 
-    @if(($adminMessages ?? collect())->count() > 0)
-        <div class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-            <div class="text-sm font-extrabold text-gray-900">رسائل الإدارة</div>
-            <div class="mt-3 space-y-3">
-                @foreach(($adminMessages ?? collect()) as $note)
-                    @php
-                        $payload = (array) ($note->data ?? []);
-                    @endphp
-                    <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                        <div class="font-extrabold text-gray-900">{{ $payload['title'] ?? 'رسالة' }}</div>
-                        <div class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ $payload['message'] ?? '' }}</div>
-                        <div class="text-[11px] text-gray-500 mt-2">{{ $note->created_at?->format('Y-m-d H:i') }}</div>
-                    </div>
-                @endforeach
-            </div>
+    <div class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+        <div class="text-sm font-extrabold text-gray-900">رسائل الإدارة</div>
+        <div class="mt-3 space-y-3">
+            @forelse(($adminMessages ?? collect()) as $note)
+                @php
+                    $payload = (array) ($note->data ?? []);
+                @endphp
+                <div class="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                    <div class="font-extrabold text-gray-900">{{ $payload['title'] ?? 'رسالة' }}</div>
+                    <div class="text-sm text-gray-700 mt-1 whitespace-pre-line">{{ $payload['message'] ?? '' }}</div>
+                    <div class="text-[11px] text-gray-500 mt-2">{{ $note->created_at?->format('Y-m-d H:i') }}</div>
+                </div>
+            @empty
+                <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                    لا توجد رسائل إدارة حالياً.
+                    @if(($notificationsReady ?? true) === false)
+                        <div class="mt-1 text-xs text-red-600">تنبيه تقني: نظام الإشعارات غير جاهز في البيئة الحالية.</div>
+                    @endif
+                </div>
+            @endforelse
         </div>
-    @endif
+    </div>
 
     <div class="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
         <div class="text-sm font-extrabold text-gray-900">روابط سريعة</div>
