@@ -224,6 +224,33 @@
                         </div>
                     </div>
 
+                    <!-- Public publish form settings -->
+                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                        <h4 class="mb-3 fw-bolder">إعدادات صفحة نشر الحساب (publish-product)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'public_publish_min_gallery_images'))
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">الحد الأدنى لعدد صور المعرض</label>
+                                    <input type="number"
+                                           min="1"
+                                           max="40"
+                                           step="1"
+                                           class="form-control"
+                                           name="public_publish_min_gallery_images"
+                                           value="{{ old('public_publish_min_gallery_images', (int) ($setting?->public_publish_min_gallery_images ?? 12)) }}">
+                                    <div class="form-text">
+                                        هذا العدد سيُطبق على الوضعين (الرفع المرتب + المتقدم) في الخطوة 6.
+                                        إذا زاد العدد عن 12 ستظهر خانات إضافية بأسماء تلقائية.
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل إعدادات نشر الحساب شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
+                    </div>
+
                     <!-- Merchant pricing -->
                     <div class="container p-4 mt-4 bg-white rounded shadow">
                         <h4 class="mb-3 fw-bolder">أسعار التجار (قسم شحن الجواهر)</h4>

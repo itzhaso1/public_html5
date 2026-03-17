@@ -20,6 +20,61 @@ class PublicProductController extends Controller
 {
     protected ProductInterface $productInterface;
 
+    private function publishMinGalleryImages(): int
+    {
+        $default = 12;
+        try {
+            $value = null;
+            if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'public_publish_min_gallery_images')) {
+                $s = \Illuminate\Support\Facades\Cache::get('app_settings') ?: \App\Models\Setting::query()->latest('id')->first();
+                $value = (int) ($s?->public_publish_min_gallery_images ?? $default);
+            }
+            $n = (int) ($value ?? $default);
+            if ($n < 1) $n = 1;
+            if ($n > 40) $n = 40;
+            return $n;
+        } catch (\Throwable $e) {
+            return $default;
+        }
+    }
+
+    /**
+     * @return array<int,array{key:string,title:string,hint:string}>
+     */
+    private function guidedSlotDefinitions(int $minRequired): array
+    {
+        $base = [
+            ['key' => 'weapons_gallery', 'title' => '1) معرض أسلحة', 'hint' => 'صورة واضحة للأسلحة/الاسكنات'],
+            ['key' => 'shotgun', 'title' => '2) الشوت قان', 'hint' => 'صورة الشوت قان أو أفضل سلاح عندك'],
+            ['key' => 'hair', 'title' => '3) الشعر', 'hint' => 'صورة الشعر/الهيت'],
+            ['key' => 'face', 'title' => '4) الوجه', 'hint' => 'صورة الوجه/الماسك'],
+            ['key' => 'tops', 'title' => '5) الصدريات / تيشيرتات', 'hint' => 'أفضل صدرية/تيشيرت'],
+            ['key' => 'pants', 'title' => '6) السراويل', 'hint' => 'أفضل بنطلون/سروال'],
+            ['key' => 'emotes', 'title' => '7) الرقصات', 'hint' => 'أشهر الرقصات'],
+            ['key' => 'login_emotes', 'title' => '8) رقصات تسجيل دخول', 'hint' => 'رقصات الدخول/اللوبي'],
+            ['key' => 'banners', 'title' => '9) البنرات', 'hint' => 'بنرات/بادجات الحساب'],
+            ['key' => 'fire_pass', 'title' => '10) الفير باسات', 'hint' => 'صورة الفير باس/الباس'],
+            ['key' => 'extra_1', 'title' => '11) صورة إضافية 1', 'hint' => 'أي شيء قوي بالحساب'],
+            ['key' => 'extra_2', 'title' => '12) صورة إضافية 2', 'hint' => 'أي شيء قوي بالحساب'],
+        ];
+
+        $minRequired = max(1, min(40, (int) $minRequired));
+        if ($minRequired <= count($base)) {
+            return array_slice($base, 0, $minRequired);
+        }
+
+        $slots = $base;
+        for ($idx = count($base) + 1; $idx <= $minRequired; $idx++) {
+            $extraIndex = $idx - 10;
+            $slots[] = [
+                'key' => 'extra_' . $extraIndex,
+                'title' => $idx . ') صورة إضافية ' . $extraIndex,
+                'hint' => 'صورة إضافية حسب ما تراه مناسباً',
+            ];
+        }
+        return $slots;
+    }
+
     private function publishCommissionFor(float $basePrice): float
     {
         $p = (float) $basePrice;
@@ -51,9 +106,14 @@ class PublicProductController extends Controller
      */
     public function create()
     {
+        $minGallery = $this->publishMinGalleryImages();
+        $guidedSlots = $this->guidedSlotDefinitions($minGallery);
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج',
             'formAction' => route('public.products.store', request()->query()),
+            'minGalleryCount' => $minGallery,
+            'guidedSlots' => $guidedSlots,
+            'guidedGalleryKeys' => array_values(array_map(fn($s) => (string) $s['key'], $guidedSlots)),
             'data' => [
                 'categories' => Category::all(),
                 'types' => Type::all(),
@@ -67,10 +127,15 @@ class PublicProductController extends Controller
      */
     public function createAdmin()
     {
+        $minGallery = $this->publishMinGalleryImages();
+        $guidedSlots = $this->guidedSlotDefinitions($minGallery);
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج (للإدارة)',
             'formAction' => route('public.products.store_admin', request()->query()),
             'namePrefix' => 'ج',
+            'minGalleryCount' => $minGallery,
+            'guidedSlots' => $guidedSlots,
+            'guidedGalleryKeys' => array_values(array_map(fn($s) => (string) $s['key'], $guidedSlots)),
             'data' => [
                 'categories' => Category::all(),
                 'types' => Type::all(),
@@ -146,20 +211,11 @@ class PublicProductController extends Controller
 
             // Build gallery files for guided mode (ordered by sections).
             // We do this explicitly when gallery_mode=guided to avoid stale hidden advanced input affecting validation.
-            $guidedOrder = [
-                'weapons_gallery',
-                'shotgun',
-                'hair',
-                'face',
-                'tops',
-                'pants',
-                'emotes',
-                'login_emotes',
-                'banners',
-                'fire_pass',
-                'extra_1',
-                'extra_2',
-            ];
+            $minGallery = $this->publishMinGalleryImages();
+            $guidedOrder = array_values(array_map(
+                fn($s) => (string) ($s['key'] ?? ''),
+                $this->guidedSlotDefinitions($minGallery)
+            ));
             if ($galleryMode === 'guided') {
                 $files = $this->collectGuidedGalleryFiles($request, $guidedOrder);
                 $request->files->set('gallery', $files);
@@ -181,9 +237,9 @@ class PublicProductController extends Controller
                     'gallery' => 'يجب رفع صور المعرض في الخطوة 6.',
                 ]);
             }
-            if (count($galleryFiles) < 12) {
+            if (count($galleryFiles) < $minGallery) {
                 throw ValidationException::withMessages([
-                    'gallery' => 'يجب رفع 12 صورة على الأقل في الخطوة 6.',
+                    'gallery' => 'يجب رفع ' . $minGallery . ' صورة على الأقل في الخطوة 6.',
                 ]);
             }
 
@@ -338,7 +394,7 @@ class PublicProductController extends Controller
             }
         }
 
-        if (count($files) >= 12) {
+        if (count($files) >= count($order)) {
             return $files;
         }
 
@@ -393,6 +449,7 @@ class PublicProductController extends Controller
                 continue;
             }
             $sig = implode('|', [
+                (string) $file->getPathname(),
                 $file->getClientOriginalName(),
                 (string) $file->getSize(),
             ]);

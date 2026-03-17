@@ -10,6 +10,35 @@
     $isEdit = isset($product);
     $formAction = $formAction ?? route('public.products.store', request()->query());
     $namePrefix = $namePrefix ?? null;
+    $minGalleryCount = (int) ($minGalleryCount ?? 12);
+    if ($minGalleryCount < 1) $minGalleryCount = 1;
+    if ($minGalleryCount > 40) $minGalleryCount = 40;
+    $guidedSlots = $guidedSlots ?? [];
+    if (empty($guidedSlots)) {
+        $guidedSlots = [
+            ['key' => 'weapons_gallery', 'title' => '1) معرض أسلحة', 'hint' => 'صورة واضحة للأسلحة/الاسكنات'],
+            ['key' => 'shotgun', 'title' => '2) الشوت قان', 'hint' => 'صورة الشوت قان أو أفضل سلاح عندك'],
+            ['key' => 'hair', 'title' => '3) الشعر', 'hint' => 'صورة الشعر/الهيت'],
+            ['key' => 'face', 'title' => '4) الوجه', 'hint' => 'صورة الوجه/الماسك'],
+            ['key' => 'tops', 'title' => '5) الصدريات / تيشيرتات', 'hint' => 'أفضل صدرية/تيشيرت'],
+            ['key' => 'pants', 'title' => '6) السراويل', 'hint' => 'أفضل بنطلون/سروال'],
+            ['key' => 'emotes', 'title' => '7) الرقصات', 'hint' => 'أشهر الرقصات'],
+            ['key' => 'login_emotes', 'title' => '8) رقصات تسجيل دخول', 'hint' => 'رقصات الدخول/اللوبي'],
+            ['key' => 'banners', 'title' => '9) البنرات', 'hint' => 'بنرات/بادجات الحساب'],
+            ['key' => 'fire_pass', 'title' => '10) الفير باسات', 'hint' => 'صورة الفير باس/الباس'],
+            ['key' => 'extra_1', 'title' => '11) صورة إضافية 1', 'hint' => 'أي شيء قوي بالحساب'],
+            ['key' => 'extra_2', 'title' => '12) صورة إضافية 2', 'hint' => 'أي شيء قوي بالحساب'],
+        ];
+        if ($minGalleryCount > count($guidedSlots)) {
+            for ($i = count($guidedSlots) + 1; $i <= $minGalleryCount; $i++) {
+                $x = $i - 10;
+                $guidedSlots[] = ['key' => "extra_{$x}", 'title' => "{$i}) صورة إضافية {$x}", 'hint' => 'صورة إضافية حسب ما تراه مناسباً'];
+            }
+        } else {
+            $guidedSlots = array_slice($guidedSlots, 0, $minGalleryCount);
+        }
+    }
+    $guidedGalleryKeys = $guidedGalleryKeys ?? array_values(array_map(fn($s) => (string)($s['key'] ?? ''), $guidedSlots));
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -324,29 +353,13 @@
                         </div>
                         <button type="button" id="toggleAdvancedGallery"
                                 class="mt-3 inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-gray-800 hover:bg-gray-50 transition">
-                            ⚙️ إعدادات متقدمة (رفع 12 صورة دفعة واحدة)
+                            ⚙️ إعدادات متقدمة (رفع {{ $minGalleryCount }} صورة دفعة واحدة)
                         </button>
                     </div>
 
                     <!-- Guided gallery (12 slots) -->
                     <div id="guidedGalleryWrap" class="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
-                        @php
-                            $slots = [
-                                ['key' => 'weapons_gallery', 'title' => '1) معرض أسلحة', 'hint' => 'صورة واضحة للأسلحة/الاسكنات'],
-                                ['key' => 'shotgun', 'title' => '2) الشوت قان', 'hint' => 'صورة الشوت قان أو أفضل سلاح عندك'],
-                                ['key' => 'hair', 'title' => '3) الشعر', 'hint' => 'صورة الشعر/الهيت'],
-                                ['key' => 'face', 'title' => '4) الوجه', 'hint' => 'صورة الوجه/الماسك'],
-                                ['key' => 'tops', 'title' => '5) الصدريات / تيشيرتات', 'hint' => 'أفضل صدرية/تيشيرت'],
-                                ['key' => 'pants', 'title' => '6) السراويل', 'hint' => 'أفضل بنطلون/سروال'],
-                                ['key' => 'emotes', 'title' => '7) الرقصات', 'hint' => 'أشهر الرقصات'],
-                                ['key' => 'login_emotes', 'title' => '8) رقصات تسجيل دخول', 'hint' => 'رقصات الدخول/اللوبي'],
-                                ['key' => 'banners', 'title' => '9) البنرات', 'hint' => 'بنرات/بادجات الحساب'],
-                                ['key' => 'fire_pass', 'title' => '10) الفير باسات', 'hint' => 'صورة الفير باس/الباس'],
-                                ['key' => 'extra_1', 'title' => '11) صورة إضافية 1', 'hint' => 'أي شيء قوي بالحساب'],
-                                ['key' => 'extra_2', 'title' => '12) صورة إضافية 2', 'hint' => 'أي شيء قوي بالحساب'],
-                            ];
-                        @endphp
-                        @foreach($slots as $s)
+                        @foreach($guidedSlots as $s)
                             <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
@@ -387,7 +400,7 @@
                         <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
                             <div class="text-sm font-extrabold text-yellow-900">⚠️ تنبيه</div>
                             <div class="text-xs text-yellow-800 mt-1">
-                                الوضع المتقدم يتيح رفع كل الصور دفعة واحدة. استخدمه فقط إذا كنت مرتب صورك بنفس الترتيب.
+                                الوضع المتقدم يتيح رفع كل الصور دفعة واحدة. الحد الأدنى المطلوب: {{ $minGalleryCount }} صورة.
                             </div>
                         </div>
 
@@ -479,6 +492,8 @@ const totalSteps = 7;
 let isProcessingImages = false;
 const MAX_IMG_DIM = 1600;
 const JPEG_QUALITY = 0.72;
+const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
+const GUIDED_KEYS = @json($guidedGalleryKeys);
 
 async function downscaleToJpeg(file, opts = {}) {
   const maxDim = opts.maxDim || MAX_IMG_DIM;
@@ -610,20 +625,18 @@ function validateStep(step) {
         const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
         if (mode === 'advanced') {
             const gallery = document.getElementById('gallery_images_advanced');
-            if (!gallery || gallery.files.length < 12) {
-                alert('يجب رفع 12 صورة على الأقل (الوضع المتقدم)');
+            if (!gallery || gallery.files.length < MIN_GALLERY_COUNT) {
+                alert(`يجب رفع ${MIN_GALLERY_COUNT} صورة على الأقل (الوضع المتقدم)`);
                 return false;
             }
         } else {
-            const requiredKeys = [
-                'weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'
-            ];
+            const requiredKeys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
             const missing = requiredKeys.filter(k => {
                 const inp = document.getElementById('gallery_guided_' + k);
                 return !inp || !inp.files || inp.files.length === 0;
             });
             if (missing.length > 0) {
-                alert('يجب رفع كل الصور بالترتيب (12 صورة).');
+                alert(`يجب رفع كل الصور بالترتيب (${requiredKeys.length} صورة).`);
                 return false;
             }
         }
@@ -687,7 +700,7 @@ function updateReview() {
     if (mode === 'advanced') {
         galleryCount = document.getElementById('gallery_images_advanced')?.files?.length || 0;
     } else {
-        const keys = ['weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'];
+        const keys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
         galleryCount = keys.reduce((acc, k) => {
             const inp = document.getElementById('gallery_guided_' + k);
             return acc + ((inp && inp.files && inp.files.length) ? 1 : 0);
@@ -913,7 +926,7 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
             // This bypasses edge cases where nested gallery_guided[...] files are not parsed server-side.
             formData.delete('gallery[]');
             formData.delete('gallery');
-            const keys = ['weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'];
+            const keys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
             keys.forEach((k) => {
                 const inp = document.getElementById('gallery_guided_' + k);
                 const f = inp && inp.files && inp.files[0] ? inp.files[0] : null;
@@ -1102,7 +1115,7 @@ function initGalleryModeToggle() {
         const current = (document.getElementById('galleryMode')?.value || 'guided').toString();
         if (current === 'advanced') {
             setGalleryMode('guided');
-            btn.textContent = '⚙️ إعدادات متقدمة (رفع 12 صورة دفعة واحدة)';
+            btn.textContent = `⚙️ إعدادات متقدمة (رفع ${MIN_GALLERY_COUNT} صورة دفعة واحدة)`;
         } else {
             setGalleryMode('advanced');
             btn.textContent = '✅ رجوع للوضع المرتب';
@@ -1202,11 +1215,11 @@ async function previewGalleryImages(input) {
             const nameLabel2 = document.getElementById('gallery_images_name');
             const count = (input.files && input.files.length) ? input.files.length : galleryFiles.length;
             if (nameLabel2) {
-                nameLabel2.textContent = count < 12
-                    ? `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${count})`
+                nameLabel2.textContent = count < MIN_GALLERY_COUNT
+                    ? `⚠️ يجب اختيار ${MIN_GALLERY_COUNT} صورة على الأقل (المختار: ${count})`
                     : `${count} صور مختارة`;
             }
-            if (nextBtn) nextBtn.disabled = count < 12;
+            if (nextBtn) nextBtn.disabled = count < MIN_GALLERY_COUNT;
         }
     } finally {
         setWizardBusy(false);
@@ -1229,9 +1242,9 @@ function renderGallery() {
         // DataTransfer may throw on iOS Safari; keep original input.files untouched.
     }
 
-    if (galleryFiles.length < 12) {
+    if (galleryFiles.length < MIN_GALLERY_COUNT) {
         if (nameLabel) {
-            nameLabel.textContent = `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${galleryFiles.length})`;
+            nameLabel.textContent = `⚠️ يجب اختيار ${MIN_GALLERY_COUNT} صورة على الأقل (المختار: ${galleryFiles.length})`;
             nameLabel.classList.add('text-red-600');
             nameLabel.classList.remove('text-green-600');
         }

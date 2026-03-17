@@ -29,6 +29,7 @@ class Setting extends Model
         'money_exchange_enabled',
         'charge_enabled',
         'codes_enabled',
+        'public_publish_min_gallery_images',
         'merchant_usd_rate',
         'merchant_charge_discount_percent',
         'point_price_sar',

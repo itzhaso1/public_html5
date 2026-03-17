@@ -59,14 +59,17 @@ class MainSettingRepository implements MainSettingInterface
             $hasMoneyToggle = false;
             $hasChargeToggle = false;
             $hasCodesToggle = false;
+            $hasPublishMinGallery = false;
             try {
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
                 $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
                 $hasCodesToggle = Schema::hasColumn('settings', 'codes_enabled');
+                $hasPublishMinGallery = Schema::hasColumn('settings', 'public_publish_min_gallery_images');
             } catch (\Throwable $e) {
                 $hasMoneyToggle = false;
                 $hasChargeToggle = false;
                 $hasCodesToggle = false;
+                $hasPublishMinGallery = false;
             }
 
             // Always update the latest settings row (singleton behavior).
@@ -103,6 +106,9 @@ class MainSettingRepository implements MainSettingInterface
             }
             if ($hasCodesToggle) {
                 $fields[] = 'codes_enabled';
+            }
+            if ($hasPublishMinGallery) {
+                $fields[] = 'public_publish_min_gallery_images';
             }
             try {
                 if (Schema::hasColumn('settings', 'merchant_usd_rate')) {
@@ -142,6 +148,12 @@ class MainSettingRepository implements MainSettingInterface
             }
             if ($hasCodesToggle) {
                 $setting->codes_enabled = $request->boolean('codes_enabled');
+            }
+            if ($hasPublishMinGallery) {
+                $n = (int) $request->input('public_publish_min_gallery_images', 12);
+                if ($n < 1) $n = 1;
+                if ($n > 40) $n = 40;
+                $setting->public_publish_min_gallery_images = $n;
             }
             $setting->save();
             if ($request->hasFile('logo'))
