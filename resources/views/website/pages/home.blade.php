@@ -72,23 +72,67 @@
     .home-featured-accounts-swiper .swiper-pagination {
         position: relative !important;
         bottom: 0 !important;
-        margin-top: 10px;
+        margin-top: 12px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
         text-align: center;
     }
 
     .home-featured-accounts-swiper .swiper-pagination-bullet {
-        width: 7px;
-        height: 7px;
+        width: 10px;
+        height: 10px;
         opacity: 1;
+        margin: 0 !important;
         background: #d1d5db;
-        margin: 0 4px !important;
-        transition: all 0.25s ease;
+        border-radius: 999px;
+        transform: scale(1);
+        transition: width 0.28s ease, transform 0.28s ease, background-color 0.28s ease, box-shadow 0.28s ease,
+            opacity 0.28s ease;
+    }
+
+    /* ========= Dot styles for featured accounts slider =========
+       Default active style: dots-style-pill
+       Alternatives: dots-style-ring, dots-style-progress
+    */
+    .home-featured-accounts-swiper.dots-style-pill .swiper-pagination-bullet-active {
+        width: 24px;
+        border-radius: 999px;
+        background: #facc15;
+        box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.22);
+    }
+
+    .home-featured-accounts-swiper.dots-style-ring .swiper-pagination-bullet {
+        border: 2px solid #d1d5db;
+        background: transparent;
+        width: 11px;
+        height: 11px;
+    }
+
+    .home-featured-accounts-swiper.dots-style-ring .swiper-pagination-bullet-active {
+        background: #facc15;
+        border-color: #facc15;
+        transform: scale(1.15);
+        box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.2);
+    }
+
+    .home-featured-accounts-swiper.dots-style-progress .swiper-pagination-bullet {
+        width: 16px;
+        height: 6px;
+        border-radius: 999px;
+        background: #e5e7eb;
+    }
+
+    .home-featured-accounts-swiper.dots-style-progress .swiper-pagination-bullet-active {
+        width: 34px;
+        background: linear-gradient(90deg, #facc15 0%, #f59e0b 100%);
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.28);
     }
 
     .home-featured-accounts-swiper .swiper-pagination-bullet-active {
-        width: 16px;
-        border-radius: 999px;
-        background: #facc15;
+        opacity: 1;
     }
 </style>
 @endpush
@@ -324,7 +368,7 @@
         الحسابات المميزة
     </h2>
 
-    <div class="swiper home-featured-accounts-swiper">
+    <div class="swiper home-featured-accounts-swiper dots-style-pill">
         <div class="swiper-wrapper">
             @foreach($featuredProducts as $product)
                 @php
