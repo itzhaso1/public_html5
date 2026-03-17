@@ -342,7 +342,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                 768: { centeredSlides: false, slidesPerView: 1.9, spaceBetween: 16 },
                                 1024: { centeredSlides: false, slidesPerView: 2.5, spaceBetween: 18 },
                             },
-                            pagination: paginationEl ? { el: paginationEl, clickable: true } : undefined,
+                            pagination: paginationEl ? {
+                                el: paginationEl,
+                                clickable: true,
+                                bulletClass: 'home-featured-dot',
+                                bulletActiveClass: 'is-active',
+                                renderBullet: function (index, className) {
+                                    return `<span class="${className}" aria-label="انتقل للسلايد ${index + 1}"></span>`;
+                                }
+                            } : undefined,
                         });
                     } catch (e) {}
                 });

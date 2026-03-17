@@ -54,7 +54,7 @@
     }
 
     .home-featured-accounts-swiper {
-        padding: 0 2px 36px;
+        padding: 0 6px 42px;
     }
 
     .home-featured-accounts-swiper .swiper-slide {
@@ -72,67 +72,32 @@
     .home-featured-accounts-swiper .swiper-pagination {
         position: relative !important;
         bottom: 0 !important;
-        margin-top: 12px;
+        margin-top: 14px;
         width: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 10px;
+        gap: 0;
         text-align: center;
+        pointer-events: auto;
     }
 
-    .home-featured-accounts-swiper .swiper-pagination-bullet {
-        width: 10px;
-        height: 10px;
+    .home-featured-accounts-swiper .home-featured-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
         opacity: 1;
-        margin: 0 !important;
+        margin: 0 5px !important;
         background: #d1d5db;
         border-radius: 999px;
         transform: scale(1);
-        transition: width 0.28s ease, transform 0.28s ease, background-color 0.28s ease, box-shadow 0.28s ease,
-            opacity 0.28s ease;
+        transition: width 0.3s ease, transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
     }
 
-    /* ========= Dot styles for featured accounts slider =========
-       Default active style: dots-style-pill
-       Alternatives: dots-style-ring, dots-style-progress
-    */
-    .home-featured-accounts-swiper.dots-style-pill .swiper-pagination-bullet-active {
-        width: 24px;
-        border-radius: 999px;
-        background: #facc15;
-        box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.22);
-    }
-
-    .home-featured-accounts-swiper.dots-style-ring .swiper-pagination-bullet {
-        border: 2px solid #d1d5db;
-        background: transparent;
-        width: 11px;
-        height: 11px;
-    }
-
-    .home-featured-accounts-swiper.dots-style-ring .swiper-pagination-bullet-active {
-        background: #facc15;
-        border-color: #facc15;
-        transform: scale(1.15);
-        box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.2);
-    }
-
-    .home-featured-accounts-swiper.dots-style-progress .swiper-pagination-bullet {
-        width: 16px;
-        height: 6px;
-        border-radius: 999px;
-        background: #e5e7eb;
-    }
-
-    .home-featured-accounts-swiper.dots-style-progress .swiper-pagination-bullet-active {
-        width: 34px;
+    .home-featured-accounts-swiper .home-featured-dot.is-active {
+        width: 30px;
         background: linear-gradient(90deg, #facc15 0%, #f59e0b 100%);
-        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.28);
-    }
-
-    .home-featured-accounts-swiper .swiper-pagination-bullet-active {
-        opacity: 1;
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
     }
 </style>
 @endpush
@@ -368,7 +333,7 @@
         الحسابات المميزة
     </h2>
 
-    <div class="swiper home-featured-accounts-swiper dots-style-progress">
+    <div class="swiper home-featured-accounts-swiper">
         <div class="swiper-wrapper">
             @foreach($featuredProducts as $product)
                 @php
