@@ -385,8 +385,16 @@ class ManualPaymentController extends Controller
             return response()->json(array_merge(['cached' => true], $cached));
         }
 
-        $service = new Shop2TopUpService();
-        $res = $service->checkPlayer($playerId);
+        try {
+            $service = new Shop2TopUpService();
+            $res = $service->checkPlayer($playerId);
+        } catch (\Throwable $e) {
+            report($e);
+            return response()->json([
+                'success' => false,
+                'msg' => 'تعذر الاتصال بخدمة التحقق حالياً. حاول بعد قليل.',
+            ], 200);
+        }
 
         // Cache only successful lookups to reduce API calls and avoid freezes.
         if (($res['success'] ?? false) === true && !empty($res['player_name'])) {

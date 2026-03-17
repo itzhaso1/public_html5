@@ -66,8 +66,15 @@ class WalletPointsPaymentController extends Controller
 
                 $check = Cache::get($cacheKey);
                 if (!is_array($check) || ($check['success'] ?? false) !== true) {
-                    $service = new Shop2TopUpService();
-                    $check = $service->checkPlayer($playerId);
+                    try {
+                        $service = new Shop2TopUpService();
+                        $check = $service->checkPlayer($playerId);
+                    } catch (\Throwable $e) {
+                        report($e);
+                        return back()
+                            ->withErrors(['error' => 'خدمة التحقق من اللاعب غير متاحة حالياً. حاول بعد قليل.'])
+                            ->withInput();
+                    }
                     if (($check['success'] ?? false) === true && !empty($check['player_name'])) {
                         Cache::put($cacheKey, $check, now()->addHours(12));
                     }
