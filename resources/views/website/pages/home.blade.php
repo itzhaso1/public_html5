@@ -52,6 +52,18 @@
         border-radius: 0.5rem;
         display: block;
     }
+
+    .home-section-swiper {
+        padding-bottom: 34px;
+    }
+
+    .home-section-swiper .swiper-slide {
+        height: auto;
+    }
+
+    .home-section-swiper .swiper-pagination {
+        bottom: 0 !important;
+    }
 </style>
 @endpush
 
@@ -282,11 +294,21 @@
 
 <!-- الأقسام والمنتجات -->
 @foreach($sections as $section)
+    @php
+        $sectionProducts = collect($section->products ?? collect())
+            ->sortByDesc(fn($p) => (float) ($p->price ?? 0))
+            ->values();
+    @endphp
+    @if($sectionProducts->isEmpty())
+        @continue
+    @endif
+
     <div class="px-4 py-6">
         <h2 class="text-center font-bold text-xl mb-4">{{ $section->name }}</h2>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            @foreach(($section->products ?? collect())->sortByDesc(fn($p) => (float) ($p->price ?? 0)) as $product)
+        <div class="swiper home-section-swiper">
+            <div class="swiper-wrapper">
+            @foreach($sectionProducts as $product)
                 @php
                     $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
                     $thumb = ($product->service_type ?? null) === 'codes' ? ($product->codeThumbnail?->image_path ?? null) : null;
@@ -308,6 +330,7 @@
                     }
                 @endphp
 
+                <div class="swiper-slide">
                 <div class="relative bg-white p-3 rounded-lg shadow text-center overflow-hidden flex flex-col h-full">
                     @if($isSold)
                         <div class="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow">
@@ -367,7 +390,10 @@
                         </a>
                     @endif
                 </div>
+                </div>
             @endforeach
+            </div>
+            <div class="swiper-pagination"></div>
         </div>
     </div>
 @endforeach

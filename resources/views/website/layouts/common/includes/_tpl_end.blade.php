@@ -302,6 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.querySelector('.reviewsSwiper');
                 if (!el || el.swiper) return;
                 try {
+                    const paginationEl = el.querySelector('.swiper-pagination');
                     new Swiper(el, {
                         loop: true,
                         autoplay: { delay: 3000, disableOnInteraction: false },
@@ -310,7 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         centeredSlides: true,
                         speed: 600,
                         effect: "slide",
-                        pagination: { el: ".swiper-pagination", clickable: true },
+                        pagination: paginationEl ? { el: paginationEl, clickable: true } : undefined,
                         breakpoints: {
                             480: { slidesPerView: 1.4 },
                             640: { slidesPerView: 2 },
@@ -320,10 +321,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {}
             };
 
+            const initHomeSectionSwipers = () => {
+                document.querySelectorAll('.home-section-swiper').forEach((el) => {
+                    if (!el || el.swiper) return;
+                    const slidesCount = el.querySelectorAll('.swiper-slide').length;
+                    if (!slidesCount) return;
+                    const paginationEl = el.querySelector('.swiper-pagination');
+                    try {
+                        new Swiper(el, {
+                            loop: slidesCount > 1,
+                            autoplay: slidesCount > 1 ? { delay: 3200, disableOnInteraction: false } : false,
+                            slidesPerView: 1.08,
+                            spaceBetween: 12,
+                            speed: 550,
+                            breakpoints: {
+                                640: { slidesPerView: 1.4, spaceBetween: 14 },
+                                768: { slidesPerView: 2, spaceBetween: 16 },
+                                1024: { slidesPerView: 3, spaceBetween: 18 },
+                            },
+                            pagination: paginationEl ? { el: paginationEl, clickable: true } : undefined,
+                        });
+                    } catch (e) {}
+                });
+            };
+
             const initAll = () => {
                 if (!window.Swiper) return;
                 initHeroSwipers();
                 initReviewsSwiper();
+                initHomeSectionSwipers();
             };
 
             const loadSwiperOnce = (cb) => {
