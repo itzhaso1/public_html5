@@ -62,6 +62,9 @@
                 سيتم الاستهداف بناءً على بيانات طلبات نشر الحساب من صفحة publish-product
                 (عدد الطلبات: {{ number_format((int) ($publishersCount ?? 0)) }}).
             </p>
+            <p class="mt-1 text-xs text-blue-700">
+                ملاحظة: سيتم إرفاق رابط إعلان كل حساب تلقائياً داخل الرسالة.
+            </p>
 
             <form method="POST" action="{{ route('admin.user_messages.broadcast_publishers') }}" class="mt-4 space-y-3">
                 @csrf
