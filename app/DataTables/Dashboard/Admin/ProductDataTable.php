@@ -129,7 +129,9 @@ class ProductDataTable extends BaseDataTable {
             $query->orderByDesc('products.id');
         });
 
-        // Override global search to avoid "products.name" SQL errors (name is translatable).
+        // Override global search to avoid SQL errors on translatable/non-physical columns.
+        // IMPORTANT: keep globalSearch disabled (second arg false/default) so DataTables
+        // does not attempt automatic search on unresolved column names.
         $table->filter(function (QueryBuilder $query) use ($hasSlug, $hasSku, $hasItemId, $hasTranslationName) {
             $search = trim((string) data_get(request()->input('search'), 'value', ''));
             if ($search === '') return;
@@ -160,7 +162,7 @@ class ProductDataTable extends BaseDataTable {
                     });
                 }
             });
-        }, true);
+        });
 
         return $table;
     }
