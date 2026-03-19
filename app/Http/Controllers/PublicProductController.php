@@ -316,8 +316,9 @@ class PublicProductController extends Controller
             }
 
             return redirect()
-                ->route('home')
-                ->with('error', 'حدث خطأ غير متوقع');
+                ->back()
+                ->withErrors(['error' => 'حدث خطأ غير متوقع أثناء الإرسال. حاول مرة أخرى.'])
+                ->withInput();
         }
     }
 

@@ -39,6 +39,36 @@
         }
     }
     $guidedGalleryKeys = $guidedGalleryKeys ?? array_values(array_map(fn($s) => (string)($s['key'] ?? ''), $guidedSlots));
+
+    $initialWizardStep = (int) old('wizard_step', 1);
+    $fieldToStep = [
+        'ar.name' => 1,
+        'ar.short_description' => 2,
+        'ar.description' => 3,
+        'client_number' => 4,
+        'client_email' => 4,
+        'price' => 4,
+        'product' => 5,
+        'gallery' => 6,
+        'gallery.' => 6,
+    ];
+    $errorStep = null;
+    if ($errors->any()) {
+        foreach ($errors->keys() as $field) {
+            $field = (string) $field;
+            foreach ($fieldToStep as $prefix => $stepNo) {
+                if ($field === $prefix || str_starts_with($field, $prefix)) {
+                    $stepNo = (int) $stepNo;
+                    $errorStep = $errorStep === null ? $stepNo : min($errorStep, $stepNo);
+                    break;
+                }
+            }
+        }
+    }
+    if ($errorStep !== null) {
+        $initialWizardStep = (int) $errorStep;
+    }
+    $initialWizardStep = max(1, min(7, $initialWizardStep));
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -91,6 +121,7 @@
             @if($isEdit)
                 @method('PUT')
             @endif
+            <input type="hidden" name="wizard_step" id="wizardStepInput" value="{{ $initialWizardStep }}">
 
             <!-- شريط التقدم -->
             <div class="space-y-2">
@@ -487,7 +518,7 @@
 </div>
 
 <script>
-let currentStep = 1;
+let currentStep = {{ (int) $initialWizardStep }};
 const totalSteps = 7;
 let isProcessingImages = false;
 const MAX_IMG_DIM = 1600;
@@ -574,18 +605,22 @@ function updateProgress(step) {
 }
 
 function showStep(step) {
+    const safeStep = Math.max(1, Math.min(totalSteps, parseInt(step || 1, 10) || 1));
+    currentStep = safeStep;
     document.querySelectorAll('.step').forEach(el => el.classList.add('hidden'));
-    const active = document.querySelector(`.step[data-step="${step}"]`);
+    const active = document.querySelector(`.step[data-step="${safeStep}"]`);
     if (active) active.classList.remove('hidden');
 
-    document.getElementById('wizardPrevBtn').classList.toggle('hidden', step === 1);
-    document.getElementById('wizardNextBtn').classList.toggle('hidden', step === totalSteps);
-    document.getElementById('finalSubmit').classList.toggle('hidden', step !== totalSteps);
+    document.getElementById('wizardPrevBtn').classList.toggle('hidden', safeStep === 1);
+    document.getElementById('wizardNextBtn').classList.toggle('hidden', safeStep === totalSteps);
+    document.getElementById('finalSubmit').classList.toggle('hidden', safeStep !== totalSteps);
 
-    document.getElementById('stepIndicator').textContent = `الخطوة ${step} من ${totalSteps}`;
-    updateProgress(step);
+    document.getElementById('stepIndicator').textContent = `الخطوة ${safeStep} من ${totalSteps}`;
+    updateProgress(safeStep);
+    const wizardInput = document.getElementById('wizardStepInput');
+    if (wizardInput) wizardInput.value = String(safeStep);
 
-    if (step === totalSteps) {
+    if (safeStep === totalSteps) {
         updateReview();
     }
 }
@@ -845,8 +880,11 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <script>
-document.getElementById('productForm').addEventListener('submit', function (e) {
+const productForm = document.getElementById('productForm');
+if (productForm) productForm.addEventListener('submit', function (e) {
     const form = this;
+    const wizardInput = document.getElementById('wizardStepInput');
+    if (wizardInput) wizardInput.value = String(currentStep || totalSteps);
     const formActionUrl = (() => {
         try { return new URL(form.action, window.location.origin).href; } catch (e) { return String(form.action || ''); }
     })();
@@ -892,7 +930,7 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
         // 3) If browser followed a redirect, responseURL usually becomes track URL
         try {
             const ru = normalizeUrl(xhrObj && xhrObj.responseURL ? xhrObj.responseURL : '');
-            if (ru && ru !== formActionUrl && /\/publish-product\/track\//i.test(ru)) return ru;
+            if (ru && ru !== formActionUrl && /\/publish-product\/(requests|track)\//i.test(ru)) return ru;
         } catch (e) {}
 
         // 4) Try to recover track_url from non-JSON/noisy response text
@@ -904,7 +942,7 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
                 u = normalizeUrl(recovered);
                 if (u) return u;
             }
-            const m2 = txt.match(/https?:\/\/[^\s"'<>]*\/publish-product\/track\/[A-Za-z0-9_-]+/i);
+            const m2 = txt.match(/https?:\/\/[^\s"'<>]*\/publish-product\/(requests|track)\/[A-Za-z0-9_-]+/i);
             if (m2 && m2[0]) {
                 u = normalizeUrl(m2[0]);
                 if (u) return u;

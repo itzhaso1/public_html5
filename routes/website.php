@@ -206,6 +206,9 @@ Route::group(
         // Shop
         // ===============================
         Route::get('shop', [Website\ShopController::class, 'index'])->name('shop.index');
+        // Legacy publish URL used by some users: /ar/product
+        Route::get('product', [PublicProductController::class, 'create'])->name('public.products.legacy_create');
+        Route::post('product', [PublicProductController::class, 'store'])->name('public.products.legacy_store');
         Route::get('product/{product}', [Website\WebsiteController::class, 'show'])->name('website.product.show');
         Route::post('product/{productId}/unlock-client', [Website\ShopController::class, 'unlockClientNumber'])->name('product.unlock.client');
  
