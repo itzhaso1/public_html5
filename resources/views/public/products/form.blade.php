@@ -847,6 +847,9 @@ document.addEventListener('DOMContentLoaded', () => {
 <script>
 document.getElementById('productForm').addEventListener('submit', function (e) {
     const form = this;
+    const formActionUrl = (() => {
+        try { return new URL(form.action, window.location.origin).href; } catch (e) { return String(form.action || ''); }
+    })();
     try { syncClientNumber(); } catch (e) {}
     const uploadBox = document.getElementById('uploadBox');
     const progressBar = document.getElementById('progressBar');
@@ -868,7 +871,51 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     if (uploadBox) uploadBox.classList.remove('hidden');
 
     // If SweetAlert2 didn't load yet, fallback to alert later
+    const normalizeUrl = (url) => {
+        const u = String(url || '').trim();
+        if (!u) return '';
+        try { return new URL(u, window.location.origin).href; } catch (e) { return ''; }
+    };
+
+    const extractTrackUrl = (payload, xhrObj) => {
+        // 1) Normal JSON payload
+        let u = normalizeUrl(payload && payload.track_url ? payload.track_url : '');
+        if (u) return u;
+
+        // 2) Response header fallback (works even when JSON parsing fails)
+        try {
+            const h = xhrObj && xhrObj.getResponseHeader ? xhrObj.getResponseHeader('X-Track-Url') : '';
+            u = normalizeUrl(h);
+            if (u) return u;
+        } catch (e) {}
+
+        // 3) If browser followed a redirect, responseURL usually becomes track URL
+        try {
+            const ru = normalizeUrl(xhrObj && xhrObj.responseURL ? xhrObj.responseURL : '');
+            if (ru && ru !== formActionUrl && /\/publish-product\/track\//i.test(ru)) return ru;
+        } catch (e) {}
+
+        // 4) Try to recover track_url from non-JSON/noisy response text
+        const txt = String((xhrObj && xhrObj.responseText) || '');
+        if (txt) {
+            const m1 = txt.match(/"track_url"\s*:\s*"([^"]+)"/i);
+            if (m1 && m1[1]) {
+                const recovered = m1[1].replace(/\\\//g, '/');
+                u = normalizeUrl(recovered);
+                if (u) return u;
+            }
+            const m2 = txt.match(/https?:\/\/[^\s"'<>]*\/publish-product\/track\/[A-Za-z0-9_-]+/i);
+            if (m2 && m2[0]) {
+                u = normalizeUrl(m2[0]);
+                if (u) return u;
+            }
+        }
+
+        return '';
+    };
+
     const showSuccess = (message = 'تم رفع المنتج بنجاح', redirectUrl = '') => {
+        const safeRedirect = normalizeUrl(redirectUrl);
         if (window.Swal && Swal.fire) {
             Swal.fire({
                 icon: 'success',
@@ -876,18 +923,21 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
                 text: message,
                 confirmButtonText: 'تمام'
             }).then(() => {
-                if (redirectUrl) {
-                    window.location.href = redirectUrl;
+                if (safeRedirect) {
+                    window.location.href = safeRedirect;
                 } else {
-                    window.location.reload();
+                    // Do not reload here; reloading sends user back to step 1.
+                    if (uploadBox) uploadBox.classList.add('hidden');
+                    if (submitBtn) submitBtn.textContent = 'تم إرسال الطلب';
                 }
             });
         } else {
             alert(message);
-            if (redirectUrl) {
-                window.location.href = redirectUrl;
+            if (safeRedirect) {
+                window.location.href = safeRedirect;
             } else {
-                window.location.reload();
+                if (uploadBox) uploadBox.classList.add('hidden');
+                if (submitBtn) submitBtn.textContent = 'تم إرسال الطلب';
             }
         }
     };
@@ -975,7 +1025,7 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
         } catch (e) {}
 
         if (xhr.status >= 200 && xhr.status < 300) {
-            const redirectUrl = (payload && payload.track_url) ? String(payload.track_url) : '';
+            const redirectUrl = extractTrackUrl(payload, xhr);
             const message = (payload && payload.message) ? String(payload.message) : 'تم رفع المنتج بنجاح';
             showSuccess(message, redirectUrl);
             return;

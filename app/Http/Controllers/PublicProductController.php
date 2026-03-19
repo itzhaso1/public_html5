@@ -280,11 +280,12 @@ class PublicProductController extends Controller
             $this->notifyOnNewPublishRequest($request, $slug);
 
             if ($this->expectsAjaxJson($request)) {
+                $trackUrl = route('public.products.track', ['slug' => $slug]);
                 return response()->json([
                     'ok' => true,
                     'message' => 'تم إرسال طلبك للمراجعة وسيتم نشر الحساب بعد موافقة الإدارة.',
-                    'track_url' => route('public.products.track', ['slug' => $slug]),
-                ], 201);
+                    'track_url' => $trackUrl,
+                ], 201)->header('X-Track-Url', $trackUrl);
             }
 
             return redirect()
