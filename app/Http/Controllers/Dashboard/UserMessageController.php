@@ -24,16 +24,8 @@ class UserMessageController extends Controller
             ->limit(500)
             ->get();
 
-        $publishersCount = 0;
-        try {
-            if (Schema::hasColumn('products', 'publish_source')) {
-                $publishersCount = Product::query()
-                    ->where('publish_source', 'public')
-                    ->count();
-            }
-        } catch (\Throwable $e) {
-            $publishersCount = 0;
-        }
+        // Keep count logic identical to broadcast targets so UI number is accurate.
+        $publishersCount = $this->publisherTargets()->count();
 
         return view('dashboard.admin.user_messages.index', [
             'pageTitle' => 'الرسائل للمستخدمين',
@@ -224,18 +216,70 @@ class UserMessageController extends Controller
                 return collect();
             }
 
-            $q = Product::query()->select([
-                'id',
-                'name',
-                'slug',
-                'status',
-                'publish_source',
-                'client_email',
-                'client_number',
-            ]);
+            // IMPORTANT: do not select "name" from products table (translatable field).
+            // Selecting a non-existing column here causes SQL error and returns empty targets.
+            $select = ['id', 'slug', 'status'];
+            $hasPublishSource = Schema::hasColumn('products', 'publish_source');
+            if ($hasPublishSource) {
+                $select[] = 'publish_source';
+            }
+            if ($hasClientEmail) {
+                $select[] = 'client_email';
+            }
+            if ($hasClientNumber) {
+                $select[] = 'client_number';
+            }
 
-            if (Schema::hasColumn('products', 'publish_source')) {
-                $q->where('publish_source', 'public');
+            $q = Product::query()
+                ->select($select)
+                ->with(['translations']);
+
+            // Only keep rows with at least one contact method.
+            $q->where(function ($c) use ($hasClientEmail, $hasClientNumber) {
+                if ($hasClientEmail && $hasClientNumber) {
+                    $c->where(function ($e) {
+                        $e->whereNotNull('client_email')->where('client_email', '!=', '');
+                    })->orWhere(function ($p) {
+                        $p->whereNotNull('client_number')->where('client_number', '!=', '');
+                    });
+                } elseif ($hasClientEmail) {
+                    $c->where(function ($e) {
+                        $e->whereNotNull('client_email')->where('client_email', '!=', '');
+                    });
+                } else {
+                    $c->where(function ($p) {
+                        $p->whereNotNull('client_number')->where('client_number', '!=', '');
+                    });
+                }
+            });
+
+            if ($hasPublishSource) {
+                $q->where(function ($w) use ($hasClientEmail, $hasClientNumber) {
+                    // Primary target: explicitly public-published rows.
+                    $w->where('publish_source', 'public');
+
+                    // Legacy fallback: rows created before publish_source existed.
+                    $w->orWhere(function ($legacy) use ($hasClientEmail, $hasClientNumber) {
+                        $legacy->whereNull('publish_source');
+                        $legacy->where(function ($c) use ($hasClientEmail, $hasClientNumber) {
+                            if ($hasClientEmail && $hasClientNumber) {
+                                $c->where(function ($e) {
+                                    $e->whereNotNull('client_email')->where('client_email', '!=', '');
+                                })->orWhere(function ($p) {
+                                    $p->whereNotNull('client_number')->where('client_number', '!=', '');
+                                });
+                            } elseif ($hasClientEmail) {
+                                $c->where(function ($e) {
+                                    $e->whereNotNull('client_email')->where('client_email', '!=', '');
+                                });
+                            } else {
+                                $c->where(function ($p) {
+                                    $p->whereNotNull('client_number')->where('client_number', '!=', '');
+                                });
+                            }
+                        });
+                    });
+                });
             }
 
             return $q->latest('id')->get();
@@ -250,6 +294,13 @@ class UserMessageController extends Controller
         $base = trim($baseMessage);
         $url = $this->accountUrlForMessage($product);
         $name = trim((string) ($product->name ?? ''));
+        if ($name === '') {
+            try {
+                $name = trim((string) ($product->translate('ar')->name ?? ''));
+            } catch (\Throwable $e) {
+                $name = '';
+            }
+        }
 
         $details = [];
         if ($name !== '') {
