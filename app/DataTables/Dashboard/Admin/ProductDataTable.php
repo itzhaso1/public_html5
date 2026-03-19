@@ -6,6 +6,7 @@ use App\DataTables\Base\BaseDataTable;
 use App\Models\Product;
 use App\Support\Shop2TopUp\Shop2TopUpBundle;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
+use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Utilities\Request as DataTableRequest;
  
@@ -99,35 +100,54 @@ class ProductDataTable extends BaseDataTable {
             })
             ->rawColumns(['select','category','tags','types','action', 'created_at', 'updated_at', 'product', 'itemID']);
 
-        // Custom, reliable search for accounts list (name is translatable).
-        $routeName = request()->route()?->getName();
-        if (in_array($routeName, ['admin.products.index', 'admin.products.accounts', 'admin.products.charge', 'admin.products.codes'], true)) {
-            // Force stable ordering to avoid ordering by translatable columns.
-            $table->order(function (QueryBuilder $query) {
-                $query->orderByDesc('products.id');
-            });
-
-            // Override global search to avoid "products.name" SQL errors (name is translatable).
-            $table->filter(function (QueryBuilder $query) {
-                $search = trim((string) data_get(request()->input('search'), 'value', ''));
-                if ($search === '') return;
-
-                $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $search) . '%';
-
-                $query->where(function (QueryBuilder $q) use ($search, $like) {
-                    if (ctype_digit($search)) {
-                        $q->orWhere('products.id', (int) $search);
-                    }
-
-                    $q->orWhere('products.slug', 'like', $like)
-                      ->orWhere('products.sku', 'like', $like)
-                      ->orWhere('products.itemID', 'like', $like)
-                      ->orWhereHas('translations', function (QueryBuilder $t) use ($like) {
-                          $t->where('name', 'like', $like);
-                      });
-                });
-            }, true);
+        // Custom, reliable search for product lists (name is translatable).
+        // Defensive guards: some deployments may miss optional columns.
+        $hasSlug = false;
+        $hasSku = false;
+        $hasItemId = false;
+        try {
+            if (Schema::hasTable('products')) {
+                $hasSlug = Schema::hasColumn('products', 'slug');
+                $hasSku = Schema::hasColumn('products', 'sku');
+                $hasItemId = Schema::hasColumn('products', 'itemID');
+            }
+        } catch (\Throwable $e) {
+            $hasSlug = false;
+            $hasSku = false;
+            $hasItemId = false;
         }
+
+        // Force stable ordering to avoid ordering by translatable columns.
+        $table->order(function (QueryBuilder $query) {
+            $query->orderByDesc('products.id');
+        });
+
+        // Override global search to avoid "products.name" SQL errors (name is translatable).
+        $table->filter(function (QueryBuilder $query) use ($hasSlug, $hasSku, $hasItemId) {
+            $search = trim((string) data_get(request()->input('search'), 'value', ''));
+            if ($search === '') return;
+
+            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $search) . '%';
+
+            $query->where(function (QueryBuilder $q) use ($search, $like, $hasSlug, $hasSku, $hasItemId) {
+                if (ctype_digit($search)) {
+                    $q->orWhere('products.id', (int) $search);
+                }
+
+                if ($hasSlug) {
+                    $q->orWhere('products.slug', 'like', $like);
+                }
+                if ($hasSku) {
+                    $q->orWhere('products.sku', 'like', $like);
+                }
+                if ($hasItemId) {
+                    $q->orWhere('products.itemID', 'like', $like);
+                }
+                $q->orWhereHas('translations', function (QueryBuilder $t) use ($like) {
+                    $t->where('name', 'like', $like);
+                });
+            });
+        }, true);
 
         return $table;
     }
