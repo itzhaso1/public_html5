@@ -521,8 +521,9 @@
 let currentStep = {{ (int) $initialWizardStep }};
 const totalSteps = 7;
 let isProcessingImages = false;
-const MAX_IMG_DIM = 1600;
-const JPEG_QUALITY = 0.72;
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+const MAX_IMG_DIM = IS_IOS ? 1280 : 1600;
+const JPEG_QUALITY = IS_IOS ? 0.62 : 0.72;
 const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
 const GUIDED_KEYS = @json($guidedGalleryKeys);
 let processedMainImage = null;
