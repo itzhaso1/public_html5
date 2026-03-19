@@ -189,8 +189,20 @@ div.dt-buttons{ display:none !important; }
                     @if(in_array($group, ['accounts','charge','codes']))
                         <form method="POST" action="{{ route('admin.products.bulk_delete', $group) }}" class="w-100 w-lg-auto bulk-delete-form">
                             @csrf
+                            <input type="hidden" name="confirm" value="DELETE">
                             <button type="submit" class="btn btn-danger w-100 w-lg-auto">
                                 حذف {{ $pageTitle ?? 'المنتجات' }} دفعة واحدة
+                            </button>
+                        </form>
+                    @endif
+
+                    @if($group === 'accounts')
+                        <form method="POST"
+                              action="{{ route('admin.products.bulk_delete_sold_accounts') }}"
+                              class="w-100 w-lg-auto bulk-delete-sold-form">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-danger w-100 w-lg-auto">
+                                حذف الحسابات المباعة فقط
                             </button>
                         </form>
                     @endif
@@ -394,6 +406,26 @@ $(function () {
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
             confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
+
+    $(document).on('submit', '.bulk-delete-sold-form', function (e) {
+        e.preventDefault();
+        const form = this;
+
+        Swal.fire({
+            title: 'تأكيد حذف الحسابات المباعة',
+            html: 'سيتم حذف <b>الحسابات المباعة فقط</b> ضمن قسم الحسابات.<br>لن يتم حذف العناصر المرتبطة بطلبات/سلة/مبيعات.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'نعم، احذف المباعة',
             cancelButtonText: 'إلغاء'
         }).then((result) => {
             if (result.isConfirmed) {

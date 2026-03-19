@@ -41,6 +41,8 @@ Route::group(['prefix' => LaravelLocalization::setLocale(), 'middleware' => ['lo
         Route::post('products/bulk-delete/{group}', [Dashboard\ProductController::class, 'bulkDeleteByGroup'])
             ->whereIn('group', ['accounts', 'charge', 'codes'])
             ->name('products.bulk_delete');
+        Route::post('products/bulk-delete-sold-accounts', [Dashboard\ProductController::class, 'bulkDeleteSoldAccounts'])
+            ->name('products.bulk_delete_sold_accounts');
         Route::post('products/bulk-delete-selected', [Dashboard\ProductController::class, 'bulkDeleteSelected'])
             ->name('products.bulk_delete_selected');
 

@@ -350,6 +350,55 @@ class ProductController extends Controller
         return back()->with('success', "تم حذف {$deleted} منتج بنجاح ✅");
     }
 
+    public function bulkDeleteSoldAccounts(Request $request)
+    {
+        // Sold accounts are regular accounts (service_type is null) marked as featured=1.
+        $query = Product::query()->with('media')
+            ->whereNull('service_type')
+            ->where('featured', 1);
+
+        // Never delete products that have manual payment requests.
+        $query->whereDoesntHave('manualPaymentRequests');
+
+        // Avoid deleting products currently in carts or referenced in orders.
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('carts')->whereNotNull('product_id');
+        });
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('order_items')->whereNotNull('product_id');
+        });
+
+        $toDeleteCount = (clone $query)->count();
+        if ($toDeleteCount === 0) {
+            return back()->with('success', 'لا يوجد حسابات مباعة يمكن حذفها حالياً (إما لا توجد أو مرتبطة بطلبات/سلة/مبيعات).');
+        }
+
+        $deleted = 0;
+        $query->orderBy('id')->chunkById(50, function ($products) use (&$deleted) {
+            foreach ($products as $product) {
+                try {
+                    if (method_exists($product, 'deleteExistingMedia')) {
+                        $product->deleteExistingMedia('product', $product, null, 'media', true, 'product');
+                        $product->deleteExistingMedia('gallery', $product, null, 'media', true, 'gallery');
+                    }
+                    $product->delete();
+                    $deleted++;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+
+        foreach (['ar', 'en'] as $locale) {
+            Cache::forget("home.products.$locale");
+            Cache::forget("home.sections.$locale");
+            Cache::forget("diamonds.charge.$locale");
+            Cache::forget("diamonds.codes.$locale");
+        }
+
+        return back()->with('success', "تم حذف {$deleted} حساب/حسابات مباعة بنجاح ✅");
+    }
+
     public function bulkDeleteSelected(Request $request)
     {
         $data = $request->validate([
