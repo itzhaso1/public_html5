@@ -40,7 +40,7 @@
     }
     $guidedGalleryKeys = $guidedGalleryKeys ?? array_values(array_map(fn($s) => (string)($s['key'] ?? ''), $guidedSlots));
 
-    $initialWizardStep = (int) old('wizard_step', 1);
+    $initialWizardStep = (int) old('wizard_step', (int) session('wizard_force_step', 1));
     $fieldToStep = [
         'ar.name' => 1,
         'ar.short_description' => 2,
@@ -525,6 +525,8 @@ const MAX_IMG_DIM = 1600;
 const JPEG_QUALITY = 0.72;
 const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
 const GUIDED_KEYS = @json($guidedGalleryKeys);
+let processedMainImage = null;
+const processedGuidedFiles = {};
 
 async function downscaleToJpeg(file, opts = {}) {
   const maxDim = opts.maxDim || MAX_IMG_DIM;
@@ -895,8 +897,6 @@ if (productForm) productForm.addEventListener('submit', function (e) {
     const progressInfo = document.getElementById('progressInfo');
     const progressTime = document.getElementById('progressTime');
 
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-
     // Basic guard: prevent double submit
     const submitBtn = document.getElementById('finalSubmit');
     if (submitBtn) {
@@ -994,20 +994,16 @@ if (productForm) productForm.addEventListener('submit', function (e) {
         }
     };
 
-    // iOS Safari is more reliable with native form submit for large multi-file uploads.
-    if (isIOS) {
-        // Let the browser handle upload; keep a simple “uploading” overlay.
-        if (progressPercent) progressPercent.innerText = 'جاري الرفع...';
-        if (progressInfo) progressInfo.innerText = 'قد يستغرق وقتًا حسب حجم الصور — لا تغلق الصفحة';
-        if (progressTime) progressTime.innerText = '';
-        if (progressBar) progressBar.style.width = '35%';
-        return; // do NOT preventDefault => native submit continues
-    }
-
     e.preventDefault();
 
     const formData = new FormData(form);
     try {
+        // Always prefer processed/compressed main image if available.
+        if (processedMainImage instanceof File) {
+            formData.delete('product');
+            formData.set('product', processedMainImage);
+        }
+
         const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
         if (mode === 'guided') {
             // Host/browser-safe path: send guided files as gallery[] only.
@@ -1022,10 +1018,27 @@ if (productForm) productForm.addEventListener('submit', function (e) {
             });
             keys.forEach((k) => {
                 const inp = document.getElementById('gallery_guided_' + k);
-                const f = inp && inp.files && inp.files[0] ? inp.files[0] : null;
+                const fallbackFile = inp && inp.files && inp.files[0] ? inp.files[0] : null;
+                const f = processedGuidedFiles[k] || fallbackFile;
                 if (f) formData.append('gallery[]', f);
             });
             formData.set('gallery_mode', 'guided');
+        } else {
+            // Advanced mode: submit processed files from in-memory list (iOS-safe).
+            formData.delete('gallery[]');
+            formData.delete('gallery');
+            if (Array.isArray(galleryFiles) && galleryFiles.length) {
+                galleryFiles.forEach((f) => {
+                    if (f instanceof File) formData.append('gallery[]', f);
+                });
+            } else {
+                const advancedInput = document.getElementById('gallery_images_advanced');
+                const fallbackFiles = advancedInput && advancedInput.files ? Array.from(advancedInput.files) : [];
+                fallbackFiles.forEach((f) => {
+                    if (f instanceof File) formData.append('gallery[]', f);
+                });
+            }
+            formData.set('gallery_mode', 'advanced');
         }
     } catch (e) {}
     const xhr = new XMLHttpRequest();
@@ -1138,6 +1151,7 @@ async function previewMainImage(input) {
       } catch (e) {}
     } catch (e) {}
 
+    processedMainImage = file;
     if (fileName) fileName.innerText = file.name;
     if (previewImg) previewImg.src = URL.createObjectURL(file);
     if (previewBox) previewBox.classList.remove('hidden');
@@ -1152,6 +1166,7 @@ function removeMainImage() {
     const fileName = document.getElementById('product_image_name');
     
     input.value = "";
+    processedMainImage = null;
     previewBox.classList.add('hidden');
     fileName.textContent = "لم يتم اختيار ملف";
 }
@@ -1231,6 +1246,7 @@ async function previewGuidedGallery(key, input) {
         } catch (e) {}
 
         try { file = await downscaleToJpeg(file); } catch (e) {}
+        processedGuidedFiles[key] = file;
 
         // Replace file on input (best-effort)
         try {
@@ -1257,6 +1273,7 @@ function clearGuidedGallery(key) {
     const box = document.getElementById('guided_preview_box_' + key);
     const name = document.getElementById('guided_file_name_' + key);
     try { if (input) input.value = ''; } catch (e) {}
+    try { delete processedGuidedFiles[key]; } catch (e) {}
     if (box) box.classList.add('hidden');
     if (name) name.textContent = 'لم يتم اختيار ملف';
     try { updateReview(); } catch (e) {}

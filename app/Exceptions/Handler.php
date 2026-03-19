@@ -48,17 +48,28 @@ class Handler extends ExceptionHandler
         });
 
         $this->renderable(function (PostTooLargeException $e, Request $request) {
-            $message = 'حجم الملف كبير. رجاءً ارفع إيصال أصغر أو صورة بدقة أقل.';
+            $path = trim((string) $request->path(), '/');
+            $isPublish = str_contains($path, 'publish-product') || preg_match('~(^|/)product$~', $path);
+
+            $message = $isPublish
+                ? 'حجم صور الحساب كبير جدًا. قلّل دقة الصور أو ارفع عددًا أقل في كل محاولة.'
+                : 'حجم الملف كبير. رجاءً ارفع إيصال أصغر أو صورة بدقة أقل.';
+
+            $errorKey = $isPublish ? 'gallery' : 'receipt';
 
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => $message,
+                    'errors' => [$errorKey => [$message]],
                 ], 413);
             }
 
-            return back()
-                ->withErrors(['receipt' => $message])
-                ->withInput();
+            $redirect = back()->withErrors([$errorKey => $message])->withInput();
+            if ($isPublish) {
+                $redirect->with('wizard_force_step', 6);
+            }
+
+            return $redirect;
         });
     }
 }
