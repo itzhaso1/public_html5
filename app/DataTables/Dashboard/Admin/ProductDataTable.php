@@ -125,20 +125,20 @@ class ProductDataTable extends BaseDataTable {
         }
 
         // Force stable ordering to avoid ordering by translatable columns.
-        $table->order(function (QueryBuilder $query) {
+        $table->order(function ($query) {
             $query->orderByDesc('products.id');
         });
 
         // Override global search to avoid SQL errors on translatable/non-physical columns.
         // IMPORTANT: keep globalSearch disabled (second arg false/default) so DataTables
         // does not attempt automatic search on unresolved column names.
-        $table->filter(function (QueryBuilder $query) use ($hasSlug, $hasSku, $hasItemId, $hasTranslationName) {
+        $table->filter(function ($query) use ($hasSlug, $hasSku, $hasItemId, $hasTranslationName) {
             $search = trim((string) data_get(request()->input('search'), 'value', ''));
             if ($search === '') return;
 
             $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $search) . '%';
 
-            $query->where(function (QueryBuilder $q) use ($search, $like, $hasSlug, $hasSku, $hasItemId) {
+            $query->where(function ($q) use ($search, $like, $hasSlug, $hasSku, $hasItemId, $hasTranslationName) {
                 if (ctype_digit($search)) {
                     $q->orWhere('products.id', (int) $search);
                 }
