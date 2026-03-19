@@ -6,6 +6,7 @@ use App\DataTables\Base\BaseDataTable;
 use App\Models\Product;
 use App\Support\Shop2TopUp\Shop2TopUpBundle;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Utilities\Request as DataTableRequest;
@@ -105,16 +106,22 @@ class ProductDataTable extends BaseDataTable {
         $hasSlug = false;
         $hasSku = false;
         $hasItemId = false;
+        $hasTranslationName = false;
         try {
             if (Schema::hasTable('products')) {
                 $hasSlug = Schema::hasColumn('products', 'slug');
                 $hasSku = Schema::hasColumn('products', 'sku');
                 $hasItemId = Schema::hasColumn('products', 'itemID');
             }
+            if (Schema::hasTable('product_translations')) {
+                $hasTranslationName = Schema::hasColumn('product_translations', 'name')
+                    && Schema::hasColumn('product_translations', 'product_id');
+            }
         } catch (\Throwable $e) {
             $hasSlug = false;
             $hasSku = false;
             $hasItemId = false;
+            $hasTranslationName = false;
         }
 
         // Force stable ordering to avoid ordering by translatable columns.
@@ -123,7 +130,7 @@ class ProductDataTable extends BaseDataTable {
         });
 
         // Override global search to avoid "products.name" SQL errors (name is translatable).
-        $table->filter(function (QueryBuilder $query) use ($hasSlug, $hasSku, $hasItemId) {
+        $table->filter(function (QueryBuilder $query) use ($hasSlug, $hasSku, $hasItemId, $hasTranslationName) {
             $search = trim((string) data_get(request()->input('search'), 'value', ''));
             if ($search === '') return;
 
@@ -143,9 +150,15 @@ class ProductDataTable extends BaseDataTable {
                 if ($hasItemId) {
                     $q->orWhere('products.itemID', 'like', $like);
                 }
-                $q->orWhereHas('translations', function (QueryBuilder $t) use ($like) {
-                    $t->where('name', 'like', $like);
-                });
+
+                if ($hasTranslationName) {
+                    $q->orWhereExists(function ($sq) use ($like) {
+                        $sq->select(DB::raw(1))
+                            ->from('product_translations as pt')
+                            ->whereColumn('pt.product_id', 'products.id')
+                            ->where('pt.name', 'like', $like);
+                    });
+                }
             });
         }, true);
 
@@ -207,7 +220,7 @@ class ProductDataTable extends BaseDataTable {
         return [
             ['name' => 'select', 'data' => 'select', 'title' => '<input type="checkbox" class="form-check-input" id="products-select-all" aria-label="Select all">', 'orderable' => false, 'searchable' => false],
             ['name' => 'id', 'data' => 'id', 'title' => '#', 'orderable' => true, 'searchable' => false],
-            ['name' => 'name', 'data' => 'name', 'title' => trans('dashboard/admin.product.name'), 'orderable' => false],
+            ['name' => 'name', 'data' => 'name', 'title' => trans('dashboard/admin.product.name'), 'orderable' => false, 'searchable' => false],
             ['name' => 'product', 'data' => 'product', 'title' => 'الصوره', 'orderable' => false, 'searchable' => false],
             ['name' => 'category', 'data' => 'category', 'title' => 'التصنيف', 'orderable' => false, 'searchable' => false],
             ['name' => 'brand', 'data' => 'brand', 'title' => 'الماركه', 'orderable' => false, 'searchable' => false],
