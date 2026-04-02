@@ -145,7 +145,8 @@ trait UploadMedia2 {
         bool $generateThumbnail = false,
         ?string $collectionName = null,
         bool $addWatermark = false,
-        int $topCropPx = 0
+        int $topCropPx = 0,
+        bool $blurTopRightName = false
     ) {
         $disk = $useStorage ? 'local' : 'public';
         $folderPath = "/uploads/$baseFolder";
@@ -169,6 +170,7 @@ trait UploadMedia2 {
         $sourcePath = $file->getPathname();
         $image = Image::make($sourcePath);
         $this->applyTopCrop($image, $topCropPx);
+        $this->applyTopRightNameBlur($image, $blurTopRightName);
         if ($addWatermark) {
             $watermark = Image::make(storage_path('app/public/watermark.png'));
             $image->insert($watermark, 'bottom-right', 10, 10);
@@ -210,7 +212,8 @@ trait UploadMedia2 {
         bool $generateThumbnail = false,
         ?string $collectionName = null,
         bool $addWatermark = false,
-        int $topCropPx = 0
+        int $topCropPx = 0,
+        bool $blurTopRightName = false
     ) {
         $this->deleteExistingMedia($baseFolder, $model, $column, $relation, $useStorage, $collectionName);
         return $this->uploadSingleMedia(
@@ -223,7 +226,8 @@ trait UploadMedia2 {
             $generateThumbnail,
             $collectionName,
             $addWatermark,
-            $topCropPx
+            $topCropPx,
+            $blurTopRightName
         );
     }
 
@@ -607,5 +611,40 @@ trait UploadMedia2 {
         // Keep coordinates valid and avoid over-cropping on very short images.
         $crop = min($crop, $height - 1);
         $image->crop($width, $height - $crop, 0, $crop);
+    }
+
+    private function applyTopRightNameBlur($image, bool $enabled, int $blurStrength = 35): void
+    {
+        if (! $enabled) {
+            return;
+        }
+
+        $imageWidth = (int) $image->width();
+        $imageHeight = (int) $image->height();
+        if ($imageWidth <= 1 || $imageHeight <= 1) {
+            return;
+        }
+
+        // Requested mask area (top-right, below top bar):
+        // x = image_width - 420, y = 40, w = 350, h = 100
+        $x = max(0, $imageWidth - 420);
+        $y = 40;
+        $w = 350;
+        $h = 100;
+
+        if ($y >= $imageHeight) {
+            return;
+        }
+
+        $w = min($w, $imageWidth - $x);
+        $h = min($h, $imageHeight - $y);
+        if ($w <= 0 || $h <= 0) {
+            return;
+        }
+
+        $region = clone $image;
+        $region->crop($w, $h, $x, $y);
+        $region->blur(max(1, min(100, (int) $blurStrength)));
+        $image->insert($region, 'top-left', $x, $y);
     }
 }

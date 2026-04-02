@@ -100,7 +100,8 @@ class ProductRepository implements ProductInterface
                 false,
                 null,
                 false,
-                self::ACCOUNT_TOP_CROP_PX
+                self::ACCOUNT_TOP_CROP_PX,
+                true
             );
 
             if ($media) {
@@ -161,7 +162,8 @@ class ProductRepository implements ProductInterface
             false,
             null,
             false,
-            self::ACCOUNT_TOP_CROP_PX
+            self::ACCOUNT_TOP_CROP_PX,
+            true
         );
 
         if ($media) {
