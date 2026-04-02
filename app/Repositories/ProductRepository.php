@@ -15,6 +15,8 @@ class ProductRepository implements ProductInterface
 {
     use UploadVideoTrait;
 
+    private const ACCOUNT_TOP_CROP_PX = 35;
+
     /* =========================
      * Index
      * ========================= */
@@ -94,7 +96,11 @@ class ProductRepository implements ProductInterface
                 $product,
                 null,
                 'media',
-                true
+                true,
+                false,
+                null,
+                false,
+                self::ACCOUNT_TOP_CROP_PX
             );
 
             if ($media) {
@@ -112,7 +118,9 @@ class ProductRepository implements ProductInterface
                 'media',
                 false,
                 true,
-                'gallery'
+                'gallery',
+                false,
+                self::ACCOUNT_TOP_CROP_PX
             );
         }
 
@@ -149,7 +157,11 @@ class ProductRepository implements ProductInterface
             $product,
             null,
             'media',
-            true
+            true,
+            false,
+            null,
+            false,
+            self::ACCOUNT_TOP_CROP_PX
         );
 
         if ($media) {
@@ -186,7 +198,9 @@ if (is_array($galleryFiles)) {
             'media',
             false,
             true,
-            'gallery'
+            'gallery',
+            false,
+            self::ACCOUNT_TOP_CROP_PX
         );
     }
 }
