@@ -168,6 +168,9 @@ trait UploadMedia2 {
         $fileName = uniqid() . '.' . $extension;
         $filePath = "$folderPath/$fileName";
         $sourcePath = $file->getPathname();
+        if ($topCropPx <= 0) {
+            $topCropPx = (int) config('account_image.top_crop_px', 0);
+        }
         $image = Image::make($sourcePath);
         $this->applyTopCrop($image, $topCropPx);
         $this->applyTopRightNameBlur($image, $blurTopRightName);
@@ -613,7 +616,7 @@ trait UploadMedia2 {
         $image->crop($width, $height - $crop, 0, $crop);
     }
 
-    private function applyTopRightNameBlur($image, bool $enabled, int $blurStrength = 35): void
+    private function applyTopRightNameBlur($image, bool $enabled, ?int $blurStrength = null): void
     {
         if (! $enabled) {
             return;
@@ -625,12 +628,12 @@ trait UploadMedia2 {
             return;
         }
 
-        // Requested mask area (top-right, below top bar):
-        // x = image_width - 420, y = 40, w = 350, h = 100
-        $x = max(0, $imageWidth - 420);
-        $y = 40;
-        $w = 350;
-        $h = 100;
+        $offsetFromRight = (int) config('account_image.name_blur.x_offset_from_right', 420);
+        $x = max(0, $imageWidth - $offsetFromRight);
+        $y = max(0, (int) config('account_image.name_blur.y', 40));
+        $w = max(1, (int) config('account_image.name_blur.width', 350));
+        $h = max(1, (int) config('account_image.name_blur.height', 100));
+        $strength = $blurStrength ?? (int) config('account_image.name_blur.strength', 35);
 
         if ($y >= $imageHeight) {
             return;
@@ -644,7 +647,7 @@ trait UploadMedia2 {
 
         $region = clone $image;
         $region->crop($w, $h, $x, $y);
-        $region->blur(max(1, min(100, (int) $blurStrength)));
+        $region->blur(max(1, min(100, (int) $strength)));
         $image->insert($region, 'top-left', $x, $y);
     }
 }
