@@ -169,10 +169,11 @@ trait UploadMedia2 {
         $filePath = "$folderPath/$fileName";
         $sourcePath = $file->getPathname();
         if ($topCropPx <= 0) {
-            $topCropPx = (int) config('account_image.top_crop_px', 0);
+            $topCropPx = (int) config('account_image.top_area.size_px', 0);
         }
+        $topMaskMode = strtolower((string) config('account_image.top_area.mode', 'crop'));
         $image = Image::make($sourcePath);
-        $this->applyTopCrop($image, $topCropPx);
+        $this->applyTopMask($image, $topCropPx, $topMaskMode);
         $this->applyTopRightNameBlur($image, $blurTopRightName);
         if ($addWatermark) {
             $watermark = Image::make(storage_path('app/public/watermark.png'));
@@ -293,9 +294,10 @@ trait UploadMedia2 {
                 mkdir($storageThumbnailPath, 0777, true);
             }
         }
+        $topMaskMode = strtolower((string) config('account_image.top_area.mode', 'crop'));
         // Always process thumbnail on a separate instance from original image.
         $thumbnail = Image::make($sourcePath);
-        $this->applyTopCrop($thumbnail, $topCropPx);
+        $this->applyTopMask($thumbnail, $topCropPx, $topMaskMode);
         // Crop is applied first, then resize as requested.
         $thumbnail = $thumbnail->resize(200, 200)->encode();
         if ($useStorage) {
@@ -473,7 +475,8 @@ trait UploadMedia2 {
             $filePath = $fullPath . '/' . $fileName;
             $sourcePath = $file->getPathname();
             $image = Image::make($sourcePath);
-            $this->applyTopCrop($image, $topCropPx);
+            $topMaskMode = strtolower((string) config('account_image.top_area.mode', 'crop'));
+            $this->applyTopMask($image, $topCropPx, $topMaskMode);
 
             // إضافة العلامة المائية لو مطلوبة
             if ($addWatermark && file_exists(storage_path('app/public/watermark.png'))) {
@@ -614,6 +617,44 @@ trait UploadMedia2 {
         // Keep coordinates valid and avoid over-cropping on very short images.
         $crop = min($crop, $height - 1);
         $image->crop($width, $height - $crop, 0, $crop);
+    }
+
+    private function applyTopMask($image, int $topCropPx, string $mode = 'crop'): void
+    {
+        $px = max(0, (int) $topCropPx);
+        if ($px === 0) {
+            return;
+        }
+
+        $mode = strtolower(trim((string) $mode));
+        if ($mode === 'none') {
+            return;
+        }
+
+        if ($mode === 'blur') {
+            $this->applyTopStripBlur($image, $px);
+            return;
+        }
+
+        // Default/fallback: crop.
+        $this->applyTopCrop($image, $px);
+    }
+
+    private function applyTopStripBlur($image, int $topPx, ?int $strength = null): void
+    {
+        $imageWidth = (int) $image->width();
+        $imageHeight = (int) $image->height();
+        if ($imageWidth <= 1 || $imageHeight <= 1) {
+            return;
+        }
+
+        $h = min(max(1, $topPx), $imageHeight);
+        $s = $strength ?? (int) config('account_image.top_area.blur_strength', 35);
+
+        $strip = clone $image;
+        $strip->crop($imageWidth, $h, 0, 0);
+        $strip->blur(max(1, min(100, (int) $s)));
+        $image->insert($strip, 'top-left', 0, 0);
     }
 
     private function applyTopRightNameBlur($image, bool $enabled, ?int $blurStrength = null): void

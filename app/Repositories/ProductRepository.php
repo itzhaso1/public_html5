@@ -98,7 +98,7 @@ class ProductRepository implements ProductInterface
                 false,
                 null,
                 false,
-                (int) config('account_image.top_crop_px', 35),
+                (int) config('account_image.top_area.size_px', 35),
                 true
             );
 
@@ -119,7 +119,7 @@ class ProductRepository implements ProductInterface
                 true,
                 'gallery',
                 false,
-                (int) config('account_image.top_crop_px', 35)
+                (int) config('account_image.top_area.size_px', 35)
             );
         }
 
@@ -160,7 +160,7 @@ class ProductRepository implements ProductInterface
             false,
             null,
             false,
-            (int) config('account_image.top_crop_px', 35),
+            (int) config('account_image.top_area.size_px', 35),
             true
         );
 
@@ -200,7 +200,7 @@ if (is_array($galleryFiles)) {
             true,
             'gallery',
             false,
-            (int) config('account_image.top_crop_px', 35)
+            (int) config('account_image.top_area.size_px', 35)
         );
     }
 }

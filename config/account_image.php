@@ -1,8 +1,14 @@
 <?php
 
 return [
-    // Crop top pixels from account images (main + gallery).
-    'top_crop_px' => (int) env('ACCOUNT_IMAGE_TOP_CROP_PX', 35),
+    // Top strip processing for account images (main + gallery):
+    // mode: blur | crop | none
+    'top_area' => [
+        // Backward compatible fallback to old var ACCOUNT_IMAGE_TOP_CROP_PX.
+        'size_px' => (int) env('ACCOUNT_IMAGE_TOP_AREA_SIZE_PX', (int) env('ACCOUNT_IMAGE_TOP_CROP_PX', 35)),
+        'mode' => env('ACCOUNT_IMAGE_TOP_AREA_MODE', 'blur'),
+        'blur_strength' => (int) env('ACCOUNT_IMAGE_TOP_AREA_BLUR_STRENGTH', 35),
+    ],
 
     // Blur account name area on main image only.
     'name_blur' => [
