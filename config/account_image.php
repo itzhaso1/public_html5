@@ -8,6 +8,13 @@ return [
         'size_px' => (int) env('ACCOUNT_IMAGE_TOP_AREA_SIZE_PX', (int) env('ACCOUNT_IMAGE_TOP_CROP_PX', 35)),
         'mode' => env('ACCOUNT_IMAGE_TOP_AREA_MODE', 'blur'),
         'blur_strength' => (int) env('ACCOUNT_IMAGE_TOP_AREA_BLUR_STRENGTH', 35),
+        // Control blur/crop width area in top band:
+        // - ratio of image width (1.0 = full width)
+        // - or fixed pixels (if > 0, overrides ratio)
+        'width_ratio' => (float) env('ACCOUNT_IMAGE_TOP_AREA_WIDTH_RATIO', 1.0),
+        'width_px' => (int) env('ACCOUNT_IMAGE_TOP_AREA_WIDTH_PX', 0),
+        // Right offset for top-area window (px), useful when width < full image width.
+        'x_from_right_px' => (int) env('ACCOUNT_IMAGE_TOP_AREA_X_FROM_RIGHT_PX', 0),
     ],
 
     // Blur account name area on main image only.
