@@ -60,7 +60,8 @@ trait UploadMedia2 {
         bool $useStorage = false,
         bool $generateThumbnail = false,
         ?string $collectionName = null,
-        bool $addWatermark = false
+        bool $addWatermark = false,
+        int $topCropPx = 0
     ) {
         $disk = $useStorage ? 'local' : 'public';
         $folderPath = "/uploads/$baseFolder";
@@ -81,7 +82,9 @@ trait UploadMedia2 {
         $extension = $file->getClientOriginalExtension();
         $fileName = uniqid() . '.' . $extension;
         $filePath = "$folderPath/$fileName";
-        $image = Image::make($file->getPathname());
+        $sourcePath = $file->getPathname();
+        $image = Image::make($sourcePath);
+        $this->applyTopCrop($image, $topCropPx);
         if ($addWatermark) {
             $watermark = Image::make(storage_path('app/public/watermark.png'));
             $image->insert($watermark, 'bottom-right', 10, 10);
@@ -92,7 +95,8 @@ trait UploadMedia2 {
             $image->save(storage_path("app/public/$filePath"));
         }
         if ($generateThumbnail) {
-            $this->generateThumbnail($image, $folderPath, $fileName, $useStorage);
+            // Build thumbnail from a fresh image instance to avoid double-crop side effects.
+            $this->generateThumbnail($sourcePath, $folderPath, $fileName, $useStorage, $topCropPx);
         }
         $collectionName = $collectionName ?? array_search($file, request()->allFiles(), true) ?? 'default';
         if ($relation) {
@@ -121,10 +125,22 @@ trait UploadMedia2 {
         bool $useStorage = false,
         bool $generateThumbnail = false,
         ?string $collectionName = null,
-        bool $addWatermark = false
+        bool $addWatermark = false,
+        int $topCropPx = 0
     ) {
         $this->deleteExistingMedia($baseFolder, $model, $column, $relation, $useStorage, $collectionName);
-        return $this->uploadSingleMedia($baseFolder, $file, $model, $column, $relation, $useStorage, $generateThumbnail, $collectionName, $addWatermark);
+        return $this->uploadSingleMedia(
+            $baseFolder,
+            $file,
+            $model,
+            $column,
+            $relation,
+            $useStorage,
+            $generateThumbnail,
+            $collectionName,
+            $addWatermark,
+            $topCropPx
+        );
     }
 
     public function deleteExistingMedia($baseFolder, $model, ?string $column, ?string $relation, bool $useStorage, ?string $collectionName)
@@ -171,7 +187,7 @@ trait UploadMedia2 {
         }
     }
 
-    private function generateThumbnail($image, string $folderPath, string $fileName, bool $useStorage)
+    private function generateThumbnail(string $sourcePath, string $folderPath, string $fileName, bool $useStorage, int $topCropPx = 0)
     {
         $thumbnailFolderPath = "$folderPath/thumbnails";
         $thumbnailPath = "$thumbnailFolderPath/$fileName";
@@ -186,7 +202,11 @@ trait UploadMedia2 {
                 mkdir($storageThumbnailPath, 0777, true);
             }
         }
-        $thumbnail = $image->resize(200, 200)->encode();
+        // Always process thumbnail on a separate instance from original image.
+        $thumbnail = Image::make($sourcePath);
+        $this->applyTopCrop($thumbnail, $topCropPx);
+        // Crop is applied first, then resize as requested.
+        $thumbnail = $thumbnail->resize(200, 200)->encode();
         if ($useStorage) {
             $thumbnail->save(public_path($thumbnailPath));
         } else {
@@ -324,7 +344,8 @@ trait UploadMedia2 {
         bool $useStorage = false,
         bool $generateThumbnail = false,
         ?string $collectionName = null,
-        bool $addWatermark = false
+        bool $addWatermark = false,
+        int $topCropPx = 0
     ): array {
         $uploadedFiles = [];
 
@@ -345,8 +366,9 @@ trait UploadMedia2 {
             $extension = $file->getClientOriginalExtension();
             $fileName = uniqid() . '.' . $extension;
             $filePath = $fullPath . '/' . $fileName;
-
-            $image = Image::make($file->getPathname());
+            $sourcePath = $file->getPathname();
+            $image = Image::make($sourcePath);
+            $this->applyTopCrop($image, $topCropPx);
 
             // إضافة العلامة المائية لو مطلوبة
             if ($addWatermark && file_exists(storage_path('app/public/watermark.png'))) {
@@ -360,7 +382,7 @@ trait UploadMedia2 {
             // إنشاء الصورة المصغرة
             if ($generateThumbnail) {
                 // We save originals directly under public/uploads/... so thumbnails must be there too.
-                $this->generateThumbnail($image, $folderPath, $fileName, true);
+                $this->generateThumbnail($sourcePath, $folderPath, $fileName, true, $topCropPx);
             }
 
             // حفظ في قاعدة البيانات
@@ -463,5 +485,23 @@ trait UploadMedia2 {
         }
 
         return $images;
+    }
+
+    private function applyTopCrop($image, int $topCropPx): void
+    {
+        $crop = max(0, (int) $topCropPx);
+        if ($crop === 0) {
+            return;
+        }
+
+        $width = (int) $image->width();
+        $height = (int) $image->height();
+        if ($width <= 0 || $height <= 1) {
+            return;
+        }
+
+        // Keep coordinates valid and avoid over-cropping on very short images.
+        $crop = min($crop, $height - 1);
+        $image->crop($width, $height - $crop, 0, $crop);
     }
 }
