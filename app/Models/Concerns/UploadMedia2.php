@@ -628,11 +628,25 @@ trait UploadMedia2 {
             return;
         }
 
-        $offsetFromRight = (int) config('account_image.name_blur.x_offset_from_right', 420);
-        $x = max(0, $imageWidth - $offsetFromRight);
-        $y = max(0, (int) config('account_image.name_blur.y', 40));
-        $w = max(1, (int) config('account_image.name_blur.width', 350));
-        $h = max(1, (int) config('account_image.name_blur.height', 100));
+        $mode = strtolower((string) config('account_image.name_blur.mode', 'adaptive'));
+        if ($mode === 'adaptive') {
+            $offsetRatio = (float) config('account_image.name_blur.x_offset_from_right_ratio', 0.39);
+            $yRatio = (float) config('account_image.name_blur.y_ratio', 0.037);
+            $wRatio = (float) config('account_image.name_blur.width_ratio', 0.325);
+            $hRatio = (float) config('account_image.name_blur.height_ratio', 0.093);
+
+            $offsetPx = (int) round($imageWidth * max(0.0, min(1.0, $offsetRatio)));
+            $x = max(0, $imageWidth - $offsetPx);
+            $y = (int) round($imageHeight * max(0.0, min(1.0, $yRatio)));
+            $w = (int) round($imageWidth * max(0.01, min(1.0, $wRatio)));
+            $h = (int) round($imageHeight * max(0.01, min(1.0, $hRatio)));
+        } else {
+            $offsetFromRight = (int) config('account_image.name_blur.x_offset_from_right', 420);
+            $x = max(0, $imageWidth - $offsetFromRight);
+            $y = max(0, (int) config('account_image.name_blur.y', 40));
+            $w = max(1, (int) config('account_image.name_blur.width', 350));
+            $h = max(1, (int) config('account_image.name_blur.height', 100));
+        }
         $strength = $blurStrength ?? (int) config('account_image.name_blur.strength', 35);
 
         if ($y >= $imageHeight) {
