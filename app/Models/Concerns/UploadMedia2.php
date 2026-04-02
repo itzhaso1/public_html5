@@ -650,11 +650,24 @@ trait UploadMedia2 {
 
         $h = min(max(1, $topPx), $imageHeight);
         $s = $strength ?? (int) config('account_image.top_area.blur_strength', 35);
+        $wPx = (int) config('account_image.top_area.width_px', 0);
+        $wRatio = (float) config('account_image.top_area.width_ratio', 1.0);
+        $xFromRight = (int) config('account_image.top_area.x_from_right_px', 0);
+
+        $w = $wPx > 0
+            ? min($imageWidth, $wPx)
+            : (int) round($imageWidth * max(0.01, min(1.0, $wRatio)));
+        $xFromRight = max(0, $xFromRight);
+        $x = max(0, $imageWidth - $xFromRight - $w);
+        $w = min($w, $imageWidth - $x);
+        if ($w <= 0) {
+            return;
+        }
 
         $strip = clone $image;
-        $strip->crop($imageWidth, $h, 0, 0);
+        $strip->crop($w, $h, $x, 0);
         $strip->blur(max(1, min(100, (int) $s)));
-        $image->insert($strip, 'top-left', 0, 0);
+        $image->insert($strip, 'top-left', $x, 0);
     }
 
     private function applyTopRightNameBlur($image, bool $enabled, ?int $blurStrength = null): void
