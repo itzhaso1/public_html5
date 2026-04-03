@@ -73,7 +73,7 @@ class WebsiteController extends Controller
             $order = array_flip($featuredProductIds->values()->all());
             $featuredProducts = Product::with(['translations', 'media'])
                 ->where('status', 'published')
-                ->whereNull('service_type')
+                ->accountsOnly()
                 ->whereIn('id', $featuredProductIds->all())
                 ->get()
                 ->sortBy(fn($p) => $order[(int) $p->id] ?? PHP_INT_MAX)
@@ -86,7 +86,7 @@ class WebsiteController extends Controller
         $products = Cache::remember("home.products.$locale", 60 * 5, function () use ($excludedProductIds) {
             $q = Product::with(['translations', 'media'])
                 ->where('status', 'published')
-                ->whereNull('service_type') // ✅ إخفاء الجواهر من هنا
+                ->accountsOnly() // ✅ إخفاء الجواهر من هنا
                 ->orderByDesc('price')
                 ->orderByDesc('id');
             if ($excludedProductIds->isNotEmpty()) {

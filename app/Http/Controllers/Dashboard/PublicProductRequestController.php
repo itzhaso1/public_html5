@@ -33,7 +33,7 @@ class PublicProductRequestController extends Controller
         $q = Product::query()
             ->with(['translations', 'media'])
             ->where('publish_source', 'public')
-            ->whereNull('service_type')
+            ->accountsOnly()
             ->latest();
 
         if ($filter !== 'all') {
@@ -246,7 +246,7 @@ class PublicProductRequestController extends Controller
         $q = Product::query()
             ->whereIn('id', $ids)
             ->where('publish_source', 'public')
-            ->whereNull('service_type');
+            ->accountsOnly();
 
         $found = $q->get();
         if ($found->isEmpty()) {

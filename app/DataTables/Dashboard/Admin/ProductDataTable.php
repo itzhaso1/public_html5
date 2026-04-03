@@ -188,7 +188,7 @@ class ProductDataTable extends BaseDataTable {
 
         if ($group === 'accounts') {
             // المنتجات العادية (حسابات): ليست شحن وليست أكواد
-            $query->whereNull('service_type');
+            $query->accountsOnly();
         } elseif ($group === 'charge') {
             // باقات الشحن (جواهر)
             $query->where('service_type', 'gems');

@@ -156,6 +156,18 @@ class Product extends Model implements TranslatableContract {
                 });
         });
     }
+
+    /**
+     * Accounts products only (exclude charge/codes), with backward compatibility
+     * for old rows where service_type may be an empty string instead of NULL.
+     */
+    public function scopeAccountsOnly($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('service_type')
+              ->orWhere('service_type', '');
+        });
+    }
     
     public function getImageUrl(): string
     {

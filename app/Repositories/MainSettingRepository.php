@@ -49,7 +49,7 @@ class MainSettingRepository implements MainSettingInterface
                 $homeFeaturedProducts = Product::query()
                     ->select(['id', 'price', 'status'])
                     ->where('status', 'published')
-                    ->whereNull('service_type')
+                    ->accountsOnly()
                     ->with(['translations'])
                     ->orderByDesc('id')
                     ->limit(500)

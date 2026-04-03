@@ -20,7 +20,7 @@ class ShopController extends Controller
         // ====================================================
         // ✅ إخفاء منتجات الشحن الجديدة من المتجر الرئيسي
         // ====================================================
-        $products->whereNull('service_type');
+        $products->accountsOnly();
         // ====================================================
  
         if ($request->filled('category_id')) {
@@ -87,7 +87,7 @@ class ShopController extends Controller
         ->where('id', '!=', $product->id)
         ->where('status', 'published')
         // ✅ إخفاء منتجات الشحن من المقترحات أيضاً
-        ->whereNull('service_type')
+        ->accountsOnly()
         ->take(10)
         ->get();
  

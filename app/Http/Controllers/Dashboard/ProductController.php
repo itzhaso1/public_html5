@@ -288,7 +288,7 @@ class ProductController extends Controller
         $query = Product::query()->with('media');
 
         if ($group === 'accounts') {
-            $query->whereNull('service_type');
+            $query->accountsOnly();
         } elseif ($group === 'charge') {
             $query->where('service_type', 'gems');
         } else { // codes
@@ -354,7 +354,7 @@ class ProductController extends Controller
     {
         // Sold accounts are regular accounts (service_type is null) marked as featured=1.
         $query = Product::query()->with('media')
-            ->whereNull('service_type')
+            ->accountsOnly()
             ->where('featured', 1);
 
         // Never delete products that have manual payment requests.
@@ -419,7 +419,7 @@ class ProductController extends Controller
         $query = Product::query()->with('media')->whereIn('id', $ids);
 
         if ($group === 'accounts') {
-            $query->whereNull('service_type');
+            $query->accountsOnly();
         } elseif ($group === 'charge') {
             $query->where('service_type', 'gems');
         } elseif ($group === 'codes') {

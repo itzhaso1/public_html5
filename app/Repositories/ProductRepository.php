@@ -37,7 +37,7 @@ class ProductRepository implements ProductInterface
         $countQuery = Product::query();
         if ($group === 'accounts') {
             $pageTitle = 'قائمة الحسابات';
-            $countQuery->whereNull('service_type');
+            $countQuery->accountsOnly();
         } elseif ($group === 'charge') {
             $pageTitle = 'قائمة باقات الشحن';
             $countQuery->where('service_type', 'gems');
