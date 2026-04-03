@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="form-group mb-3">
     <label>رقم العميل</label>
     <input type="text" name="client_number" class="form-control"
-           value="{{ old('client_number', $product->client_number ?? '') }}"
+           value="{{ old('client_number', $product?->client_number ?? '') }}"
            placeholder="اكتب رقم العميل هنا">
 </div>
 
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="form-group mb-3">
                         <label>السعر قبل الخصم</label>
                         <input type="number" step="0.01" name="price_before_discount" class="form-control"
-                            value="{{ old('price_before_discount', $product->price_before_discount ?? '') }}">
+                            value="{{ old('price_before_discount', $product?->price_before_discount ?? '') }}">
                     </div>
 
                     <div class="form-group mb-3">
@@ -153,13 +153,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="form-group mb-3">
                         <label>السعر</label>
                         <input type="number" step="0.01" name="price" class="form-control"
-                            value="{{ old('price', $product->price ?? '') }}">
+                            value="{{ old('price', $product?->price ?? '') }}">
                     </div>
 
                     <div class="form-group mb-3">
                         <label>السعر بالنقاط (اختياري)</label>
                         <input type="number" step="1" min="0" name="points_price" class="form-control"
-                               value="{{ old('points_price', $product->points_price ?? '') }}"
+                               value="{{ old('points_price', $product?->points_price ?? '') }}"
                                placeholder="مثال: 250">
                         <small class="text-muted">إذا تركته فارغاً فلن يظهر خيار الشراء بالنقاط في أقسام الشحن/الأكواد.</small>
                     </div>
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="form-group mb-3" style="display: none;">
     <label>الكمية المتاحة</label>
     <input type="number" name="stock" class="form-control"
-           value="{{ old('stock', $product->stock ?? '') }}">
+           value="{{ old('stock', $product?->stock ?? '') }}">
 </div>
 
 
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label>الحالة</label>
                         <select name="status" class="form-control">
                             
-                            <option value="published" @selected(old('status', $product->status ?? '') == 'published')>منشور</option>
+                            <option value="published" @selected(old('status', $product?->status ?? '') == 'published')>منشور</option>
                            
                         </select>
                     </div>
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     <div class="form-check mb-3">
                         <input type="checkbox" name="featured" value="1" class="form-check-input" id="featured" {{ old('featured',
-                            $product->featured ?? false) ? 'checked' : '' }}>
+                            $product?->featured ?? false) ? 'checked' : '' }}>
                         <label class="form-check-label" for="featured"> مباع</label>
                     </div>
                 
