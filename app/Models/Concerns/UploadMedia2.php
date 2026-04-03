@@ -130,7 +130,7 @@ trait UploadMedia2 {
             if (is_file($directFilePath)) {
                 return $directUrl;
             }
-            return $storageUrl;
+            return '';
         }
 
         if ($disk === 'direct_public') {
@@ -141,7 +141,7 @@ trait UploadMedia2 {
             if (is_file($storageFilePath)) {
                 return $storageUrl;
             }
-            return $directUrl;
+            return '';
         }
 
         // Unknown/empty disk from legacy rows: auto-detect existing file location.
@@ -152,8 +152,7 @@ trait UploadMedia2 {
             return $storageUrl;
         }
 
-        // Final fallback keeps old behavior stable even if file is missing.
-        return $directUrl;
+        return '';
     }
     public function uploadSingleMedia(
         $baseFolder,
@@ -391,7 +390,8 @@ trait UploadMedia2 {
             $fileName = $model->{$column};
             if ($fileName) {
                 $path = $this->resolveStoredPath($uploadsBase, (string) $fileName);
-                return $this->publicUploadsUrl('direct_public', $path);
+                $url = $this->publicUploadsUrl('direct_public', $path);
+                return $url !== '' ? $url : null;
             }
         }
         if ($relation && method_exists($model, $relation)) {
@@ -421,7 +421,8 @@ trait UploadMedia2 {
                 $fileName = (string) ($selected->file_name ?? '');
                 $disk = (string) ($selected->disk ?? '');
                 $path = $this->resolveStoredPath($uploadsBase, $fileName);
-                return $this->publicUploadsUrl($disk, $path);
+                $url = $this->publicUploadsUrl($disk, $path);
+                return $url !== '' ? $url : null;
             }
         }
         return null;

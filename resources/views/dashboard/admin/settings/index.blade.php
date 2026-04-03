@@ -88,14 +88,14 @@
                                     <label for="logo" class="form-label fw-bold">الشعار (Logo)</label>
                                     <input class="form-control" type="file" name="logo" id="logoInput"
                                         accept="image/*" >
-                                    <img src="{{$logo}}" class="img-fluid" style="max-height: 60px;" />
+                                    <img id="logoPreview" src="{{$logo}}" class="img-fluid" style="max-height: 60px;" />
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="p-3 mb-3 text-center border rounded">
                                     <label for="favicon" class="form-label fw-bold">favicon</label>
-                                    <input class="form-control" type="file" name="favicon" id="logoInput" accept="image/*">
-                                    <img src="{{$favicon}}" class="img-fluid" style="max-height: 60px;"/>
+                                    <input class="form-control" type="file" name="favicon" id="faviconInput" accept="image/*">
+                                    <img id="faviconPreview" src="{{$favicon}}" class="img-fluid" style="max-height: 60px;"/>
                                 </div>
                             </div>
                         <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel"
@@ -365,6 +365,7 @@
         function previewImage(inputId, previewId) {
             let input = document.getElementById(inputId);
             let preview = document.getElementById(previewId);
+            if (!input || !preview) return;
 
             input.addEventListener("change", function() {
                 let file = input.files[0];

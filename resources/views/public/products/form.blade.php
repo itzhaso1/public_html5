@@ -524,6 +524,7 @@ let isProcessingImages = false;
 const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
 const MAX_IMG_DIM = IS_IOS ? 1280 : 1600;
 const JPEG_QUALITY = IS_IOS ? 0.62 : 0.72;
+const MAX_TOTAL_UPLOAD_MB = IS_IOS ? 17 : 22; // keep below common post_max_size limits
 const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
 const GUIDED_KEYS = @json($guidedGalleryKeys);
 let processedMainImage = null;
@@ -532,12 +533,13 @@ const processedGuidedFiles = {};
 async function downscaleToJpeg(file, opts = {}) {
   const maxDim = opts.maxDim || MAX_IMG_DIM;
   const quality = (typeof opts.quality === 'number') ? opts.quality : JPEG_QUALITY;
+  const force = !!opts.force;
 
   if (!file || !file.type || !file.type.startsWith('image/')) return file;
 
   // Compress only if the file is large (keeps fast devices fast)
   const isHeic = file.type === 'image/heic' || (file.name || '').toLowerCase().endsWith('.heic');
-  if (!isHeic && (file.size || 0) < 900 * 1024) {
+  if (!force && !isHeic && (file.size || 0) < 900 * 1024) {
     return file;
   }
 
@@ -569,6 +571,83 @@ async function downscaleToJpeg(file, opts = {}) {
   if (!blob) return file;
   const base = (file.name || 'image').replace(/\.(heic|png|webp|jpeg|jpg)$/i, '');
   return new File([blob], base + '.jpg', { type: 'image/jpeg' });
+}
+
+async function aggressivelyCompressImage(file) {
+  if (!(file instanceof File)) return file;
+  const attempts = [
+    { maxDim: IS_IOS ? 1180 : 1360, quality: IS_IOS ? 0.58 : 0.66 },
+    { maxDim: IS_IOS ? 1024 : 1200, quality: IS_IOS ? 0.5 : 0.58 },
+    { maxDim: IS_IOS ? 900 : 1024, quality: IS_IOS ? 0.44 : 0.52 },
+  ];
+  let current = file;
+  for (const a of attempts) {
+    try {
+      current = await downscaleToJpeg(current, { ...a, force: true });
+    } catch (e) {}
+  }
+  return current;
+}
+
+function bytesToMB(bytes) {
+  return (Number(bytes || 0) / (1024 * 1024));
+}
+
+async function enforceUploadBudget() {
+  // Main
+  if (processedMainImage instanceof File) {
+    processedMainImage = await aggressivelyCompressImage(processedMainImage);
+  } else {
+    const inputMain = document.getElementById('product_image');
+    const rawMain = inputMain && inputMain.files && inputMain.files[0] ? inputMain.files[0] : null;
+    if (rawMain instanceof File) {
+      processedMainImage = await aggressivelyCompressImage(rawMain);
+    }
+  }
+
+  // Guided gallery
+  const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const input = document.getElementById('gallery_guided_' + key);
+      let f = processedGuidedFiles[key];
+      if (!(f instanceof File)) {
+        f = input && input.files && input.files[0] ? input.files[0] : null;
+      }
+      if (f instanceof File) {
+        processedGuidedFiles[key] = await aggressivelyCompressImage(f);
+      }
+    }
+  } else {
+    const advInput = document.getElementById('gallery_images_advanced');
+    const source = (Array.isArray(galleryFiles) && galleryFiles.length)
+      ? galleryFiles
+      : (advInput && advInput.files ? Array.from(advInput.files) : []);
+    if (source.length) {
+      const out = [];
+      for (const f of source) {
+        out.push(await aggressivelyCompressImage(f));
+      }
+      galleryFiles = out;
+    }
+  }
+
+  let totalBytes = 0;
+  if (processedMainImage instanceof File) totalBytes += processedMainImage.size || 0;
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const f = processedGuidedFiles[key];
+      if (f instanceof File) totalBytes += f.size || 0;
+    }
+  } else if (Array.isArray(galleryFiles)) {
+    for (const f of galleryFiles) {
+      if (f instanceof File) totalBytes += f.size || 0;
+    }
+  }
+
+  if (bytesToMB(totalBytes) > MAX_TOTAL_UPLOAD_MB) {
+    throw new Error(`حجم الصور بعد الضغط ما زال كبيرًا (${bytesToMB(totalBytes).toFixed(1)}MB). قلّل عدد الصور أو دقتها ثم أعد المحاولة.`);
+  }
 }
 
 function setWizardBusy(state, label = 'التالي') {
@@ -884,7 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 <script>
 const productForm = document.getElementById('productForm');
-if (productForm) productForm.addEventListener('submit', function (e) {
+if (productForm) productForm.addEventListener('submit', async function (e) {
     const form = this;
     const wizardInput = document.getElementById('wizardStepInput');
     if (wizardInput) wizardInput.value = String(currentStep || totalSteps);
@@ -996,6 +1075,12 @@ if (productForm) productForm.addEventListener('submit', function (e) {
     };
 
     e.preventDefault();
+    try {
+        await enforceUploadBudget();
+    } catch (err) {
+        showError((err && err.message) ? err.message : 'حجم الصور كبير جدًا. قلّل عدد الصور أو دقتها ثم أعد المحاولة.');
+        return;
+    }
 
     const formData = new FormData(form);
     try {
@@ -1089,6 +1174,11 @@ if (productForm) productForm.addEventListener('submit', function (e) {
                 ? payload.errors[firstField][0]
                 : null;
             showError(firstError || (payload.message || 'تحقق من البيانات في الخطوات المطلوبة.'));
+            return;
+        }
+
+        if (xhr.status === 413) {
+            showError('حجم صور الحساب كبير جدًا. قلّل دقة الصور أو ارفع عددًا أقل في كل محاولة.');
             return;
         }
 
