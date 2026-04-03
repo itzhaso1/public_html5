@@ -82,6 +82,26 @@ trait UploadMedia2 {
         return trim($uploadsBase, '/') . '/' . basename($fileName);
     }
 
+    private function fileExistsOnPublicOrStorage(string $uploadsPath): bool
+    {
+        if (preg_match('#^https?://#i', $uploadsPath)) {
+            return true;
+        }
+
+        $uploadsPath = ltrim((string) $uploadsPath, '/');
+        if ($uploadsPath === '') {
+            return false;
+        }
+
+        $directFilePath = public_path($uploadsPath);
+        $storageRelative = str_starts_with($uploadsPath, 'storage/')
+            ? ltrim((string) preg_replace('#^storage/#', '', $uploadsPath), '/')
+            : $uploadsPath;
+        $storageFilePath = storage_path("app/public/{$storageRelative}");
+
+        return is_file($directFilePath) || is_file($storageFilePath);
+    }
+
     private function publicUploadsUrl(string $disk, string $uploadsPath): string
     {
         if (preg_match('#^https?://#i', $uploadsPath)) {
@@ -249,8 +269,8 @@ trait UploadMedia2 {
             if ($collectionName) {
                 $query->where('collection_name', $collectionName);
             }
-            $media = $query->first();
-            if ($media) {
+            $mediaItems = $query->get();
+            foreach ($mediaItems as $media) {
                 $this->deleteFile($base, $media->file_name, $useStorage);
                 $media->delete();
             }
@@ -327,16 +347,29 @@ trait UploadMedia2 {
             if ($collectionName) {
                 $query->where('collection_name', $collectionName);
             }
-            $media = $query->first();
-            if (!$media && $collectionName) {
+            $mediaItems = $query->orderByDesc('id')->get();
+            if ($mediaItems->isEmpty() && $collectionName) {
                 // Backward compatibility for older rows that used different/empty collection names.
-                $media = $model->$relation()->first();
+                $mediaItems = $model->$relation()->orderByDesc('id')->get();
             }
-            if ($media) {
-                $disk = (string) ($media->disk ?? '');
-                $fileName = $media->file_name;
-                $path = $this->resolveStoredPath($base, (string) $fileName);
-                $thumb = $this->resolveStoredPath("{$base}/thumbnails", (string) $fileName);
+
+            $selected = null;
+            foreach ($mediaItems as $item) {
+                $candidatePath = $this->resolveStoredPath($base, (string) ($item->file_name ?? ''));
+                if ($this->fileExistsOnPublicOrStorage($candidatePath)) {
+                    $selected = $item;
+                    break;
+                }
+            }
+            if (! $selected && $mediaItems->isNotEmpty()) {
+                $selected = $mediaItems->first();
+            }
+
+            if ($selected) {
+                $disk = (string) ($selected->disk ?? '');
+                $fileName = (string) ($selected->file_name ?? '');
+                $path = $this->resolveStoredPath($base, $fileName);
+                $thumb = $this->resolveStoredPath("{$base}/thumbnails", $fileName);
                 $images['original'] = $this->publicUploadsUrl($disk, $path);
                 $images['thumbnail'] = $this->publicUploadsUrl($disk, $thumb);
             }
@@ -366,15 +399,28 @@ trait UploadMedia2 {
             if ($collectionName) {
                 $query->where('collection_name', $collectionName);
             }
-            $media = $query->first();
-            if (!$media && $collectionName) {
+            $mediaItems = $query->orderByDesc('id')->get();
+            if ($mediaItems->isEmpty() && $collectionName) {
                 // Backward compatibility for older rows that used different/empty collection names.
-                $media = $model->$relation()->first();
+                $mediaItems = $model->$relation()->orderByDesc('id')->get();
             }
-            if ($media) {
-                $fileName = $media->file_name;
-                $disk = (string) ($media->disk ?? '');
-                $path = $this->resolveStoredPath($uploadsBase, (string) $fileName);
+
+            $selected = null;
+            foreach ($mediaItems as $item) {
+                $candidatePath = $this->resolveStoredPath($uploadsBase, (string) ($item->file_name ?? ''));
+                if ($this->fileExistsOnPublicOrStorage($candidatePath)) {
+                    $selected = $item;
+                    break;
+                }
+            }
+            if (! $selected && $mediaItems->isNotEmpty()) {
+                $selected = $mediaItems->first();
+            }
+
+            if ($selected) {
+                $fileName = (string) ($selected->file_name ?? '');
+                $disk = (string) ($selected->disk ?? '');
+                $path = $this->resolveStoredPath($uploadsBase, $fileName);
                 return $this->publicUploadsUrl($disk, $path);
             }
         }
