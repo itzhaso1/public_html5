@@ -65,6 +65,7 @@ class ProductRepository implements ProductInterface
 
         return view('dashboard.admin.products.form', [
             'pageTitle' => 'إضافة منتج',
+            'product' => null,
             'defaultCategoryId' => $defaultCategoryId,
             'defaultTypeId' => $defaultTypeId,
             'categories' => $categories,

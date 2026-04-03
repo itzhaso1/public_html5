@@ -257,7 +257,7 @@
                     </div>
 
                     <input type="hidden" id="clientNumberFull" name="client_number"
-                           value="{{ old('client_number', $product->client_number ?? '') }}">
+                           value="{{ old('client_number', $product?->client_number ?? '') }}">
 
                     <div class="mt-2 text-xs text-gray-500">
                         يمكنك ترك الرقم فارغًا. سنستخدم البريد الإلكتروني لإشعارات حالة الحساب.
@@ -273,7 +273,7 @@
                             name="client_email"
                             autocomplete="email"
                             placeholder="اكتب بريدك لإشعارات حالة الحساب"
-                            value="{{ old('client_email', $product->client_email ?? '') }}"
+                            value="{{ old('client_email', $product?->client_email ?? '') }}"
                             class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
                                    px-4 py-5 text-lg
                                    placeholder:text-gray-400
@@ -295,7 +295,7 @@
                         type="number"
                         step="0.01"
                         name="price"
-                        value="{{ old('price', $product->price ?? '') }}"
+                        value="{{ old('price', $product?->price ?? '') }}"
                         class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
                                px-4 py-5 text-lg
                                focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

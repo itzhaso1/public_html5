@@ -110,6 +110,7 @@ class PublicProductController extends Controller
         $guidedSlots = $this->guidedSlotDefinitions($minGallery);
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج',
+            'product' => null,
             'formAction' => route('public.products.store', request()->query()),
             'minGalleryCount' => $minGallery,
             'guidedSlots' => $guidedSlots,
@@ -131,6 +132,7 @@ class PublicProductController extends Controller
         $guidedSlots = $this->guidedSlotDefinitions($minGallery);
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج (للإدارة)',
+            'product' => null,
             'formAction' => route('public.products.store_admin', request()->query()),
             'namePrefix' => 'ج',
             'minGalleryCount' => $minGallery,
