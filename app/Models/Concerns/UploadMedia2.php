@@ -348,8 +348,15 @@ trait UploadMedia2 {
             }
             $mediaItems = $query->orderByDesc('id')->get();
             if ($mediaItems->isEmpty() && $collectionName) {
-                // Backward compatibility for older rows that used different/empty collection names.
-                $mediaItems = $model->$relation()->orderByDesc('id')->get();
+                // Backward compatibility: only fallback to legacy unscoped rows
+                // (empty/default collection), never to other named collections.
+                $legacyQuery = $model->$relation();
+                $legacyQuery->where(function ($q) {
+                    $q->whereNull('collection_name')
+                        ->orWhere('collection_name', '')
+                        ->orWhere('collection_name', 'default');
+                });
+                $mediaItems = $legacyQuery->orderByDesc('id')->get();
             }
 
             $selected = null;
@@ -401,8 +408,15 @@ trait UploadMedia2 {
             }
             $mediaItems = $query->orderByDesc('id')->get();
             if ($mediaItems->isEmpty() && $collectionName) {
-                // Backward compatibility for older rows that used different/empty collection names.
-                $mediaItems = $model->$relation()->orderByDesc('id')->get();
+                // Backward compatibility: only fallback to legacy unscoped rows
+                // (empty/default collection), never to other named collections.
+                $legacyQuery = $model->$relation();
+                $legacyQuery->where(function ($q) {
+                    $q->whereNull('collection_name')
+                        ->orWhere('collection_name', '')
+                        ->orWhere('collection_name', 'default');
+                });
+                $mediaItems = $legacyQuery->orderByDesc('id')->get();
             }
 
             $selected = null;
@@ -628,8 +642,15 @@ trait UploadMedia2 {
 
             $mediaItems = $query->get();
             if ($mediaItems->isEmpty() && $collectionName) {
-                // Backward compatibility for older rows that used different/empty collection names.
-                $mediaItems = $model->$relation()->get();
+                // Backward compatibility: only fallback to legacy unscoped rows
+                // (empty/default collection), never to other named collections.
+                $legacyQuery = $model->$relation();
+                $legacyQuery->where(function ($q) {
+                    $q->whereNull('collection_name')
+                        ->orWhere('collection_name', '')
+                        ->orWhere('collection_name', 'default');
+                });
+                $mediaItems = $legacyQuery->get();
             }
 
             foreach ($mediaItems as $media) {
