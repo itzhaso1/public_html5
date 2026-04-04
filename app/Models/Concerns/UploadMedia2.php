@@ -595,6 +595,7 @@ trait UploadMedia2 {
         int $topCropPx = 0
     ): array {
         $uploadedFiles = [];
+        $isPublicPublish = (string) ($model->publish_source ?? '') === 'public';
 
         // المسار داخل public مباشرة
         $folderPath = "uploads/$baseFolder";
@@ -620,8 +621,10 @@ trait UploadMedia2 {
             if ($topCropPx < 0) $topCropPx = 0;
             $topMaskMode = strtolower((string) ($settings['top_area_mode'] ?? config('account_image.top_area.mode', 'crop')));
             $this->applyTopMask($image, $topCropPx, $topMaskMode);
-            // Center blur is for gallery images only.
-            $this->applyCenterSmallBlur($image);
+            // Center blur is only for public publish-product gallery uploads.
+            if ($isPublicPublish) {
+                $this->applyCenterSmallBlur($image);
+            }
 
             // إضافة العلامة المائية لو مطلوبة
             if ($addWatermark && file_exists(storage_path('app/public/watermark.png'))) {
