@@ -74,6 +74,28 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
+<!-- Publish awareness modal -->
+<div id="publishAdviceModal" class="hidden fixed inset-0 z-[9999] bg-black/55 flex items-center justify-center p-4" dir="rtl">
+    <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-indigo-100 overflow-hidden">
+        <div class="px-5 py-4 bg-indigo-50 border-b border-indigo-100">
+            <h3 class="text-base font-extrabold text-indigo-900">تنبيه مهم قبل نشر الحساب</h3>
+        </div>
+        <div class="p-5 space-y-3 text-sm leading-7 text-gray-800">
+            <p>
+                عزيزي العميل، لسرعة بيع حسابك اختر صور مناسبة وارفع حسابك بدقة حسب الشروط،
+                ولا تبالغ في السعر.
+            </p>
+            <p class="font-semibold text-emerald-700">لا تنسَ ذكر الله في طريقك.</p>
+        </div>
+        <div class="px-5 pb-5">
+            <button id="publishAdviceOkBtn" type="button"
+                    class="w-full rounded-xl bg-indigo-600 text-white py-3 font-bold hover:bg-indigo-700 transition">
+                موافق
+            </button>
+        </div>
+    </div>
+</div>
+
 <div class="w-full flex justify-center py-2">
     <div class="w-[85%] max-w-[300px] bg-red-50 border border-red-200 rounded-2xl p-3 text-center shadow-sm">
         <div class="text-red-600 text-lg mb-1">⚠️</div>
@@ -860,6 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
     showStep(currentStep);
     initGalleryModeToggle();
     setGalleryMode('guided');
+    initPublishAdviceModal();
     // Optional name prefix enforcement (admin publish link)
     try {
         const nameInput = document.querySelector('input[name="ar[name]"][data-name-prefix]');
@@ -916,6 +939,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } catch (e) {}
 });
+
+function initPublishAdviceModal() {
+    const modal = document.getElementById('publishAdviceModal');
+    const okBtn = document.getElementById('publishAdviceOkBtn');
+    if (!modal) return;
+
+    const storageKey = 'publish_advice_seen_v1';
+    const hideModal = () => {
+        modal.classList.add('hidden');
+        try { localStorage.setItem(storageKey, '1'); } catch (e) {}
+    };
+
+    try {
+        if (localStorage.getItem(storageKey) === '1') return;
+    } catch (e) {}
+
+    modal.classList.remove('hidden');
+    if (okBtn) okBtn.addEventListener('click', hideModal);
+
+    // Auto-hide after 15s if user doesn't click.
+    setTimeout(() => {
+        if (!modal.classList.contains('hidden')) {
+            hideModal();
+        }
+    }, 15000);
+}
 </script>
 
 <script>
