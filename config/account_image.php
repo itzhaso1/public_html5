@@ -61,8 +61,6 @@ return [
     // Blurs account name and UID areas instead of blurring a large generic box.
     'publish_banner_privacy_blur' => [
         'enabled' => (bool) env('ACCOUNT_IMAGE_PUBLISH_BANNER_PRIVACY_BLUR_ENABLED', true),
-        // strict = only primary boxes, dual = primary + secondary fallback boxes.
-        'mode' => env('ACCOUNT_IMAGE_PUBLISH_BANNER_PRIVACY_BLUR_MODE', 'dual'),
         'strength' => (int) env('ACCOUNT_IMAGE_PUBLISH_BANNER_PRIVACY_BLUR_STRENGTH', 55),
         // Name region (ratios are relative to full image size)
         'name_x_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME_X_RATIO', 0.72),
@@ -74,18 +72,6 @@ return [
         'uid_y_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID_Y_RATIO', 0.28),
         'uid_width_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID_WIDTH_RATIO', 0.17),
         'uid_height_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID_HEIGHT_RATIO', 0.08),
-
-        // Secondary fallback profile-card position (for screenshots where card shifts left).
-        // Supports both NAME2_* (new) and ALT_* (legacy) env keys.
-        'name2_x_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME2_X_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_NAME_X_RATIO', 0.60)),
-        'name2_y_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME2_Y_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_NAME_Y_RATIO', 0.14)),
-        'name2_width_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME2_WIDTH_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_NAME_WIDTH_RATIO', 0.23)),
-        'name2_height_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME2_HEIGHT_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_NAME_HEIGHT_RATIO', 0.09)),
-
-        'uid2_x_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID2_X_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_UID_X_RATIO', 0.67)),
-        'uid2_y_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID2_Y_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_UID_Y_RATIO', 0.24)),
-        'uid2_width_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID2_WIDTH_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_UID_WIDTH_RATIO', 0.16)),
-        'uid2_height_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID2_HEIGHT_RATIO', (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_ALT_UID_HEIGHT_RATIO', 0.07)),
     ],
 ];
 
