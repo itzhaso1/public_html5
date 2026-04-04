@@ -45,6 +45,7 @@ trait UploadMedia2 {
             'center_blur_height_ratio' => (float) config('account_image.center_blur.height_ratio', 0.2),
             'center_blur_strength' => (int) config('account_image.center_blur.strength', 35),
             'publish_banner_privacy_blur_enabled' => (bool) config('account_image.publish_banner_privacy_blur.enabled', true),
+            'publish_banner_privacy_blur_mode' => (string) config('account_image.publish_banner_privacy_blur.mode', 'dual'),
             'publish_banner_privacy_blur_strength' => (int) config('account_image.publish_banner_privacy_blur.strength', 55),
             'publish_banner_name_x_ratio' => (float) config('account_image.publish_banner_privacy_blur.name_x_ratio', 0.72),
             'publish_banner_name_y_ratio' => (float) config('account_image.publish_banner_privacy_blur.name_y_ratio', 0.17),
@@ -54,6 +55,18 @@ trait UploadMedia2 {
             'publish_banner_uid_y_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid_y_ratio', 0.28),
             'publish_banner_uid_width_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid_width_ratio', 0.17),
             'publish_banner_uid_height_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid_height_ratio', 0.08),
+            'publish_banner_alt_name_x_ratio' => (float) config('account_image.publish_banner_privacy_blur.name2_x_ratio', 0.60),
+            'publish_banner_alt_name_y_ratio' => (float) config('account_image.publish_banner_privacy_blur.name2_y_ratio', 0.14),
+            'publish_banner_alt_name_width_ratio' => (float) config('account_image.publish_banner_privacy_blur.name2_width_ratio', 0.23),
+            'publish_banner_alt_name_height_ratio' => (float) config('account_image.publish_banner_privacy_blur.name2_height_ratio', 0.09),
+            'publish_banner_alt_uid_x_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid2_x_ratio', 0.67),
+            'publish_banner_alt_uid_y_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid2_y_ratio', 0.24),
+            'publish_banner_alt_uid_width_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid2_width_ratio', 0.16),
+            'publish_banner_alt_uid_height_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid2_height_ratio', 0.07),
+            'publish_banner_card_x_ratio' => (float) config('account_image.publish_banner_privacy_blur.card_x_ratio', 0.66),
+            'publish_banner_card_y_ratio' => (float) config('account_image.publish_banner_privacy_blur.card_y_ratio', 0.10),
+            'publish_banner_card_width_ratio' => (float) config('account_image.publish_banner_privacy_blur.card_width_ratio', 0.31),
+            'publish_banner_card_height_ratio' => (float) config('account_image.publish_banner_privacy_blur.card_height_ratio', 0.30),
         ];
 
         try {
@@ -1017,26 +1030,62 @@ trait UploadMedia2 {
         }
 
         $strength = (int) ($settings['publish_banner_privacy_blur_strength'] ?? 55);
+        $mode = strtolower((string) ($settings['publish_banner_privacy_blur_mode'] ?? 'dual'));
 
-        // Name line region
-        $this->applyRatioBlurBox(
-            $image,
-            (float) ($settings['publish_banner_name_x_ratio'] ?? 0.72),
-            (float) ($settings['publish_banner_name_y_ratio'] ?? 0.17),
-            (float) ($settings['publish_banner_name_width_ratio'] ?? 0.24),
-            (float) ($settings['publish_banner_name_height_ratio'] ?? 0.10),
-            $strength
-        );
+        // Primary regions (layout #1)
+        $regions = [
+            [
+                'x' => (float) ($settings['publish_banner_name_x_ratio'] ?? 0.72),
+                'y' => (float) ($settings['publish_banner_name_y_ratio'] ?? 0.17),
+                'w' => (float) ($settings['publish_banner_name_width_ratio'] ?? 0.24),
+                'h' => (float) ($settings['publish_banner_name_height_ratio'] ?? 0.10),
+            ],
+            [
+                'x' => (float) ($settings['publish_banner_uid_x_ratio'] ?? 0.80),
+                'y' => (float) ($settings['publish_banner_uid_y_ratio'] ?? 0.28),
+                'w' => (float) ($settings['publish_banner_uid_width_ratio'] ?? 0.17),
+                'h' => (float) ($settings['publish_banner_uid_height_ratio'] ?? 0.08),
+            ],
+        ];
 
-        // UID region
-        $this->applyRatioBlurBox(
-            $image,
-            (float) ($settings['publish_banner_uid_x_ratio'] ?? 0.80),
-            (float) ($settings['publish_banner_uid_y_ratio'] ?? 0.28),
-            (float) ($settings['publish_banner_uid_width_ratio'] ?? 0.17),
-            (float) ($settings['publish_banner_uid_height_ratio'] ?? 0.08),
-            $strength
-        );
+        // Secondary regions (layout #2 fallback)
+        if (in_array($mode, ['dual', 'safe'], true)) {
+            $regions[] = [
+                'x' => (float) ($settings['publish_banner_alt_name_x_ratio'] ?? 0.69),
+                'y' => (float) ($settings['publish_banner_alt_name_y_ratio'] ?? 0.20),
+                'w' => (float) ($settings['publish_banner_alt_name_width_ratio'] ?? 0.26),
+                'h' => (float) ($settings['publish_banner_alt_name_height_ratio'] ?? 0.11),
+            ];
+            $regions[] = [
+                'x' => (float) ($settings['publish_banner_alt_uid_x_ratio'] ?? 0.78),
+                'y' => (float) ($settings['publish_banner_alt_uid_y_ratio'] ?? 0.30),
+                'w' => (float) ($settings['publish_banner_alt_uid_width_ratio'] ?? 0.20),
+                'h' => (float) ($settings['publish_banner_alt_uid_height_ratio'] ?? 0.09),
+            ];
+        }
+
+        foreach ($regions as $r) {
+            $this->applyRatioBlurBox(
+                $image,
+                (float) ($r['x'] ?? 0.0),
+                (float) ($r['y'] ?? 0.0),
+                (float) ($r['w'] ?? 0.0),
+                (float) ($r['h'] ?? 0.0),
+                $strength
+            );
+        }
+
+        // Safe mode: blur the whole profile card area (strong privacy fallback).
+        if ($mode === 'safe') {
+            $this->applyRatioBlurBox(
+                $image,
+                (float) ($settings['publish_banner_card_x_ratio'] ?? 0.66),
+                (float) ($settings['publish_banner_card_y_ratio'] ?? 0.10),
+                (float) ($settings['publish_banner_card_width_ratio'] ?? 0.31),
+                (float) ($settings['publish_banner_card_height_ratio'] ?? 0.30),
+                max(30, $strength)
+            );
+        }
     }
 
     private function applyRatioBlurBox($image, float $xRatio, float $yRatio, float $wRatio, float $hRatio, int $strength): void
