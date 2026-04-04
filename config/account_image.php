@@ -42,12 +42,18 @@ return [
     // If x/y are null/0, it is auto-centered.
     'center_blur' => [
         'enabled' => (bool) env('ACCOUNT_IMAGE_CENTER_BLUR_ENABLED', false),
+        // fixed = px-based coords, adaptive = ratio-based coords/sizes.
+        'mode' => env('ACCOUNT_IMAGE_CENTER_BLUR_MODE', 'fixed'),
         'x' => env('ACCOUNT_IMAGE_CENTER_BLUR_X'),
+        'x_ratio' => env('ACCOUNT_IMAGE_CENTER_BLUR_X_RATIO'),
         // If > 0, takes priority over X and places the box from right edge.
         'x_from_right' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_X_FROM_RIGHT', 0),
         'y' => env('ACCOUNT_IMAGE_CENTER_BLUR_Y'),
+        'y_ratio' => env('ACCOUNT_IMAGE_CENTER_BLUR_Y_RATIO'),
         'width' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_WIDTH', 120),
+        'width_ratio' => (float) env('ACCOUNT_IMAGE_CENTER_BLUR_WIDTH_RATIO', 0.2),
         'height' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_HEIGHT', 120),
+        'height_ratio' => (float) env('ACCOUNT_IMAGE_CENTER_BLUR_HEIGHT_RATIO', 0.2),
         'strength' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_STRENGTH', 35),
     ],
 ];

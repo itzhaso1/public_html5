@@ -32,12 +32,17 @@ trait UploadMedia2 {
             'name_blur_height' => (int) config('account_image.name_blur.height', 100),
             'name_blur_strength' => (int) config('account_image.name_blur.strength', 35),
             'center_blur_enabled' => (bool) config('account_image.center_blur.enabled', false),
+            'center_blur_mode' => (string) config('account_image.center_blur.mode', 'fixed'),
             // null/0 means "auto center".
             'center_blur_x' => ($cfgCenterX === '' ? null : $cfgCenterX),
             'center_blur_y' => ($cfgCenterY === '' ? null : $cfgCenterY),
             'center_blur_x_from_right' => (int) config('account_image.center_blur.x_from_right', 0),
             'center_blur_width' => (int) config('account_image.center_blur.width', 120),
             'center_blur_height' => (int) config('account_image.center_blur.height', 120),
+            'center_blur_x_ratio' => (float) config('account_image.center_blur.x_ratio', 0.5),
+            'center_blur_y_ratio' => (float) config('account_image.center_blur.y_ratio', 0.5),
+            'center_blur_width_ratio' => (float) config('account_image.center_blur.width_ratio', 0.2),
+            'center_blur_height_ratio' => (float) config('account_image.center_blur.height_ratio', 0.2),
             'center_blur_strength' => (int) config('account_image.center_blur.strength', 35),
         ];
 
@@ -888,18 +893,33 @@ trait UploadMedia2 {
         $xRaw = $settings['center_blur_x'] ?? null;
         $yRaw = $settings['center_blur_y'] ?? null;
         $xFromRightRaw = (int) ($settings['center_blur_x_from_right'] ?? 0);
+        $mode = strtolower((string) ($settings['center_blur_mode'] ?? 'fixed'));
 
-        // Priority: right offset (if > 0), then absolute X, then auto-center.
-        if ($xFromRightRaw > 0) {
-            $x = max(0, $imageWidth - $xFromRightRaw - $w);
+        if ($mode === 'adaptive') {
+            $xRatio = max(0.0, min(1.0, (float) ($settings['center_blur_x_ratio'] ?? 0.5)));
+            $yRatio = max(0.0, min(1.0, (float) ($settings['center_blur_y_ratio'] ?? 0.5)));
+            $wRatio = max(0.01, min(1.0, (float) ($settings['center_blur_width_ratio'] ?? 0.2)));
+            $hRatio = max(0.01, min(1.0, (float) ($settings['center_blur_height_ratio'] ?? 0.2)));
+
+            $w = max(1, (int) round($imageWidth * $wRatio));
+            $h = max(1, (int) round($imageHeight * $hRatio));
+            // Treat x/y ratios as center points for easier "put it in middle" behavior.
+            $x = max(0, (int) round(($imageWidth * $xRatio) - ($w / 2)));
+            $y = max(0, (int) round(($imageHeight * $yRatio) - ($h / 2)));
         } else {
-            $x = ($xRaw === null || (int) $xRaw === 0)
-                ? max(0, (int) floor(($imageWidth - $w) / 2))
-                : max(0, (int) $xRaw);
+
+            // Priority: right offset (if > 0), then absolute X, then auto-center.
+            if ($xFromRightRaw > 0) {
+                $x = max(0, $imageWidth - $xFromRightRaw - $w);
+            } else {
+                $x = ($xRaw === null || (int) $xRaw === 0)
+                    ? max(0, (int) floor(($imageWidth - $w) / 2))
+                    : max(0, (int) $xRaw);
+            }
+            $y = ($yRaw === null || (int) $yRaw === 0)
+                ? max(0, (int) floor(($imageHeight - $h) / 2))
+                : max(0, (int) $yRaw);
         }
-        $y = ($yRaw === null || (int) $yRaw === 0)
-            ? max(0, (int) floor(($imageHeight - $h) / 2))
-            : max(0, (int) $yRaw);
 
         if ($x >= $imageWidth || $y >= $imageHeight) {
             return;
