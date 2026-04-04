@@ -44,16 +44,6 @@ trait UploadMedia2 {
             'center_blur_width_ratio' => (float) config('account_image.center_blur.width_ratio', 0.2),
             'center_blur_height_ratio' => (float) config('account_image.center_blur.height_ratio', 0.2),
             'center_blur_strength' => (int) config('account_image.center_blur.strength', 35),
-            'publish_banner_privacy_blur_enabled' => (bool) config('account_image.publish_banner_privacy_blur.enabled', true),
-            'publish_banner_privacy_blur_strength' => (int) config('account_image.publish_banner_privacy_blur.strength', 55),
-            'publish_banner_name_x_ratio' => (float) config('account_image.publish_banner_privacy_blur.name_x_ratio', 0.72),
-            'publish_banner_name_y_ratio' => (float) config('account_image.publish_banner_privacy_blur.name_y_ratio', 0.17),
-            'publish_banner_name_width_ratio' => (float) config('account_image.publish_banner_privacy_blur.name_width_ratio', 0.24),
-            'publish_banner_name_height_ratio' => (float) config('account_image.publish_banner_privacy_blur.name_height_ratio', 0.10),
-            'publish_banner_uid_x_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid_x_ratio', 0.80),
-            'publish_banner_uid_y_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid_y_ratio', 0.28),
-            'publish_banner_uid_width_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid_width_ratio', 0.17),
-            'publish_banner_uid_height_ratio' => (float) config('account_image.publish_banner_privacy_blur.uid_height_ratio', 0.08),
         ];
 
         try {
@@ -631,11 +621,10 @@ trait UploadMedia2 {
             if ($topCropPx < 0) $topCropPx = 0;
             $topMaskMode = strtolower((string) ($settings['top_area_mode'] ?? config('account_image.top_area.mode', 'crop')));
             $this->applyTopMask($image, $topCropPx, $topMaskMode);
-            // For public publish-product image #9 (banners slot), blur only sensitive areas:
-            // account name + UID (instead of a large generic center blur).
+            // Center blur is only for public publish-product image #9 (banners slot).
             // Guided order maps slot #9 to zero-based index 8.
             if ($isPublicPublish && (int) $index === 8) {
-                $this->applyPublishBannerPrivacyBlur($image);
+                $this->applyCenterSmallBlur($image);
             }
 
             // إضافة العلامة المائية لو مطلوبة
@@ -941,127 +930,6 @@ trait UploadMedia2 {
         }
         $w = min($w, $imageWidth - $x);
         $h = min($h, $imageHeight - $y);
-        if ($w <= 0 || $h <= 0) {
-            return;
-        }
-
-        $region = clone $image;
-        $region->crop($w, $h, $x, $y);
-        $region->blur(max(1, min(100, $strength)));
-        $image->insert($region, 'top-left', $x, $y);
-    }
-
-    /**
-     * Precise blur for publish-product banner slot:
-     * - Account name region
-     * - UID region
-     * Controlled from .env via account_image.banner_target_blur.*.
-     */
-    private function applyBannerTargetsBlur($image): void
-    {
-        $targets = (array) config('account_image.banner_target_blur', []);
-        $enabled = (bool) ($targets['enabled'] ?? false);
-        if (! $enabled) {
-            return;
-        }
-
-        $imageWidth = (int) $image->width();
-        $imageHeight = (int) $image->height();
-        if ($imageWidth <= 1 || $imageHeight <= 1) {
-            return;
-        }
-
-        $strength = (int) ($targets['strength'] ?? 80);
-        $name = (array) ($targets['name'] ?? []);
-        $uid = (array) ($targets['uid'] ?? []);
-
-        $this->applyRatioBlurRegion($image, $name, $imageWidth, $imageHeight, $strength);
-        $this->applyRatioBlurRegion($image, $uid, $imageWidth, $imageHeight, $strength);
-    }
-
-    private function applyRatioBlurRegion($image, array $cfg, int $imageWidth, int $imageHeight, int $strength): void
-    {
-        $xRatio = max(0.0, min(1.0, (float) ($cfg['x_ratio'] ?? 0.0)));
-        $yRatio = max(0.0, min(1.0, (float) ($cfg['y_ratio'] ?? 0.0)));
-        $wRatio = max(0.0, min(1.0, (float) ($cfg['width_ratio'] ?? 0.0)));
-        $hRatio = max(0.0, min(1.0, (float) ($cfg['height_ratio'] ?? 0.0)));
-        if ($wRatio <= 0.0 || $hRatio <= 0.0) {
-            return;
-        }
-
-        $x = (int) round($imageWidth * $xRatio);
-        $y = (int) round($imageHeight * $yRatio);
-        $w = max(1, (int) round($imageWidth * $wRatio));
-        $h = max(1, (int) round($imageHeight * $hRatio));
-
-        if ($x >= $imageWidth || $y >= $imageHeight) {
-            return;
-        }
-        $w = min($w, $imageWidth - $x);
-        $h = min($h, $imageHeight - $y);
-        if ($w <= 0 || $h <= 0) {
-            return;
-        }
-
-        $region = clone $image;
-        $region->crop($w, $h, $x, $y);
-        $region->blur(max(1, min(100, $strength)));
-        $image->insert($region, 'top-left', $x, $y);
-    }
-
-    private function applyPublishBannerPrivacyBlur($image): void
-    {
-        $settings = $this->appImageBlurSettings();
-        if (! (bool) ($settings['publish_banner_privacy_blur_enabled'] ?? true)) {
-            return;
-        }
-
-        $strength = (int) ($settings['publish_banner_privacy_blur_strength'] ?? 55);
-
-        // Name line region
-        $this->applyRatioBlurBox(
-            $image,
-            (float) ($settings['publish_banner_name_x_ratio'] ?? 0.72),
-            (float) ($settings['publish_banner_name_y_ratio'] ?? 0.17),
-            (float) ($settings['publish_banner_name_width_ratio'] ?? 0.24),
-            (float) ($settings['publish_banner_name_height_ratio'] ?? 0.10),
-            $strength
-        );
-
-        // UID region
-        $this->applyRatioBlurBox(
-            $image,
-            (float) ($settings['publish_banner_uid_x_ratio'] ?? 0.80),
-            (float) ($settings['publish_banner_uid_y_ratio'] ?? 0.28),
-            (float) ($settings['publish_banner_uid_width_ratio'] ?? 0.17),
-            (float) ($settings['publish_banner_uid_height_ratio'] ?? 0.08),
-            $strength
-        );
-    }
-
-    private function applyRatioBlurBox($image, float $xRatio, float $yRatio, float $wRatio, float $hRatio, int $strength): void
-    {
-        $imageWidth = (int) $image->width();
-        $imageHeight = (int) $image->height();
-        if ($imageWidth <= 1 || $imageHeight <= 1) {
-            return;
-        }
-
-        $xRatio = max(0.0, min(1.0, $xRatio));
-        $yRatio = max(0.0, min(1.0, $yRatio));
-        $wRatio = max(0.01, min(1.0, $wRatio));
-        $hRatio = max(0.01, min(1.0, $hRatio));
-
-        $x = (int) round($imageWidth * $xRatio);
-        $y = (int) round($imageHeight * $yRatio);
-        $w = (int) round($imageWidth * $wRatio);
-        $h = (int) round($imageHeight * $hRatio);
-
-        if ($x >= $imageWidth || $y >= $imageHeight) {
-            return;
-        }
-        $w = min(max(1, $w), $imageWidth - $x);
-        $h = min(max(1, $h), $imageHeight - $y);
         if ($w <= 0 || $h <= 0) {
             return;
         }

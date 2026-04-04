@@ -56,22 +56,5 @@ return [
         'height_ratio' => (float) env('ACCOUNT_IMAGE_CENTER_BLUR_HEIGHT_RATIO', 0.2),
         'strength' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_STRENGTH', 35),
     ],
-
-    // Targeted privacy blur for publish-product image #9 (banners slot) only.
-    // Blurs account name and UID areas instead of blurring a large generic box.
-    'publish_banner_privacy_blur' => [
-        'enabled' => (bool) env('ACCOUNT_IMAGE_PUBLISH_BANNER_PRIVACY_BLUR_ENABLED', true),
-        'strength' => (int) env('ACCOUNT_IMAGE_PUBLISH_BANNER_PRIVACY_BLUR_STRENGTH', 55),
-        // Name region (ratios are relative to full image size)
-        'name_x_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME_X_RATIO', 0.72),
-        'name_y_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME_Y_RATIO', 0.17),
-        'name_width_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME_WIDTH_RATIO', 0.24),
-        'name_height_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_NAME_HEIGHT_RATIO', 0.10),
-        // UID region
-        'uid_x_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID_X_RATIO', 0.80),
-        'uid_y_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID_Y_RATIO', 0.28),
-        'uid_width_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID_WIDTH_RATIO', 0.17),
-        'uid_height_ratio' => (float) env('ACCOUNT_IMAGE_PUBLISH_BANNER_UID_HEIGHT_RATIO', 0.08),
-    ],
 ];
 
