@@ -319,20 +319,76 @@
                                            value="{{ old('account_center_blur_strength', (int) ($setting?->account_center_blur_strength ?? 35)) }}">
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="input-group-text text-dark">إحداثي X (ثابت)</label>
+                                    <label class="input-group-text text-dark">إحداثي X (0 = وسط)</label>
                                     <input type="number" step="1" class="form-control" name="account_center_blur_x"
                                            value="{{ old('account_center_blur_x', (int) ($setting?->account_center_blur_x ?? 0)) }}">
-                                    <div class="form-text">اتركه 0 ليكون مربع التغبيش في المنتصف تلقائياً.</div>
+                                    <div class="form-text">إذا وضعت 0 سيتم توسيط المربع تلقائياً.</div>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="input-group-text text-dark">إحداثي Y (ثابت)</label>
+                                    <label class="input-group-text text-dark">إحداثي Y (0 = وسط)</label>
                                     <input type="number" step="1" class="form-control" name="account_center_blur_y"
                                            value="{{ old('account_center_blur_y', (int) ($setting?->account_center_blur_y ?? 0)) }}">
-                                    <div class="form-text">اتركه 0 ليكون مربع التغبيش في المنتصف تلقائياً.</div>
+                                    <div class="form-text">إذا وضعت 0 سيتم توسيط المربع تلقائياً.</div>
                                 </div>
                             </div>
                             <div class="form-text mt-3">
                                 ملاحظة: يمكنك تكبير/تصغير العرض والارتفاع كما تريد من هنا مباشرة بدون تعديل كود.
+                            </div>
+
+                            <hr class="my-4">
+                            <h6 class="fw-bold mb-3">إعدادات تغبيش الجزء العلوي</h6>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">نمط الجزء العلوي</label>
+                                    <select name="account_top_area_mode" id="account_top_area_mode" class="form-select">
+                                        @php $topModeOld = old('account_top_area_mode', (string) ($setting?->account_top_area_mode ?? 'blur')); @endphp
+                                        <option value="blur" {{ $topModeOld === 'blur' ? 'selected' : '' }}>Blur</option>
+                                        <option value="crop" {{ $topModeOld === 'crop' ? 'selected' : '' }}>Crop</option>
+                                        <option value="none" {{ $topModeOld === 'none' ? 'selected' : '' }}>None</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">ارتفاع الجزء العلوي (PX)</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="account_top_area_size_px" id="account_top_area_size_px"
+                                           value="{{ old('account_top_area_size_px', (int) ($setting?->account_top_area_size_px ?? 35)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">عرض الجزء العلوي (PX)</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="account_top_area_width_px" id="account_top_area_width_px"
+                                           value="{{ old('account_top_area_width_px', (int) ($setting?->account_top_area_width_px ?? 0)) }}">
+                                    <div class="form-text">0 = عرض كامل الصورة.</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">إزاحة X من اليمين (PX)</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="account_top_area_x_from_right_px" id="account_top_area_x_from_right_px"
+                                           value="{{ old('account_top_area_x_from_right_px', (int) ($setting?->account_top_area_x_from_right_px ?? 0)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">قوة تغبيش الجزء العلوي</label>
+                                    <input type="number" min="1" max="100" step="1" class="form-control" name="account_top_area_blur_strength" id="account_top_area_blur_strength"
+                                           value="{{ old('account_top_area_blur_strength', (int) ($setting?->account_top_area_blur_strength ?? 35)) }}">
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+                            <h6 class="fw-bold mb-3">معاينة مباشرة (Preview)</h6>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark mb-2">ارفع صورة للمعاينة فقط</label>
+                                    <input type="file" id="blurPreviewInput" class="form-control" accept="image/*">
+                                    <div class="form-text">هذه المعاينة لا تحفظ في السيرفر، فقط تساعدك تضبط الإحداثيات.</div>
+                                </div>
+                            </div>
+                            <div class="mt-3 p-2 border rounded bg-light" style="max-width: 720px;">
+                                <div id="blurPreviewStage" style="position:relative; width:100%; aspect-ratio:16/9; background:#f1f3f5; overflow:hidden; border-radius:8px;">
+                                    <img id="blurPreviewImage" src="" alt="preview" style="width:100%; height:100%; object-fit:contain; display:none;">
+                                    <div id="ovTop" style="position:absolute; border:2px dashed #ef4444; background:rgba(239,68,68,0.18); display:none;"></div>
+                                    <div id="ovName" style="position:absolute; border:2px dashed #3b82f6; background:rgba(59,130,246,0.18); display:none;"></div>
+                                    <div id="ovCenter" style="position:absolute; border:2px dashed #10b981; background:rgba(16,185,129,0.18); display:none;"></div>
+                                </div>
+                                <div class="mt-2 text-xs text-muted">
+                                    الأحمر = الجزء العلوي، الأزرق = تغبيش الاسم، الأخضر = مربع المنتصف.
+                                </div>
                             </div>
                         @else
                             <div class="text-muted">
@@ -519,5 +575,131 @@
                 }
             });
         }
+
+        // ===== Live preview for blur boxes =====
+        const previewInput = document.getElementById('blurPreviewInput');
+        const previewImage = document.getElementById('blurPreviewImage');
+        const previewStage = document.getElementById('blurPreviewStage');
+        const ovTop = document.getElementById('ovTop');
+        const ovName = document.getElementById('ovName');
+        const ovCenter = document.getElementById('ovCenter');
+        let naturalW = 0, naturalH = 0;
+
+        function n(id, def = 0) {
+            const el = document.getElementById(id);
+            if (!el) return def;
+            const x = parseFloat(String(el.value || '').trim());
+            return Number.isFinite(x) ? x : def;
+        }
+        function show(el, yes) { if (el) el.style.display = yes ? 'block' : 'none'; }
+
+        function renderPreviewOverlays() {
+            if (!naturalW || !naturalH || !previewStage) return;
+            const stageW = previewStage.clientWidth || 1;
+            const stageH = previewStage.clientHeight || 1;
+            const scale = Math.min(stageW / naturalW, stageH / naturalH);
+            const drawW = naturalW * scale;
+            const drawH = naturalH * scale;
+            const offX = (stageW - drawW) / 2;
+            const offY = (stageH - drawH) / 2;
+            const px = (v) => (v * scale);
+
+            // Top area
+            const topMode = (document.getElementById('account_top_area_mode')?.value || 'blur').toLowerCase();
+            const topH = Math.max(0, n('account_top_area_size_px', 35));
+            const topWRaw = Math.max(0, n('account_top_area_width_px', 0));
+            const topW = topWRaw > 0 ? Math.min(naturalW, topWRaw) : naturalW;
+            const topXFromRight = Math.max(0, n('account_top_area_x_from_right_px', 0));
+            const topX = Math.max(0, naturalW - topXFromRight - topW);
+            show(ovTop, topMode !== 'none' && topH > 0);
+            if (ovTop) {
+                ovTop.style.left = (offX + px(topX)) + 'px';
+                ovTop.style.top = (offY + 0) + 'px';
+                ovTop.style.width = px(topW) + 'px';
+                ovTop.style.height = px(Math.min(topH, naturalH)) + 'px';
+            }
+
+            // Name blur
+            const nameEnabled = Number(n('account_name_blur_enabled', 1)) === 1;
+            const nameMode = (document.getElementById('account_name_blur_mode')?.value || 'fixed').toLowerCase();
+            const nameW = Math.max(1, n('account_name_blur_width', 350));
+            const nameH = Math.max(1, n('account_name_blur_height', 100));
+            let nameX = 0;
+            let nameY = 0;
+            if (nameMode === 'adaptive') {
+                const offsetRatio = Math.max(0, Math.min(1, n('account_name_blur_x_offset_from_right_ratio', 0.39)));
+                const yRatio = Math.max(0, Math.min(1, n('account_name_blur_y_ratio', 0.037)));
+                const wRatio = Math.max(0.01, Math.min(1, n('account_name_blur_width_ratio', 0.325)));
+                const hRatio = Math.max(0.01, Math.min(1, n('account_name_blur_height_ratio', 0.093)));
+                const offsetPx = naturalW * offsetRatio;
+                nameX = Math.max(0, naturalW - offsetPx);
+                nameY = Math.max(0, naturalH * yRatio);
+                // في adaptive، العرض/الارتفاع من النسب
+                const adaptiveW = Math.max(1, naturalW * wRatio);
+                const adaptiveH = Math.max(1, naturalH * hRatio);
+                show(ovName, nameEnabled);
+                if (ovName) {
+                    ovName.style.left = (offX + px(nameX)) + 'px';
+                    ovName.style.top = (offY + px(nameY)) + 'px';
+                    ovName.style.width = px(Math.min(adaptiveW, Math.max(1, naturalW - nameX))) + 'px';
+                    ovName.style.height = px(Math.min(adaptiveH, Math.max(1, naturalH - nameY))) + 'px';
+                }
+            } else {
+                const nameXFromRight = Math.max(0, n('account_name_blur_x_offset_from_right', 420));
+                nameY = Math.max(0, n('account_name_blur_y', 40));
+                nameX = Math.max(0, naturalW - nameXFromRight);
+                show(ovName, nameEnabled);
+                if (ovName) {
+                    ovName.style.left = (offX + px(nameX)) + 'px';
+                    ovName.style.top = (offY + px(nameY)) + 'px';
+                    ovName.style.width = px(Math.min(nameW, Math.max(1, naturalW - nameX))) + 'px';
+                    ovName.style.height = px(Math.min(nameH, Math.max(1, naturalH - nameY))) + 'px';
+                }
+            }
+
+            // Center blur
+            const centerEnabled = Number(n('account_center_blur_enabled', 0)) === 1;
+            const cW = Math.max(1, n('account_center_blur_width', 120));
+            const cH = Math.max(1, n('account_center_blur_height', 120));
+            const cXRaw = n('account_center_blur_x', 0);
+            const cYRaw = n('account_center_blur_y', 0);
+            const cX = cXRaw <= 0 ? Math.max(0, (naturalW - cW) / 2) : cXRaw;
+            const cY = cYRaw <= 0 ? Math.max(0, (naturalH - cH) / 2) : cYRaw;
+            show(ovCenter, centerEnabled);
+            if (ovCenter) {
+                ovCenter.style.left = (offX + px(cX)) + 'px';
+                ovCenter.style.top = (offY + px(cY)) + 'px';
+                ovCenter.style.width = px(Math.min(cW, Math.max(1, naturalW - cX))) + 'px';
+                ovCenter.style.height = px(Math.min(cH, Math.max(1, naturalH - cY))) + 'px';
+            }
+        }
+
+        if (previewInput && previewImage) {
+            previewInput.addEventListener('change', function () {
+                const f = this.files && this.files[0] ? this.files[0] : null;
+                if (!f) return;
+                const url = URL.createObjectURL(f);
+                previewImage.onload = function () {
+                    naturalW = this.naturalWidth || this.width;
+                    naturalH = this.naturalHeight || this.height;
+                    this.style.display = 'block';
+                    renderPreviewOverlays();
+                };
+                previewImage.src = url;
+            });
+        }
+
+        [
+            'account_top_area_mode','account_top_area_size_px','account_top_area_width_px','account_top_area_x_from_right_px','account_top_area_blur_strength',
+            'account_name_blur_enabled','account_name_blur_mode','account_name_blur_width','account_name_blur_height','account_name_blur_x_offset_from_right','account_name_blur_y','account_name_blur_strength',
+            'account_name_blur_x_offset_from_right_ratio','account_name_blur_y_ratio','account_name_blur_width_ratio','account_name_blur_height_ratio',
+            'account_center_blur_enabled','account_center_blur_width','account_center_blur_height','account_center_blur_x','account_center_blur_y','account_center_blur_strength'
+        ].forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('input', renderPreviewOverlays);
+            el.addEventListener('change', renderPreviewOverlays);
+        });
+        window.addEventListener('resize', renderPreviewOverlays);
     </script>
 @endpush

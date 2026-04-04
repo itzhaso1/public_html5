@@ -18,13 +18,18 @@ trait UploadMedia2 {
         $cfgCenterX = config('account_image.center_blur.x', null);
         $cfgCenterY = config('account_image.center_blur.y', null);
         $defaults = [
+            'top_area_mode' => (string) config('account_image.top_area.mode', 'blur'),
+            'top_area_size_px' => (int) config('account_image.top_area.size_px', 35),
+            'top_area_blur_strength' => (int) config('account_image.top_area.blur_strength', 35),
+            'top_area_width_px' => (int) config('account_image.top_area.width_px', 0),
+            'top_area_x_from_right_px' => (int) config('account_image.top_area.x_from_right_px', 0),
             'name_blur_enabled' => (bool) config('account_image.name_blur.enabled', true),
+            'name_blur_mode' => (string) config('account_image.name_blur.mode', 'adaptive'),
             'name_blur_x_offset_from_right' => (int) config('account_image.name_blur.x_offset_from_right', 420),
             'name_blur_y' => (int) config('account_image.name_blur.y', 40),
             'name_blur_width' => (int) config('account_image.name_blur.width', 350),
             'name_blur_height' => (int) config('account_image.name_blur.height', 100),
             'name_blur_strength' => (int) config('account_image.name_blur.strength', 35),
-            'dashboard_name_blur_controls' => false,
             'center_blur_enabled' => (bool) config('account_image.center_blur.enabled', false),
             // null/0 means "auto center".
             'center_blur_x' => ($cfgCenterX === '' ? null : $cfgCenterX),
@@ -40,17 +45,23 @@ trait UploadMedia2 {
                     return \App\Models\Setting::query()->latest('id')->first();
                 });
                 if ($setting) {
+                    $defaults['top_area_mode'] = (string) ($setting->account_top_area_mode ?? $defaults['top_area_mode']);
+                    $defaults['top_area_size_px'] = max(0, (int) ($setting->account_top_area_size_px ?? $defaults['top_area_size_px']));
+                    $defaults['top_area_blur_strength'] = max(1, min(100, (int) ($setting->account_top_area_blur_strength ?? $defaults['top_area_blur_strength'])));
+                    $defaults['top_area_width_px'] = max(0, (int) ($setting->account_top_area_width_px ?? $defaults['top_area_width_px']));
+                    $defaults['top_area_x_from_right_px'] = max(0, (int) ($setting->account_top_area_x_from_right_px ?? $defaults['top_area_x_from_right_px']));
+
                     $defaults['name_blur_enabled'] = (bool) ($setting->account_name_blur_enabled ?? $defaults['name_blur_enabled']);
+                    $defaults['name_blur_mode'] = (string) ($setting->account_name_blur_mode ?? $defaults['name_blur_mode']);
                     $defaults['name_blur_x_offset_from_right'] = (int) ($setting->account_name_blur_x_offset_from_right ?? $defaults['name_blur_x_offset_from_right']);
                     $defaults['name_blur_y'] = (int) ($setting->account_name_blur_y ?? $defaults['name_blur_y']);
                     $defaults['name_blur_width'] = (int) ($setting->account_name_blur_width ?? $defaults['name_blur_width']);
                     $defaults['name_blur_height'] = (int) ($setting->account_name_blur_height ?? $defaults['name_blur_height']);
                     $defaults['name_blur_strength'] = (int) ($setting->account_name_blur_strength ?? $defaults['name_blur_strength']);
-                    $defaults['dashboard_name_blur_controls'] = true;
 
                     $defaults['center_blur_enabled'] = (bool) ($setting->account_center_blur_enabled ?? $defaults['center_blur_enabled']);
-                    $defaults['center_blur_x'] = (int) ($setting->account_center_blur_x ?? $defaults['center_blur_x']);
-                    $defaults['center_blur_y'] = (int) ($setting->account_center_blur_y ?? $defaults['center_blur_y']);
+                    $defaults['center_blur_x'] = $setting->account_center_blur_x ?? $defaults['center_blur_x'];
+                    $defaults['center_blur_y'] = $setting->account_center_blur_y ?? $defaults['center_blur_y'];
                     $defaults['center_blur_width'] = (int) ($setting->account_center_blur_width ?? $defaults['center_blur_width']);
                     $defaults['center_blur_height'] = (int) ($setting->account_center_blur_height ?? $defaults['center_blur_height']);
                     $defaults['center_blur_strength'] = (int) ($setting->account_center_blur_strength ?? $defaults['center_blur_strength']);
@@ -242,10 +253,12 @@ trait UploadMedia2 {
         $fileName = uniqid() . '.' . $extension;
         $filePath = "$folderPath/$fileName";
         $sourcePath = $file->getPathname();
-        if ($topCropPx <= 0) {
-            $topCropPx = (int) config('account_image.top_area.size_px', 0);
+        $settings = $this->appImageBlurSettings();
+        $topCropPx = (int) ($settings['top_area_size_px'] ?? $topCropPx);
+        if ($topCropPx < 0) {
+            $topCropPx = 0;
         }
-        $topMaskMode = strtolower((string) config('account_image.top_area.mode', 'crop'));
+        $topMaskMode = strtolower((string) ($settings['top_area_mode'] ?? config('account_image.top_area.mode', 'crop')));
         $image = Image::make($sourcePath);
         $this->applyTopMask($image, $topCropPx, $topMaskMode);
         $this->applyTopRightNameBlur($image, $blurTopRightName);
@@ -371,7 +384,10 @@ trait UploadMedia2 {
                 mkdir($storageThumbnailPath, 0777, true);
             }
         }
-        $topMaskMode = strtolower((string) config('account_image.top_area.mode', 'crop'));
+        $settings = $this->appImageBlurSettings();
+        $topCropPx = (int) ($settings['top_area_size_px'] ?? $topCropPx);
+        if ($topCropPx < 0) $topCropPx = 0;
+        $topMaskMode = strtolower((string) ($settings['top_area_mode'] ?? config('account_image.top_area.mode', 'crop')));
         // Always process thumbnail on a separate instance from original image.
         $thumbnail = Image::make($sourcePath);
         $this->applyTopMask($thumbnail, $topCropPx, $topMaskMode);
@@ -594,7 +610,10 @@ trait UploadMedia2 {
             $filePath = $fullPath . '/' . $fileName;
             $sourcePath = $file->getPathname();
             $image = Image::make($sourcePath);
-            $topMaskMode = strtolower((string) config('account_image.top_area.mode', 'crop'));
+            $settings = $this->appImageBlurSettings();
+            $topCropPx = (int) ($settings['top_area_size_px'] ?? $topCropPx);
+            if ($topCropPx < 0) $topCropPx = 0;
+            $topMaskMode = strtolower((string) ($settings['top_area_mode'] ?? config('account_image.top_area.mode', 'crop')));
             $this->applyTopMask($image, $topCropPx, $topMaskMode);
 
             // إضافة العلامة المائية لو مطلوبة
@@ -775,10 +794,11 @@ trait UploadMedia2 {
         }
 
         $h = min(max(1, $topPx), $imageHeight);
-        $s = $strength ?? (int) config('account_image.top_area.blur_strength', 35);
-        $wPx = (int) config('account_image.top_area.width_px', 0);
+        $settings = $this->appImageBlurSettings();
+        $s = $strength ?? (int) ($settings['top_area_blur_strength'] ?? config('account_image.top_area.blur_strength', 35));
+        $wPx = (int) ($settings['top_area_width_px'] ?? config('account_image.top_area.width_px', 0));
         $wRatio = (float) config('account_image.top_area.width_ratio', 1.0);
-        $xFromRight = (int) config('account_image.top_area.x_from_right_px', 0);
+        $xFromRight = (int) ($settings['top_area_x_from_right_px'] ?? config('account_image.top_area.x_from_right_px', 0));
 
         $w = $wPx > 0
             ? min($imageWidth, $wPx)
@@ -810,9 +830,8 @@ trait UploadMedia2 {
             return;
         }
 
-        $mode = strtolower((string) config('account_image.name_blur.mode', 'adaptive'));
-        $forceFixedFromDashboard = (bool) ($settings['dashboard_name_blur_controls'] ?? false);
-        if ($mode === 'adaptive' && ! $forceFixedFromDashboard) {
+        $mode = strtolower((string) ($settings['name_blur_mode'] ?? config('account_image.name_blur.mode', 'adaptive')));
+        if ($mode === 'adaptive') {
             $offsetRatio = (float) config('account_image.name_blur.x_offset_from_right_ratio', 0.39);
             $yRatio = (float) config('account_image.name_blur.y_ratio', 0.037);
             $wRatio = (float) config('account_image.name_blur.width_ratio', 0.325);

@@ -95,6 +95,7 @@ class MainSettingRepository implements MainSettingInterface
             $hasPublishMinGallery = false;
             $hasHomeFeaturedProducts = false;
             $hasAccountBlurControls = false;
+            $hasTopAreaControls = false;
             try {
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
                 $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
@@ -114,6 +115,12 @@ class MainSettingRepository implements MainSettingInterface
                     && Schema::hasColumn('settings', 'account_center_blur_width')
                     && Schema::hasColumn('settings', 'account_center_blur_height')
                     && Schema::hasColumn('settings', 'account_center_blur_strength');
+                $hasTopAreaControls =
+                    Schema::hasColumn('settings', 'account_top_area_mode')
+                    && Schema::hasColumn('settings', 'account_top_area_size_px')
+                    && Schema::hasColumn('settings', 'account_top_area_width_px')
+                    && Schema::hasColumn('settings', 'account_top_area_x_from_right_px')
+                    && Schema::hasColumn('settings', 'account_top_area_blur_strength');
             } catch (\Throwable $e) {
                 $hasMoneyToggle = false;
                 $hasChargeToggle = false;
@@ -121,6 +128,7 @@ class MainSettingRepository implements MainSettingInterface
                 $hasPublishMinGallery = false;
                 $hasHomeFeaturedProducts = false;
                 $hasAccountBlurControls = false;
+                $hasTopAreaControls = false;
             }
 
             // Always update the latest settings row (singleton behavior).
@@ -219,6 +227,11 @@ class MainSettingRepository implements MainSettingInterface
 
             if ($hasAccountBlurControls) {
                 $setting->account_name_blur_enabled = $request->boolean('account_name_blur_enabled');
+                $mode = strtolower(trim((string) $request->input('account_name_blur_mode', 'fixed')));
+                if (!in_array($mode, ['fixed', 'adaptive'], true)) {
+                    $mode = 'fixed';
+                }
+                $setting->account_name_blur_mode = $mode;
                 $setting->account_name_blur_x_offset_from_right = max(0, (int) $request->input('account_name_blur_x_offset_from_right', 420));
                 $setting->account_name_blur_y = max(0, (int) $request->input('account_name_blur_y', 40));
                 $setting->account_name_blur_width = max(1, (int) $request->input('account_name_blur_width', 350));
@@ -232,6 +245,18 @@ class MainSettingRepository implements MainSettingInterface
                 $setting->account_center_blur_width = max(1, (int) $request->input('account_center_blur_width', 120));
                 $setting->account_center_blur_height = max(1, (int) $request->input('account_center_blur_height', 60));
                 $setting->account_center_blur_strength = max(1, min(100, (int) $request->input('account_center_blur_strength', 35)));
+            }
+
+            if ($hasTopAreaControls) {
+                $topMode = strtolower(trim((string) $request->input('account_top_area_mode', 'blur')));
+                if (!in_array($topMode, ['blur', 'crop', 'none'], true)) {
+                    $topMode = 'blur';
+                }
+                $setting->account_top_area_mode = $topMode;
+                $setting->account_top_area_size_px = max(0, (int) $request->input('account_top_area_size_px', 35));
+                $setting->account_top_area_width_px = max(0, (int) $request->input('account_top_area_width_px', 0));
+                $setting->account_top_area_x_from_right_px = max(0, (int) $request->input('account_top_area_x_from_right_px', 0));
+                $setting->account_top_area_blur_strength = max(1, min(100, (int) $request->input('account_top_area_blur_strength', 35)));
             }
             $setting->save();
             if ($request->hasFile('logo'))
