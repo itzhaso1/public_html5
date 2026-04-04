@@ -540,7 +540,7 @@ trait UploadMedia2 {
         if (!file_exists($fullPath)) {
             mkdir($fullPath, 0777, true);
         }
-        foreach ($files as $file) {
+        foreach ($files as $index => $file) {
             if (!$file instanceof UploadedFile) {
                 continue;
             }
@@ -606,7 +606,7 @@ trait UploadMedia2 {
             mkdir($fullPath, 0777, true);
         }
 
-        foreach ($files as $file) {
+        foreach ($files as $index => $file) {
             if (!$file instanceof UploadedFile || !$this->isValidImage($file)) {
                 continue;
             }
@@ -621,8 +621,9 @@ trait UploadMedia2 {
             if ($topCropPx < 0) $topCropPx = 0;
             $topMaskMode = strtolower((string) ($settings['top_area_mode'] ?? config('account_image.top_area.mode', 'crop')));
             $this->applyTopMask($image, $topCropPx, $topMaskMode);
-            // Center blur is only for public publish-product gallery uploads.
-            if ($isPublicPublish) {
+            // Center blur is only for public publish-product image #9 (banners slot).
+            // Guided order maps slot #9 to zero-based index 8.
+            if ($isPublicPublish && (int) $index === 8) {
                 $this->applyCenterSmallBlur($image);
             }
 
