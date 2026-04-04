@@ -1,6 +1,10 @@
 <?php
 
 return [
+    // When true, blur/crop controls saved in dashboard settings table override .env values.
+    // Set to false to use legacy .env-based behavior exactly.
+    'use_dashboard_controls' => (bool) env('ACCOUNT_IMAGE_USE_DASHBOARD_CONTROLS', true),
+
     // Top strip processing for account images (main + gallery):
     // mode: blur | crop | none
     'top_area' => [

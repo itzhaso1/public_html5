@@ -17,6 +17,7 @@ trait UploadMedia2 {
 
         $cfgCenterX = config('account_image.center_blur.x', null);
         $cfgCenterY = config('account_image.center_blur.y', null);
+        $useDashboardControls = (bool) config('account_image.use_dashboard_controls', true);
         $defaults = [
             'top_area_mode' => (string) config('account_image.top_area.mode', 'blur'),
             'top_area_size_px' => (int) config('account_image.top_area.size_px', 35),
@@ -41,7 +42,7 @@ trait UploadMedia2 {
         ];
 
         try {
-            if (class_exists(\App\Models\Setting::class)) {
+            if ($useDashboardControls && class_exists(\App\Models\Setting::class)) {
                 $setting = \Illuminate\Support\Facades\Cache::remember('app_settings', 60 * 10, function () {
                     return \App\Models\Setting::query()->latest('id')->first();
                 });
