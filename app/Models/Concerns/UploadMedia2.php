@@ -34,6 +34,7 @@ trait UploadMedia2 {
             // null/0 means "auto center".
             'center_blur_x' => ($cfgCenterX === '' ? null : $cfgCenterX),
             'center_blur_y' => ($cfgCenterY === '' ? null : $cfgCenterY),
+            'center_blur_x_from_right' => (int) config('account_image.center_blur.x_from_right', 0),
             'center_blur_width' => (int) config('account_image.center_blur.width', 120),
             'center_blur_height' => (int) config('account_image.center_blur.height', 120),
             'center_blur_strength' => (int) config('account_image.center_blur.strength', 35),
@@ -62,6 +63,7 @@ trait UploadMedia2 {
                     $defaults['center_blur_enabled'] = (bool) ($setting->account_center_blur_enabled ?? $defaults['center_blur_enabled']);
                     $defaults['center_blur_x'] = $setting->account_center_blur_x ?? $defaults['center_blur_x'];
                     $defaults['center_blur_y'] = $setting->account_center_blur_y ?? $defaults['center_blur_y'];
+                    $defaults['center_blur_x_from_right'] = (int) ($setting->account_center_blur_x_from_right ?? $defaults['center_blur_x_from_right']);
                     $defaults['center_blur_width'] = (int) ($setting->account_center_blur_width ?? $defaults['center_blur_width']);
                     $defaults['center_blur_height'] = (int) ($setting->account_center_blur_height ?? $defaults['center_blur_height']);
                     $defaults['center_blur_strength'] = (int) ($setting->account_center_blur_strength ?? $defaults['center_blur_strength']);
@@ -262,9 +264,6 @@ trait UploadMedia2 {
         $image = Image::make($sourcePath);
         $this->applyTopMask($image, $topCropPx, $topMaskMode);
         $this->applyTopRightNameBlur($image, $blurTopRightName);
-        if ($blurTopRightName) {
-            $this->applyCenterSmallBlur($image);
-        }
         if ($addWatermark) {
             $watermark = Image::make(storage_path('app/public/watermark.png'));
             $image->insert($watermark, 'bottom-right', 10, 10);
@@ -615,6 +614,8 @@ trait UploadMedia2 {
             if ($topCropPx < 0) $topCropPx = 0;
             $topMaskMode = strtolower((string) ($settings['top_area_mode'] ?? config('account_image.top_area.mode', 'crop')));
             $this->applyTopMask($image, $topCropPx, $topMaskMode);
+            // Center blur is for gallery images only.
+            $this->applyCenterSmallBlur($image);
 
             // إضافة العلامة المائية لو مطلوبة
             if ($addWatermark && file_exists(storage_path('app/public/watermark.png'))) {
@@ -885,11 +886,16 @@ trait UploadMedia2 {
         $strength = (int) ($settings['center_blur_strength'] ?? 35);
         $xRaw = $settings['center_blur_x'] ?? null;
         $yRaw = $settings['center_blur_y'] ?? null;
+        $xFromRightRaw = (int) ($settings['center_blur_x_from_right'] ?? 0);
 
-        // If x/y are empty or zero, center the blur box automatically.
-        $x = ($xRaw === null || (int) $xRaw === 0)
-            ? max(0, (int) floor(($imageWidth - $w) / 2))
-            : max(0, (int) $xRaw);
+        // Priority: right offset (if > 0), then absolute X, then auto-center.
+        if ($xFromRightRaw > 0) {
+            $x = max(0, $imageWidth - $xFromRightRaw - $w);
+        } else {
+            $x = ($xRaw === null || (int) $xRaw === 0)
+                ? max(0, (int) floor(($imageWidth - $w) / 2))
+                : max(0, (int) $xRaw);
+        }
         $y = ($yRaw === null || (int) $yRaw === 0)
             ? max(0, (int) floor(($imageHeight - $h) / 2))
             : max(0, (int) $yRaw);

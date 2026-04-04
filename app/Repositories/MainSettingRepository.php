@@ -95,6 +95,7 @@ class MainSettingRepository implements MainSettingInterface
             $hasPublishMinGallery = false;
             $hasHomeFeaturedProducts = false;
             $hasAccountBlurControls = false;
+            $hasCenterBlurRightOffset = false;
             $hasTopAreaControls = false;
             try {
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
@@ -115,6 +116,7 @@ class MainSettingRepository implements MainSettingInterface
                     && Schema::hasColumn('settings', 'account_center_blur_width')
                     && Schema::hasColumn('settings', 'account_center_blur_height')
                     && Schema::hasColumn('settings', 'account_center_blur_strength');
+                $hasCenterBlurRightOffset = Schema::hasColumn('settings', 'account_center_blur_x_from_right');
                 $hasTopAreaControls =
                     Schema::hasColumn('settings', 'account_top_area_mode')
                     && Schema::hasColumn('settings', 'account_top_area_size_px')
@@ -128,6 +130,7 @@ class MainSettingRepository implements MainSettingInterface
                 $hasPublishMinGallery = false;
                 $hasHomeFeaturedProducts = false;
                 $hasAccountBlurControls = false;
+                $hasCenterBlurRightOffset = false;
                 $hasTopAreaControls = false;
             }
 
@@ -241,6 +244,9 @@ class MainSettingRepository implements MainSettingInterface
                 $setting->account_center_blur_enabled = $request->boolean('account_center_blur_enabled');
                 // If x/y are 0, image processor will auto-center this blur box.
                 $setting->account_center_blur_x = max(0, (int) $request->input('account_center_blur_x', 0));
+                if ($hasCenterBlurRightOffset) {
+                    $setting->account_center_blur_x_from_right = max(0, (int) $request->input('account_center_blur_x_from_right', 0));
+                }
                 $setting->account_center_blur_y = max(0, (int) $request->input('account_center_blur_y', 0));
                 $setting->account_center_blur_width = max(1, (int) $request->input('account_center_blur_width', 120));
                 $setting->account_center_blur_height = max(1, (int) $request->input('account_center_blur_height', 60));

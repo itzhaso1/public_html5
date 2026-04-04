@@ -34,11 +34,13 @@ return [
         'strength' => (int) env('ACCOUNT_IMAGE_NAME_BLUR_STRENGTH', 35),
     ],
 
-    // Additional blur box on main image only (optional).
-    // If x/y are null, it is auto-centered.
+    // Additional blur box on gallery images only (optional).
+    // If x/y are null/0, it is auto-centered.
     'center_blur' => [
         'enabled' => (bool) env('ACCOUNT_IMAGE_CENTER_BLUR_ENABLED', false),
         'x' => env('ACCOUNT_IMAGE_CENTER_BLUR_X'),
+        // If > 0, takes priority over X and places the box from right edge.
+        'x_from_right' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_X_FROM_RIGHT', 0),
         'y' => env('ACCOUNT_IMAGE_CENTER_BLUR_Y'),
         'width' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_WIDTH', 120),
         'height' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_HEIGHT', 120),

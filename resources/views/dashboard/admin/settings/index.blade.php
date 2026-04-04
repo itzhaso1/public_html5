@@ -267,6 +267,14 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
+                                    <label class="input-group-text text-dark">وضع تغبيش الاسم</label>
+                                    @php $nameModeOld = old('account_name_blur_mode', (string) ($setting?->account_name_blur_mode ?? 'fixed')); @endphp
+                                    <select name="account_name_blur_mode" id="account_name_blur_mode" class="form-select">
+                                        <option value="fixed" {{ $nameModeOld === 'fixed' ? 'selected' : '' }}>ثابت (Fixed)</option>
+                                        <option value="adaptive" {{ $nameModeOld === 'adaptive' ? 'selected' : '' }}>نسبي (Adaptive)</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
                                     <label class="input-group-text text-dark">عرض تغبيش اسم الحساب</label>
                                     <input type="number" min="1" step="1" class="form-control" name="account_name_blur_width"
                                            value="{{ old('account_name_blur_width', (int) ($setting?->account_name_blur_width ?? 350)) }}">
@@ -323,6 +331,12 @@
                                     <input type="number" step="1" class="form-control" name="account_center_blur_x"
                                            value="{{ old('account_center_blur_x', (int) ($setting?->account_center_blur_x ?? 0)) }}">
                                     <div class="form-text">إذا وضعت 0 سيتم توسيط المربع تلقائياً.</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">إزاحة X من اليمين (للصور الفرعية)</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="account_center_blur_x_from_right" id="account_center_blur_x_from_right"
+                                           value="{{ old('account_center_blur_x_from_right', (int) ($setting?->account_center_blur_x_from_right ?? 0)) }}">
+                                    <div class="form-text">إذا أكبر من 0 سيتم تجاهل X وتثبيت المربع من يمين الصورة.</div>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="input-group-text text-dark">إحداثي Y (0 = وسط)</label>
@@ -578,15 +592,18 @@
 
         // ===== Live preview for blur boxes =====
         const previewInput = document.getElementById('blurPreviewInput');
-        const previewImage = document.getElementById('blurPreviewImage');
+        const previewImgEl = document.getElementById('blurPreviewImage');
         const previewStage = document.getElementById('blurPreviewStage');
         const ovTop = document.getElementById('ovTop');
         const ovName = document.getElementById('ovName');
         const ovCenter = document.getElementById('ovCenter');
         let naturalW = 0, naturalH = 0;
 
+        function fieldEl(idOrName) {
+            return document.getElementById(idOrName) || document.querySelector(`[name="${idOrName}"]`);
+        }
         function n(id, def = 0) {
-            const el = document.getElementById(id);
+            const el = fieldEl(id);
             if (!el) return def;
             const x = parseFloat(String(el.value || '').trim());
             return Number.isFinite(x) ? x : def;
@@ -663,7 +680,10 @@
             const cH = Math.max(1, n('account_center_blur_height', 120));
             const cXRaw = n('account_center_blur_x', 0);
             const cYRaw = n('account_center_blur_y', 0);
-            const cX = cXRaw <= 0 ? Math.max(0, (naturalW - cW) / 2) : cXRaw;
+            const cXFromRight = Math.max(0, n('account_center_blur_x_from_right', 0));
+            const cX = cXFromRight > 0
+                ? Math.max(0, naturalW - cXFromRight - cW)
+                : (cXRaw <= 0 ? Math.max(0, (naturalW - cW) / 2) : cXRaw);
             const cY = cYRaw <= 0 ? Math.max(0, (naturalH - cH) / 2) : cYRaw;
             show(ovCenter, centerEnabled);
             if (ovCenter) {
@@ -674,18 +694,18 @@
             }
         }
 
-        if (previewInput && previewImage) {
+        if (previewInput && previewImgEl) {
             previewInput.addEventListener('change', function () {
                 const f = this.files && this.files[0] ? this.files[0] : null;
                 if (!f) return;
                 const url = URL.createObjectURL(f);
-                previewImage.onload = function () {
+                previewImgEl.onload = function () {
                     naturalW = this.naturalWidth || this.width;
                     naturalH = this.naturalHeight || this.height;
                     this.style.display = 'block';
                     renderPreviewOverlays();
                 };
-                previewImage.src = url;
+                previewImgEl.src = url;
             });
         }
 
@@ -693,9 +713,9 @@
             'account_top_area_mode','account_top_area_size_px','account_top_area_width_px','account_top_area_x_from_right_px','account_top_area_blur_strength',
             'account_name_blur_enabled','account_name_blur_mode','account_name_blur_width','account_name_blur_height','account_name_blur_x_offset_from_right','account_name_blur_y','account_name_blur_strength',
             'account_name_blur_x_offset_from_right_ratio','account_name_blur_y_ratio','account_name_blur_width_ratio','account_name_blur_height_ratio',
-            'account_center_blur_enabled','account_center_blur_width','account_center_blur_height','account_center_blur_x','account_center_blur_y','account_center_blur_strength'
+            'account_center_blur_enabled','account_center_blur_width','account_center_blur_height','account_center_blur_x','account_center_blur_x_from_right','account_center_blur_y','account_center_blur_strength'
         ].forEach((id) => {
-            const el = document.getElementById(id);
+            const el = fieldEl(id);
             if (!el) return;
             el.addEventListener('input', renderPreviewOverlays);
             el.addEventListener('change', renderPreviewOverlays);

@@ -578,6 +578,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
     if (token) xhr.setRequestHeader('X-CSRF-TOKEN', token);
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.setRequestHeader('Accept', 'application/json');
 
     barContainer.style.display = "block";
     infoBox.style.display = "block";
@@ -600,30 +601,60 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     xhr.onload = () => {
-      if (xhr.status === 200) {
+      if (xhr.status >= 200 && xhr.status < 300) {
         bar.style.background = "linear-gradient(90deg, #00c851, #00e676)";
         percentLabel.textContent = "100% ✅";
         setTimeout(() => {
           barContainer.style.display = "none";
           infoBox.style.display = "none";
-          window.location.reload();
+          if (xhr.responseURL) {
+            window.location.href = xhr.responseURL;
+          } else {
+            window.location.reload();
+          }
         }, 1200);
       } else {
-        showError();
+        showError(xhr);
       }
     };
 
-    xhr.onerror = showError;
+    xhr.onerror = () => showError(xhr);
 
-    function showError() {
+    function extractErrorMessage(xhrObj) {
+      try {
+        const contentType = (xhrObj.getResponseHeader('Content-Type') || '').toLowerCase();
+        if (contentType.includes('application/json')) {
+          const body = JSON.parse(xhrObj.responseText || '{}');
+          if (body.message) return body.message;
+          if (body.errors) {
+            const firstKey = Object.keys(body.errors)[0];
+            if (firstKey && Array.isArray(body.errors[firstKey]) && body.errors[firstKey][0]) {
+              return body.errors[firstKey][0];
+            }
+          }
+        }
+      } catch (e) {}
+      return '';
+    }
+
+    function showError(xhrObj = null) {
       bar.style.background = "linear-gradient(90deg, #ff4444, #ff6b6b)";
       percentLabel.textContent = "فشل ❌";
       speedLabel.textContent = "";
-      timeLabel.textContent = "";
+      let msg = 'فشل رفع الصور. تأكد من نوع الصور والحجم ثم أعد المحاولة.';
+      if (xhrObj) {
+        if (xhrObj.status === 413) {
+          msg = 'حجم الصور كبير جدًا (413). قلّل الدقة/العدد ثم أعد المحاولة.';
+        } else {
+          const extracted = extractErrorMessage(xhrObj);
+          if (extracted) msg = extracted;
+        }
+      }
+      timeLabel.textContent = msg;
       setTimeout(() => {
         barContainer.style.display = "none";
         infoBox.style.display = "none";
-      }, 2000);
+      }, 3500);
     }
 
     xhr.send(fd);

@@ -78,6 +78,12 @@ class ProductRepository implements ProductInterface
      * ========================= */
     public function store(Request $request)
     {
+        $request->validate([
+            'product' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'gallery' => ['nullable', 'array'],
+            'gallery.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+
         $data = $this->extractData($request);
         $product = Product::create($data);
 
@@ -111,7 +117,7 @@ class ProductRepository implements ProductInterface
 
         // صور المعرض
         if ($request->hasFile('gallery')) {
-            $product->uploadMultipleMedia(
+            $uploadedGallery = $product->uploadMultipleMedia(
                 'product/gallery',
                 $request->file('gallery'),
                 $product,
@@ -122,6 +128,14 @@ class ProductRepository implements ProductInterface
                 false,
                 (int) config('account_image.top_area.size_px', 35)
             );
+
+            if (empty($uploadedGallery)) {
+                // Avoid leaving an orphan product when all gallery files fail processing.
+                try { $product->delete(); } catch (\Throwable $e) {}
+                return back()
+                    ->withErrors(['gallery' => 'تعذر رفع الصور الفرعية. تأكد أن الملفات صور صالحة (JPG/PNG/WEBP).'])
+                    ->withInput();
+            }
         }
 
         // الفيديو
@@ -140,6 +154,12 @@ class ProductRepository implements ProductInterface
      * ========================= */
     public function update(Request $request, Product $product)
 {
+    $request->validate([
+        'product' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        'gallery' => ['nullable', 'array'],
+        'gallery.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+    ]);
+
     $data = $this->extractData($request);
     $product->update($data);
 

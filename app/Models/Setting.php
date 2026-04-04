@@ -55,6 +55,7 @@ class Setting extends Model
         'account_center_blur_enabled',
         'account_center_blur_x',
         'account_center_blur_y',
+        'account_center_blur_x_from_right',
         'account_center_blur_width',
         'account_center_blur_height',
         'account_center_blur_strength',
