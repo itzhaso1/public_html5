@@ -33,5 +33,16 @@ return [
         'height_ratio' => (float) env('ACCOUNT_IMAGE_NAME_BLUR_HEIGHT_RATIO', 0.093),
         'strength' => (int) env('ACCOUNT_IMAGE_NAME_BLUR_STRENGTH', 35),
     ],
+
+    // Additional blur box on main image only (optional).
+    // If x/y are null, it is auto-centered.
+    'center_blur' => [
+        'enabled' => (bool) env('ACCOUNT_IMAGE_CENTER_BLUR_ENABLED', false),
+        'x' => env('ACCOUNT_IMAGE_CENTER_BLUR_X'),
+        'y' => env('ACCOUNT_IMAGE_CENTER_BLUR_Y'),
+        'width' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_WIDTH', 120),
+        'height' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_HEIGHT', 120),
+        'strength' => (int) env('ACCOUNT_IMAGE_CENTER_BLUR_STRENGTH', 35),
+    ],
 ];
 

@@ -8,6 +8,61 @@ use Illuminate\Http\UploadedFile;
 use Intervention\Image\Facades\Image;
 
 trait UploadMedia2 {
+    private function appImageBlurSettings(): array
+    {
+        static $cached = null;
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $cfgCenterX = config('account_image.center_blur.x', null);
+        $cfgCenterY = config('account_image.center_blur.y', null);
+        $defaults = [
+            'name_blur_enabled' => (bool) config('account_image.name_blur.enabled', true),
+            'name_blur_x_offset_from_right' => (int) config('account_image.name_blur.x_offset_from_right', 420),
+            'name_blur_y' => (int) config('account_image.name_blur.y', 40),
+            'name_blur_width' => (int) config('account_image.name_blur.width', 350),
+            'name_blur_height' => (int) config('account_image.name_blur.height', 100),
+            'name_blur_strength' => (int) config('account_image.name_blur.strength', 35),
+            'dashboard_name_blur_controls' => false,
+            'center_blur_enabled' => (bool) config('account_image.center_blur.enabled', false),
+            // null/0 means "auto center".
+            'center_blur_x' => ($cfgCenterX === '' ? null : $cfgCenterX),
+            'center_blur_y' => ($cfgCenterY === '' ? null : $cfgCenterY),
+            'center_blur_width' => (int) config('account_image.center_blur.width', 120),
+            'center_blur_height' => (int) config('account_image.center_blur.height', 120),
+            'center_blur_strength' => (int) config('account_image.center_blur.strength', 35),
+        ];
+
+        try {
+            if (class_exists(\App\Models\Setting::class)) {
+                $setting = \Illuminate\Support\Facades\Cache::remember('app_settings', 60 * 10, function () {
+                    return \App\Models\Setting::query()->latest('id')->first();
+                });
+                if ($setting) {
+                    $defaults['name_blur_enabled'] = (bool) ($setting->account_name_blur_enabled ?? $defaults['name_blur_enabled']);
+                    $defaults['name_blur_x_offset_from_right'] = (int) ($setting->account_name_blur_x_offset_from_right ?? $defaults['name_blur_x_offset_from_right']);
+                    $defaults['name_blur_y'] = (int) ($setting->account_name_blur_y ?? $defaults['name_blur_y']);
+                    $defaults['name_blur_width'] = (int) ($setting->account_name_blur_width ?? $defaults['name_blur_width']);
+                    $defaults['name_blur_height'] = (int) ($setting->account_name_blur_height ?? $defaults['name_blur_height']);
+                    $defaults['name_blur_strength'] = (int) ($setting->account_name_blur_strength ?? $defaults['name_blur_strength']);
+                    $defaults['dashboard_name_blur_controls'] = true;
+
+                    $defaults['center_blur_enabled'] = (bool) ($setting->account_center_blur_enabled ?? $defaults['center_blur_enabled']);
+                    $defaults['center_blur_x'] = (int) ($setting->account_center_blur_x ?? $defaults['center_blur_x']);
+                    $defaults['center_blur_y'] = (int) ($setting->account_center_blur_y ?? $defaults['center_blur_y']);
+                    $defaults['center_blur_width'] = (int) ($setting->account_center_blur_width ?? $defaults['center_blur_width']);
+                    $defaults['center_blur_height'] = (int) ($setting->account_center_blur_height ?? $defaults['center_blur_height']);
+                    $defaults['center_blur_strength'] = (int) ($setting->account_center_blur_strength ?? $defaults['center_blur_strength']);
+                }
+            }
+        } catch (\Throwable $e) {
+            // Use defaults from config on any failure.
+        }
+
+        $cached = $defaults;
+        return $cached;
+    }
     private function normalizeImageExtension(string $extension): string
     {
         $ext = strtolower(trim($extension));
@@ -194,6 +249,9 @@ trait UploadMedia2 {
         $image = Image::make($sourcePath);
         $this->applyTopMask($image, $topCropPx, $topMaskMode);
         $this->applyTopRightNameBlur($image, $blurTopRightName);
+        if ($blurTopRightName) {
+            $this->applyCenterSmallBlur($image);
+        }
         if ($addWatermark) {
             $watermark = Image::make(storage_path('app/public/watermark.png'));
             $image->insert($watermark, 'bottom-right', 10, 10);
@@ -740,7 +798,9 @@ trait UploadMedia2 {
 
     private function applyTopRightNameBlur($image, bool $enabled, ?int $blurStrength = null): void
     {
-        if (! $enabled) {
+        $settings = $this->appImageBlurSettings();
+        $effectiveEnabled = $enabled && (bool) ($settings['name_blur_enabled'] ?? true);
+        if (! $effectiveEnabled) {
             return;
         }
 
@@ -751,7 +811,8 @@ trait UploadMedia2 {
         }
 
         $mode = strtolower((string) config('account_image.name_blur.mode', 'adaptive'));
-        if ($mode === 'adaptive') {
+        $forceFixedFromDashboard = (bool) ($settings['dashboard_name_blur_controls'] ?? false);
+        if ($mode === 'adaptive' && ! $forceFixedFromDashboard) {
             $offsetRatio = (float) config('account_image.name_blur.x_offset_from_right_ratio', 0.39);
             $yRatio = (float) config('account_image.name_blur.y_ratio', 0.037);
             $wRatio = (float) config('account_image.name_blur.width_ratio', 0.325);
@@ -763,13 +824,13 @@ trait UploadMedia2 {
             $w = (int) round($imageWidth * max(0.01, min(1.0, $wRatio)));
             $h = (int) round($imageHeight * max(0.01, min(1.0, $hRatio)));
         } else {
-            $offsetFromRight = (int) config('account_image.name_blur.x_offset_from_right', 420);
+            $offsetFromRight = (int) ($settings['name_blur_x_offset_from_right'] ?? config('account_image.name_blur.x_offset_from_right', 420));
             $x = max(0, $imageWidth - $offsetFromRight);
-            $y = max(0, (int) config('account_image.name_blur.y', 40));
-            $w = max(1, (int) config('account_image.name_blur.width', 350));
-            $h = max(1, (int) config('account_image.name_blur.height', 100));
+            $y = max(0, (int) ($settings['name_blur_y'] ?? config('account_image.name_blur.y', 40)));
+            $w = max(1, (int) ($settings['name_blur_width'] ?? config('account_image.name_blur.width', 350)));
+            $h = max(1, (int) ($settings['name_blur_height'] ?? config('account_image.name_blur.height', 100)));
         }
-        $strength = $blurStrength ?? (int) config('account_image.name_blur.strength', 35);
+        $strength = $blurStrength ?? (int) ($settings['name_blur_strength'] ?? config('account_image.name_blur.strength', 35));
 
         if ($y >= $imageHeight) {
             return;
@@ -784,6 +845,48 @@ trait UploadMedia2 {
         $region = clone $image;
         $region->crop($w, $h, $x, $y);
         $region->blur(max(1, min(100, (int) $strength)));
+        $image->insert($region, 'top-left', $x, $y);
+    }
+
+    private function applyCenterSmallBlur($image): void
+    {
+        $settings = $this->appImageBlurSettings();
+        if (! (bool) ($settings['center_blur_enabled'] ?? false)) {
+            return;
+        }
+
+        $imageWidth = (int) $image->width();
+        $imageHeight = (int) $image->height();
+        if ($imageWidth <= 1 || $imageHeight <= 1) {
+            return;
+        }
+
+        $w = max(1, (int) ($settings['center_blur_width'] ?? 140));
+        $h = max(1, (int) ($settings['center_blur_height'] ?? 140));
+        $strength = (int) ($settings['center_blur_strength'] ?? 35);
+        $xRaw = $settings['center_blur_x'] ?? null;
+        $yRaw = $settings['center_blur_y'] ?? null;
+
+        // If x/y are empty or zero, center the blur box automatically.
+        $x = ($xRaw === null || (int) $xRaw === 0)
+            ? max(0, (int) floor(($imageWidth - $w) / 2))
+            : max(0, (int) $xRaw);
+        $y = ($yRaw === null || (int) $yRaw === 0)
+            ? max(0, (int) floor(($imageHeight - $h) / 2))
+            : max(0, (int) $yRaw);
+
+        if ($x >= $imageWidth || $y >= $imageHeight) {
+            return;
+        }
+        $w = min($w, $imageWidth - $x);
+        $h = min($h, $imageHeight - $y);
+        if ($w <= 0 || $h <= 0) {
+            return;
+        }
+
+        $region = clone $image;
+        $region->crop($w, $h, $x, $y);
+        $region->blur(max(1, min(100, $strength)));
         $image->insert($region, 'top-left', $x, $y);
     }
 }

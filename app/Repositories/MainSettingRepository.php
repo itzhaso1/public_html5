@@ -71,6 +71,7 @@ class MainSettingRepository implements MainSettingInterface
             'homeQuickMoneyExchangeImg' => $homeQuickMoneyExchangeImg,
             'homeFeaturedProducts' => $homeFeaturedProducts,
             'selectedHomeFeaturedProductIds' => $selectedHomeFeaturedProductIds,
+            'accountImageSettings' => $setting,
         ]);
     }
 
@@ -93,18 +94,33 @@ class MainSettingRepository implements MainSettingInterface
             $hasCodesToggle = false;
             $hasPublishMinGallery = false;
             $hasHomeFeaturedProducts = false;
+            $hasAccountBlurControls = false;
             try {
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
                 $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
                 $hasCodesToggle = Schema::hasColumn('settings', 'codes_enabled');
                 $hasPublishMinGallery = Schema::hasColumn('settings', 'public_publish_min_gallery_images');
                 $hasHomeFeaturedProducts = Schema::hasColumn('settings', 'home_featured_product_ids');
+                $hasAccountBlurControls =
+                    Schema::hasColumn('settings', 'account_name_blur_enabled')
+                    && Schema::hasColumn('settings', 'account_name_blur_x_offset_from_right')
+                    && Schema::hasColumn('settings', 'account_name_blur_y')
+                    && Schema::hasColumn('settings', 'account_name_blur_width')
+                    && Schema::hasColumn('settings', 'account_name_blur_height')
+                    && Schema::hasColumn('settings', 'account_name_blur_strength')
+                    && Schema::hasColumn('settings', 'account_center_blur_enabled')
+                    && Schema::hasColumn('settings', 'account_center_blur_x')
+                    && Schema::hasColumn('settings', 'account_center_blur_y')
+                    && Schema::hasColumn('settings', 'account_center_blur_width')
+                    && Schema::hasColumn('settings', 'account_center_blur_height')
+                    && Schema::hasColumn('settings', 'account_center_blur_strength');
             } catch (\Throwable $e) {
                 $hasMoneyToggle = false;
                 $hasChargeToggle = false;
                 $hasCodesToggle = false;
                 $hasPublishMinGallery = false;
                 $hasHomeFeaturedProducts = false;
+                $hasAccountBlurControls = false;
             }
 
             // Always update the latest settings row (singleton behavior).
@@ -199,6 +215,23 @@ class MainSettingRepository implements MainSettingInterface
                     ->values()
                     ->all();
                 $setting->home_featured_product_ids = $ids;
+            }
+
+            if ($hasAccountBlurControls) {
+                $setting->account_name_blur_enabled = $request->boolean('account_name_blur_enabled');
+                $setting->account_name_blur_x_offset_from_right = max(0, (int) $request->input('account_name_blur_x_offset_from_right', 420));
+                $setting->account_name_blur_y = max(0, (int) $request->input('account_name_blur_y', 40));
+                $setting->account_name_blur_width = max(1, (int) $request->input('account_name_blur_width', 350));
+                $setting->account_name_blur_height = max(1, (int) $request->input('account_name_blur_height', 100));
+                $setting->account_name_blur_strength = max(1, min(100, (int) $request->input('account_name_blur_strength', 35)));
+
+                $setting->account_center_blur_enabled = $request->boolean('account_center_blur_enabled');
+                // If x/y are 0, image processor will auto-center this blur box.
+                $setting->account_center_blur_x = max(0, (int) $request->input('account_center_blur_x', 0));
+                $setting->account_center_blur_y = max(0, (int) $request->input('account_center_blur_y', 0));
+                $setting->account_center_blur_width = max(1, (int) $request->input('account_center_blur_width', 120));
+                $setting->account_center_blur_height = max(1, (int) $request->input('account_center_blur_height', 60));
+                $setting->account_center_blur_strength = max(1, min(100, (int) $request->input('account_center_blur_strength', 35)));
             }
             $setting->save();
             if ($request->hasFile('logo'))

@@ -35,6 +35,18 @@ class Setting extends Model
         'merchant_charge_discount_percent',
         'point_price_sar',
         'point_price_usd',
+        'account_name_blur_enabled',
+        'account_name_blur_x_offset_from_right',
+        'account_name_blur_y',
+        'account_name_blur_width',
+        'account_name_blur_height',
+        'account_name_blur_strength',
+        'account_center_blur_enabled',
+        'account_center_blur_x',
+        'account_center_blur_y',
+        'account_center_blur_width',
+        'account_center_blur_height',
+        'account_center_blur_strength',
     ];
 
     protected $casts = [

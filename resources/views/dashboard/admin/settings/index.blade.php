@@ -251,6 +251,96 @@
                         @endif
                     </div>
 
+                    <!-- Account image blur controls -->
+                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                        <h4 class="mb-3 fw-bolder">تحكم تغبيش صور الحسابات</h4>
+                        <div class="text-muted mb-3">
+                            هذه الإعدادات تتحكم في التغبيش أثناء رفع صور الحسابات (الصورة الرئيسية + صور المعرض).
+                        </div>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'account_name_blur_width'))
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">تفعيل تغبيش اسم الحساب</label>
+                                    <select name="account_name_blur_enabled" class="form-select">
+                                        <option value="1" {{ old('account_name_blur_enabled', (bool)($setting?->account_name_blur_enabled ?? true)) ? 'selected' : '' }}>مفعل</option>
+                                        <option value="0" {{ !old('account_name_blur_enabled', (bool)($setting?->account_name_blur_enabled ?? true)) ? 'selected' : '' }}>معطل</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">عرض تغبيش اسم الحساب</label>
+                                    <input type="number" min="1" step="1" class="form-control" name="account_name_blur_width"
+                                           value="{{ old('account_name_blur_width', (int) ($setting?->account_name_blur_width ?? 350)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">ارتفاع تغبيش اسم الحساب</label>
+                                    <input type="number" min="1" step="1" class="form-control" name="account_name_blur_height"
+                                           value="{{ old('account_name_blur_height', (int) ($setting?->account_name_blur_height ?? 100)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">قوة تغبيش اسم الحساب</label>
+                                    <input type="number" min="1" max="100" step="1" class="form-control" name="account_name_blur_strength"
+                                           value="{{ old('account_name_blur_strength', (int) ($setting?->account_name_blur_strength ?? 35)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">إزاحة X (من اليمين)</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="account_name_blur_x_offset_from_right"
+                                           value="{{ old('account_name_blur_x_offset_from_right', (int) ($setting?->account_name_blur_x_offset_from_right ?? 420)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">موضع Y</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="account_name_blur_y"
+                                           value="{{ old('account_name_blur_y', (int) ($setting?->account_name_blur_y ?? 40)) }}">
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">تفعيل مربع تغبيش المنتصف</label>
+                                    <select name="account_center_blur_enabled" class="form-select">
+                                        <option value="1" {{ old('account_center_blur_enabled', (bool)($setting?->account_center_blur_enabled ?? false)) ? 'selected' : '' }}>مفعل</option>
+                                        <option value="0" {{ !old('account_center_blur_enabled', (bool)($setting?->account_center_blur_enabled ?? false)) ? 'selected' : '' }}>معطل</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">عرض مربع المنتصف</label>
+                                    <input type="number" min="1" step="1" class="form-control" name="account_center_blur_width"
+                                           value="{{ old('account_center_blur_width', (int) ($setting?->account_center_blur_width ?? 140)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">ارتفاع مربع المنتصف</label>
+                                    <input type="number" min="1" step="1" class="form-control" name="account_center_blur_height"
+                                           value="{{ old('account_center_blur_height', (int) ($setting?->account_center_blur_height ?? 90)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">قوة تغبيش المنتصف</label>
+                                    <input type="number" min="1" max="100" step="1" class="form-control" name="account_center_blur_strength"
+                                           value="{{ old('account_center_blur_strength', (int) ($setting?->account_center_blur_strength ?? 35)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">إحداثي X (ثابت)</label>
+                                    <input type="number" step="1" class="form-control" name="account_center_blur_x"
+                                           value="{{ old('account_center_blur_x', (int) ($setting?->account_center_blur_x ?? 0)) }}">
+                                    <div class="form-text">اتركه 0 ليكون مربع التغبيش في المنتصف تلقائياً.</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">إحداثي Y (ثابت)</label>
+                                    <input type="number" step="1" class="form-control" name="account_center_blur_y"
+                                           value="{{ old('account_center_blur_y', (int) ($setting?->account_center_blur_y ?? 0)) }}">
+                                    <div class="form-text">اتركه 0 ليكون مربع التغبيش في المنتصف تلقائياً.</div>
+                                </div>
+                            </div>
+                            <div class="form-text mt-3">
+                                ملاحظة: يمكنك تكبير/تصغير العرض والارتفاع كما تريد من هنا مباشرة بدون تعديل كود.
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل إعدادات التغبيش من لوحة التحكم شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
+                    </div>
+
                     <!-- Home featured accounts -->
                     <div class="container p-4 mt-4 bg-white rounded shadow">
                         <h4 class="mb-3 fw-bolder">الحسابات المميزة في الصفحة الرئيسية (سلايدر)</h4>
