@@ -689,6 +689,21 @@ async function emergencyFitWithinBudget(mode) {
   return false;
 }
 
+async function forceUltraCompression(mode) {
+  const ultraProfiles = [
+    { maxDim: IS_IOS ? 620 : 900, quality: IS_IOS ? 0.36 : 0.44 },
+    { maxDim: IS_IOS ? 560 : 820, quality: IS_IOS ? 0.32 : 0.40 },
+    { maxDim: IS_IOS ? 500 : 740, quality: IS_IOS ? 0.28 : 0.36 },
+  ];
+  for (const p of ultraProfiles) {
+    await compressStateWithProfile(mode, p);
+    if (bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB) {
+      return true;
+    }
+  }
+  return bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB;
+}
+
 function bytesToMB(bytes) {
   return (Number(bytes || 0) / (1024 * 1024));
 }
@@ -1211,63 +1226,87 @@ if (productForm) productForm.addEventListener('submit', async function (e) {
         return;
     }
 
-    const formData = new FormData(form);
-    try {
-        // Always prefer processed/compressed main image if available.
-        if (processedMainImage instanceof File) {
-            formData.delete('product');
-            formData.set('product', processedMainImage);
-        }
-
-        const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
-        if (mode === 'guided') {
-            // Host/browser-safe path: send guided files as gallery[] only.
-            // IMPORTANT: remove original gallery_guided[...] entries first to avoid duplicate uploads.
-            // Duplicates can exceed PHP max_file_uploads and randomly drop files.
-            formData.delete('gallery[]');
-            formData.delete('gallery');
-            const keys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
-            formData.delete('gallery_guided');
-            keys.forEach((k) => {
-                formData.delete(`gallery_guided[${k}]`);
-            });
-            keys.forEach((k) => {
-                const inp = document.getElementById('gallery_guided_' + k);
-                const fallbackFile = inp && inp.files && inp.files[0] ? inp.files[0] : null;
-                const f = processedGuidedFiles[k] || fallbackFile;
-                if (f) formData.append('gallery[]', f);
-            });
-            formData.set('gallery_mode', 'guided');
-        } else {
-            // Advanced mode: submit processed files from in-memory list (iOS-safe).
-            formData.delete('gallery[]');
-            formData.delete('gallery');
-            if (Array.isArray(galleryFiles) && galleryFiles.length) {
-                galleryFiles.forEach((f) => {
-                    if (f instanceof File) formData.append('gallery[]', f);
-                });
-            } else {
-                const advancedInput = document.getElementById('gallery_images_advanced');
-                const fallbackFiles = advancedInput && advancedInput.files ? Array.from(advancedInput.files) : [];
-                fallbackFiles.forEach((f) => {
-                    if (f instanceof File) formData.append('gallery[]', f);
-                });
+    const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+    const buildFormData = () => {
+        const fd = new FormData(form);
+        try {
+            // Always prefer processed/compressed main image if available.
+            if (processedMainImage instanceof File) {
+                fd.delete('product');
+                fd.set('product', processedMainImage);
             }
-            formData.set('gallery_mode', 'advanced');
-        }
-    } catch (e) {}
-    const xhr = new XMLHttpRequest();
 
-    const startTime = new Date().getTime();
+            if (mode === 'guided') {
+                // Host/browser-safe path: send guided files as gallery[] only.
+                // IMPORTANT: remove original gallery_guided[...] entries first to avoid duplicate uploads.
+                // Duplicates can exceed PHP max_file_uploads and randomly drop files.
+                fd.delete('gallery[]');
+                fd.delete('gallery');
+                const keys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
+                fd.delete('gallery_guided');
+                keys.forEach((k) => {
+                    fd.delete(`gallery_guided[${k}]`);
+                });
+                keys.forEach((k) => {
+                    const inp = document.getElementById('gallery_guided_' + k);
+                    const fallbackFile = inp && inp.files && inp.files[0] ? inp.files[0] : null;
+                    const f = processedGuidedFiles[k] || fallbackFile;
+                    if (f) fd.append('gallery[]', f);
+                });
+                fd.set('gallery_mode', 'guided');
+            } else {
+                // Advanced mode: submit processed files from in-memory list (iOS-safe).
+                fd.delete('gallery[]');
+                fd.delete('gallery');
+                if (Array.isArray(galleryFiles) && galleryFiles.length) {
+                    galleryFiles.forEach((f) => {
+                        if (f instanceof File) fd.append('gallery[]', f);
+                    });
+                } else {
+                    const advancedInput = document.getElementById('gallery_images_advanced');
+                    const fallbackFiles = advancedInput && advancedInput.files ? Array.from(advancedInput.files) : [];
+                    fallbackFiles.forEach((f) => {
+                        if (f instanceof File) fd.append('gallery[]', f);
+                    });
+                }
+                fd.set('gallery_mode', 'advanced');
+            }
+        } catch (e) {}
+        return fd;
+    };
 
-    xhr.open('POST', form.action, true);
-    xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
-    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-    xhr.setRequestHeader('Accept', 'application/json');
-    xhr.timeout = 12 * 60 * 1000; // 12 minutes
+    const sendOnce = (formData, onProgress) => new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', form.action, true);
+        xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.timeout = 12 * 60 * 1000;
 
-    xhr.upload.onprogress = function (e) {
-        if (e.lengthComputable) {
+        xhr.upload.onprogress = function (e) {
+            if (typeof onProgress === 'function') onProgress(e);
+        };
+        xhr.onload = function () {
+            let payload = null;
+            try { payload = JSON.parse(xhr.responseText || '{}'); } catch (e) {}
+            resolve({ status: xhr.status, payload, xhr });
+        };
+        xhr.onerror = function () {
+            reject(new Error('network_error'));
+        };
+        xhr.ontimeout = function () {
+            reject(new Error('timeout'));
+        };
+        xhr.send(formData);
+    });
+
+    let retried413 = false;
+    const doSubmit = async () => {
+        const fd = buildFormData();
+        const startTime = new Date().getTime();
+
+        const result = await sendOnce(fd, (e) => {
+            if (!e.lengthComputable) return;
             const percent = Math.round((e.loaded / e.total) * 100);
             progressBar.style.width = percent + '%';
             progressPercent.innerText = percent + '%';
@@ -1277,27 +1316,28 @@ if (productForm) productForm.addEventListener('submit', async function (e) {
             progressInfo.innerText = `${loadedMB} MB / ${totalMB} MB`;
 
             const elapsedTime = (new Date().getTime() - startTime) / 1000;
-            const speed = e.loaded / elapsedTime;
+            const speed = e.loaded / Math.max(0.1, elapsedTime);
             const remainingTime = (e.total - e.loaded) / speed;
-
             progressTime.innerText = `الوقت المتبقي: ${Math.ceil(remainingTime)} ثانية`;
-        }
-    };
+        });
 
-    xhr.onload = function () {
-        let payload = null;
-        try {
-            payload = JSON.parse(xhr.responseText || '{}');
-        } catch (e) {}
-
-        if (xhr.status >= 200 && xhr.status < 300) {
+        const { status, payload, xhr } = result;
+        if (status >= 200 && status < 300) {
             const redirectUrl = extractTrackUrl(payload, xhr);
             const message = (payload && payload.message) ? String(payload.message) : 'تم رفع المنتج بنجاح';
             showSuccess(message, redirectUrl);
             return;
         }
 
-        if (xhr.status === 422 && payload && payload.errors) {
+        if (status === 413 && !retried413) {
+            retried413 = true;
+            progressTime.innerText = 'الطلب كبير، جاري إعادة المحاولة تلقائيًا مع ضغط أقوى...';
+            await forceUltraCompression(mode);
+            await doSubmit();
+            return;
+        }
+
+        if (status === 422 && payload && payload.errors) {
             const firstField = Object.keys(payload.errors)[0];
             const firstError = firstField && Array.isArray(payload.errors[firstField])
                 ? payload.errors[firstField][0]
@@ -1306,8 +1346,8 @@ if (productForm) productForm.addEventListener('submit', async function (e) {
             return;
         }
 
-        if (xhr.status === 413) {
-            showError('حجم صور الحساب كبير جدًا. قلّل دقة الصور أو ارفع عددًا أقل في كل محاولة.');
+        if (status === 413) {
+            showError('السيرفر ما زال يرفض الحجم (413) حتى بعد الضغط التلقائي. المشكلة من حد خفي بالسيرفر (Nginx/WAF).');
             return;
         }
 
@@ -1315,15 +1355,17 @@ if (productForm) productForm.addEventListener('submit', async function (e) {
         showError((payload && payload.message) ? payload.message : 'حدث خطأ أثناء رفع المنتج');
     };
 
-    xhr.onerror = function () {
-        showError('فشل الاتصال أثناء الرفع');
-    };
-
-    xhr.ontimeout = function () {
-        showError('انتهت مهلة الرفع. حاول مرة أخرى أو قلّل حجم الصور.');
-    };
-
-    xhr.send(formData);
+    try {
+        await doSubmit();
+    } catch (err) {
+        if (err && err.message === 'timeout') {
+            showError('انتهت مهلة الرفع. حاول مرة أخرى أو قلّل حجم الصور.');
+        } else if (err && err.message === 'network_error') {
+            showError('فشل الاتصال أثناء الرفع');
+        } else {
+            showError('حدث خطأ أثناء رفع المنتج');
+        }
+    }
 });
 </script>
 
