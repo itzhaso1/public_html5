@@ -544,9 +544,10 @@ let currentStep = {{ (int) $initialWizardStep }};
 const totalSteps = 7;
 let isProcessingImages = false;
 const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-const MAX_IMG_DIM = IS_IOS ? 1280 : 1600;
-const JPEG_QUALITY = IS_IOS ? 0.62 : 0.72;
+const MAX_IMG_DIM = IS_IOS ? 1560 : 2048;
+const JPEG_QUALITY = IS_IOS ? 0.78 : 0.85;
 const MAX_TOTAL_UPLOAD_MB = IS_IOS ? 17 : 22; // keep below common post_max_size limits
+const UPLOAD_SOFT_TARGET_MB = IS_IOS ? 14.5 : 18.5;
 const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
 const GUIDED_KEYS = @json($guidedGalleryKeys);
 let processedMainImage = null;
@@ -598,9 +599,9 @@ async function downscaleToJpeg(file, opts = {}) {
 async function aggressivelyCompressImage(file) {
   if (!(file instanceof File)) return file;
   const attempts = [
-    { maxDim: IS_IOS ? 1180 : 1360, quality: IS_IOS ? 0.58 : 0.66 },
-    { maxDim: IS_IOS ? 1024 : 1200, quality: IS_IOS ? 0.5 : 0.58 },
-    { maxDim: IS_IOS ? 900 : 1024, quality: IS_IOS ? 0.44 : 0.52 },
+    { maxDim: IS_IOS ? 1500 : 1920, quality: IS_IOS ? 0.76 : 0.84 },
+    { maxDim: IS_IOS ? 1360 : 1760, quality: IS_IOS ? 0.72 : 0.80 },
+    { maxDim: IS_IOS ? 1220 : 1600, quality: IS_IOS ? 0.68 : 0.76 },
   ];
   let current = file;
   for (const a of attempts) {
@@ -616,18 +617,15 @@ function bytesToMB(bytes) {
 }
 
 async function enforceUploadBudget() {
+  // Prefer high quality first, then only increase compression if total size exceeds soft target.
   // Main
-  if (processedMainImage instanceof File) {
-    processedMainImage = await aggressivelyCompressImage(processedMainImage);
-  } else {
+  if (!(processedMainImage instanceof File)) {
     const inputMain = document.getElementById('product_image');
     const rawMain = inputMain && inputMain.files && inputMain.files[0] ? inputMain.files[0] : null;
-    if (rawMain instanceof File) {
-      processedMainImage = await aggressivelyCompressImage(rawMain);
-    }
+    if (rawMain instanceof File) processedMainImage = rawMain;
   }
 
-  // Guided gallery
+  // Guided gallery (keep originals at first)
   const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
   if (mode === 'guided') {
     for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
@@ -637,7 +635,7 @@ async function enforceUploadBudget() {
         f = input && input.files && input.files[0] ? input.files[0] : null;
       }
       if (f instanceof File) {
-        processedGuidedFiles[key] = await aggressivelyCompressImage(f);
+        processedGuidedFiles[key] = f;
       }
     }
   } else {
@@ -667,8 +665,41 @@ async function enforceUploadBudget() {
     }
   }
 
-  if (bytesToMB(totalBytes) > MAX_TOTAL_UPLOAD_MB) {
-    throw new Error(`حجم الصور بعد الضغط ما زال كبيرًا (${bytesToMB(totalBytes).toFixed(1)}MB). قلّل عدد الصور أو دقتها ثم أعد المحاولة.`);
+  // Compress only when needed (quality first).
+  if (bytesToMB(totalBytes) > UPLOAD_SOFT_TARGET_MB) {
+    if (processedMainImage instanceof File) {
+      processedMainImage = await aggressivelyCompressImage(processedMainImage);
+    }
+    if (mode === 'guided') {
+      for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+        const f = processedGuidedFiles[key];
+        if (f instanceof File) processedGuidedFiles[key] = await aggressivelyCompressImage(f);
+      }
+    } else if (Array.isArray(galleryFiles)) {
+      const out = [];
+      for (const f of galleryFiles) {
+        out.push(await aggressivelyCompressImage(f));
+      }
+      galleryFiles = out;
+    }
+  }
+
+  // Recalculate total after conditional compression.
+  let finalTotalBytes = 0;
+  if (processedMainImage instanceof File) finalTotalBytes += processedMainImage.size || 0;
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const f = processedGuidedFiles[key];
+      if (f instanceof File) finalTotalBytes += f.size || 0;
+    }
+  } else if (Array.isArray(galleryFiles)) {
+    for (const f of galleryFiles) {
+      if (f instanceof File) finalTotalBytes += f.size || 0;
+    }
+  }
+
+  if (bytesToMB(finalTotalBytes) > MAX_TOTAL_UPLOAD_MB) {
+    throw new Error(`حجم الصور كبير (${bytesToMB(finalTotalBytes).toFixed(1)}MB). لتجنب الفشل، قلّل عدد الصور أو الدقة قليلًا.`);
   }
 }
 
