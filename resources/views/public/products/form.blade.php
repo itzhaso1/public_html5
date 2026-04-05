@@ -546,8 +546,10 @@ let isProcessingImages = false;
 const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
 const MAX_IMG_DIM = IS_IOS ? 1560 : 2048;
 const JPEG_QUALITY = IS_IOS ? 0.78 : 0.85;
-const MAX_TOTAL_UPLOAD_MB = IS_IOS ? 17 : 22; // keep below common post_max_size limits
-const UPLOAD_SOFT_TARGET_MB = IS_IOS ? 14.5 : 18.5;
+// Keep payload safely below common server post_max_size values.
+// We start high-quality, then only lower quality when absolutely needed.
+const MAX_TOTAL_UPLOAD_MB = IS_IOS ? 9.5 : 12.5;
+const UPLOAD_SOFT_TARGET_MB = IS_IOS ? 8.2 : 10.8;
 const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
 const GUIDED_KEYS = @json($guidedGalleryKeys);
 let processedMainImage = null;
@@ -596,20 +598,74 @@ async function downscaleToJpeg(file, opts = {}) {
   return new File([blob], base + '.jpg', { type: 'image/jpeg' });
 }
 
-async function aggressivelyCompressImage(file) {
-  if (!(file instanceof File)) return file;
-  const attempts = [
-    { maxDim: IS_IOS ? 1500 : 1920, quality: IS_IOS ? 0.76 : 0.84 },
-    { maxDim: IS_IOS ? 1360 : 1760, quality: IS_IOS ? 0.72 : 0.80 },
-    { maxDim: IS_IOS ? 1220 : 1600, quality: IS_IOS ? 0.68 : 0.76 },
-  ];
-  let current = file;
-  for (const a of attempts) {
-    try {
-      current = await downscaleToJpeg(current, { ...a, force: true });
-    } catch (e) {}
+async function compressStateWithProfile(mode, profile) {
+  if (processedMainImage instanceof File) {
+    processedMainImage = await downscaleToJpeg(processedMainImage, { ...profile, force: true });
   }
-  return current;
+
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const f = processedGuidedFiles[key];
+      if (f instanceof File) {
+        processedGuidedFiles[key] = await downscaleToJpeg(f, { ...profile, force: true });
+      }
+    }
+    return;
+  }
+
+  if (Array.isArray(galleryFiles) && galleryFiles.length) {
+    const out = [];
+    for (const f of galleryFiles) {
+      if (f instanceof File) {
+        out.push(await downscaleToJpeg(f, { ...profile, force: true }));
+      } else {
+        out.push(f);
+      }
+    }
+    galleryFiles = out;
+  }
+}
+
+function getCurrentTotalBytes(mode) {
+  let totalBytes = 0;
+  if (processedMainImage instanceof File) totalBytes += processedMainImage.size || 0;
+
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const f = processedGuidedFiles[key];
+      if (f instanceof File) totalBytes += f.size || 0;
+    }
+    return totalBytes;
+  }
+
+  if (Array.isArray(galleryFiles)) {
+    for (const f of galleryFiles) {
+      if (f instanceof File) totalBytes += f.size || 0;
+    }
+  }
+  return totalBytes;
+}
+
+async function emergencyFitWithinBudget(mode) {
+  const emergencyProfiles = [
+    { maxDim: IS_IOS ? 1360 : 1760, quality: IS_IOS ? 0.72 : 0.80 },
+    { maxDim: IS_IOS ? 1220 : 1600, quality: IS_IOS ? 0.66 : 0.74 },
+    { maxDim: IS_IOS ? 1080 : 1440, quality: IS_IOS ? 0.60 : 0.68 },
+    { maxDim: IS_IOS ? 920 : 1280, quality: IS_IOS ? 0.54 : 0.62 },
+    { maxDim: IS_IOS ? 820 : 1120, quality: IS_IOS ? 0.48 : 0.56 },
+    { maxDim: IS_IOS ? 700 : 980, quality: IS_IOS ? 0.42 : 0.50 },
+  ];
+
+  if (bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB) return true;
+
+  for (const profile of emergencyProfiles) {
+    await compressStateWithProfile(mode, profile);
+    if (bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function bytesToMB(bytes) {
@@ -646,60 +702,32 @@ async function enforceUploadBudget() {
     if (source.length) {
       const out = [];
       for (const f of source) {
-        out.push(await aggressivelyCompressImage(f));
+        out.push(f);
       }
       galleryFiles = out;
     }
   }
 
-  let totalBytes = 0;
-  if (processedMainImage instanceof File) totalBytes += processedMainImage.size || 0;
-  if (mode === 'guided') {
-    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
-      const f = processedGuidedFiles[key];
-      if (f instanceof File) totalBytes += f.size || 0;
-    }
-  } else if (Array.isArray(galleryFiles)) {
-    for (const f of galleryFiles) {
-      if (f instanceof File) totalBytes += f.size || 0;
-    }
-  }
+  let totalBytes = getCurrentTotalBytes(mode);
 
   // Compress only when needed (quality first).
   if (bytesToMB(totalBytes) > UPLOAD_SOFT_TARGET_MB) {
-    if (processedMainImage instanceof File) {
-      processedMainImage = await aggressivelyCompressImage(processedMainImage);
-    }
-    if (mode === 'guided') {
-      for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
-        const f = processedGuidedFiles[key];
-        if (f instanceof File) processedGuidedFiles[key] = await aggressivelyCompressImage(f);
-      }
-    } else if (Array.isArray(galleryFiles)) {
-      const out = [];
-      for (const f of galleryFiles) {
-        out.push(await aggressivelyCompressImage(f));
-      }
-      galleryFiles = out;
-    }
+    await compressStateWithProfile(mode, {
+      maxDim: IS_IOS ? 1500 : 1920,
+      quality: IS_IOS ? 0.76 : 0.84,
+    });
+    totalBytes = getCurrentTotalBytes(mode);
   }
 
-  // Recalculate total after conditional compression.
-  let finalTotalBytes = 0;
-  if (processedMainImage instanceof File) finalTotalBytes += processedMainImage.size || 0;
-  if (mode === 'guided') {
-    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
-      const f = processedGuidedFiles[key];
-      if (f instanceof File) finalTotalBytes += f.size || 0;
-    }
-  } else if (Array.isArray(galleryFiles)) {
-    for (const f of galleryFiles) {
-      if (f instanceof File) finalTotalBytes += f.size || 0;
-    }
+  // Emergency fitting: avoid 413 by auto-adjusting only when necessary.
+  let finalTotalBytes = getCurrentTotalBytes(mode);
+  if (bytesToMB(finalTotalBytes) > MAX_TOTAL_UPLOAD_MB) {
+    await emergencyFitWithinBudget(mode);
+    finalTotalBytes = getCurrentTotalBytes(mode);
   }
 
   if (bytesToMB(finalTotalBytes) > MAX_TOTAL_UPLOAD_MB) {
-    throw new Error(`حجم الصور كبير (${bytesToMB(finalTotalBytes).toFixed(1)}MB). لتجنب الفشل، قلّل عدد الصور أو الدقة قليلًا.`);
+    throw new Error(`تمت محاولة تحسين الصور تلقائيًا لكن الحجم ما زال كبيرًا (${bytesToMB(finalTotalBytes).toFixed(1)}MB). حاول تقليل عدد الصور قليلًا.`);
   }
 }
 
