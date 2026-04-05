@@ -69,6 +69,22 @@
         $initialWizardStep = (int) $errorStep;
     }
     $initialWizardStep = max(1, min(7, $initialWizardStep));
+
+    // Read effective PHP request-size limit so frontend can auto-fit before submit.
+    $parseIniBytes = function ($value): int {
+        $v = trim((string) $value);
+        if ($v === '') return 0;
+        $num = (float) $v;
+        $unit = strtolower(substr($v, -1));
+        return match ($unit) {
+            'g' => (int) round($num * 1024 * 1024 * 1024),
+            'm' => (int) round($num * 1024 * 1024),
+            'k' => (int) round($num * 1024),
+            default => (int) round((float) $v),
+        };
+    };
+    $postMaxBytes = $parseIniBytes(ini_get('post_max_size'));
+    $serverPostMaxMb = $postMaxBytes > 0 ? round($postMaxBytes / (1024 * 1024), 2) : 0;
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -548,8 +564,13 @@ const MAX_IMG_DIM = IS_IOS ? 1560 : 2048;
 const JPEG_QUALITY = IS_IOS ? 0.78 : 0.85;
 // Keep payload safely below common server post_max_size values.
 // We start high-quality, then only lower quality when absolutely needed.
-const MAX_TOTAL_UPLOAD_MB = IS_IOS ? 9.5 : 12.5;
-const UPLOAD_SOFT_TARGET_MB = IS_IOS ? 8.2 : 10.8;
+const SERVER_POST_MAX_MB = {{ json_encode((float) ($serverPostMaxMb ?? 0)) }};
+const BASE_MAX_TOTAL_UPLOAD_MB = IS_IOS ? 9.5 : 12.5;
+// Use only ~65% of server post_max_size to leave room for multipart/form-data overhead.
+const MAX_TOTAL_UPLOAD_MB = SERVER_POST_MAX_MB > 0
+  ? Math.max(2.5, Math.min(BASE_MAX_TOTAL_UPLOAD_MB, SERVER_POST_MAX_MB * 0.65))
+  : BASE_MAX_TOTAL_UPLOAD_MB;
+const UPLOAD_SOFT_TARGET_MB = Math.max(2.0, MAX_TOTAL_UPLOAD_MB * 0.86);
 const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
 const GUIDED_KEYS = @json($guidedGalleryKeys);
 let processedMainImage = null;
