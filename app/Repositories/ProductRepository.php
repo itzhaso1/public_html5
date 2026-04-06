@@ -396,11 +396,10 @@ if ($request->hasFile('video')) {
             }
 
             $settings = \App\Models\Setting::query()->latest('id')->first();
-            $wmEnabled = (bool) ($settings?->watermark_enabled ?? true);
-            if (! $wmEnabled) {
-                return;
-            }
-            $multiEnabled = (bool) ($settings?->watermark_multi_enabled ?? false);
+            // watermark_enabled=false means "fallback to default watermark layout",
+            // not "hide watermark completely".
+            $wmCustomEnabled = (bool) ($settings?->watermark_enabled ?? true);
+            $multiEnabled = $wmCustomEnabled && (bool) ($settings?->watermark_multi_enabled ?? false);
 
             $info = getimagesize($imagePath);
             $mime = $info['mime'];
@@ -487,12 +486,22 @@ if ($request->hasFile('video')) {
             if ($placedCount === 0) {
                 $logoPath = public_path('watermark/logo.png');
                 if (is_file($logoPath)) {
-                    $xOffset = max(0, (int) ($settings?->watermark_x_offset ?? 20));
-                    $yOffset = max(0, (int) ($settings?->watermark_y_offset ?? 0));
-                    $scalePercent = max(5, min(90, (int) ($settings?->watermark_scale_percent ?? 20)));
-                    $secondEnabled = (bool) ($settings?->watermark_second_enabled ?? true);
-                    $secondXOffset = (int) ($settings?->watermark_second_x_offset ?? 40);
-                    $secondYOffset = (int) ($settings?->watermark_second_y_offset ?? 0);
+                    if ($wmCustomEnabled) {
+                        $xOffset = max(0, (int) ($settings?->watermark_x_offset ?? 20));
+                        $yOffset = max(0, (int) ($settings?->watermark_y_offset ?? 0));
+                        $scalePercent = max(5, min(90, (int) ($settings?->watermark_scale_percent ?? 20)));
+                        $secondEnabled = (bool) ($settings?->watermark_second_enabled ?? true);
+                        $secondXOffset = (int) ($settings?->watermark_second_x_offset ?? 40);
+                        $secondYOffset = (int) ($settings?->watermark_second_y_offset ?? 0);
+                    } else {
+                        // Default legacy placement when custom controls are disabled.
+                        $xOffset = 20;
+                        $yOffset = 0;
+                        $scalePercent = 20;
+                        $secondEnabled = true;
+                        $secondXOffset = 40;
+                        $secondYOffset = 0;
+                    }
 
                     $logo = imagecreatefrompng($logoPath);
                     imagesavealpha($logo, true);
