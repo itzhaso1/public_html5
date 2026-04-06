@@ -59,6 +59,13 @@ class Setting extends Model
         'account_center_blur_width',
         'account_center_blur_height',
         'account_center_blur_strength',
+        'watermark_enabled',
+        'watermark_x_offset',
+        'watermark_y_offset',
+        'watermark_scale_percent',
+        'watermark_second_enabled',
+        'watermark_second_x_offset',
+        'watermark_second_y_offset',
     ];
 
     protected $casts = [

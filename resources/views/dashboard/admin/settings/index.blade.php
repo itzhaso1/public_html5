@@ -404,6 +404,58 @@
                                     الأحمر = الجزء العلوي، الأزرق = تغبيش الاسم، الأخضر = مربع المنتصف.
                                 </div>
                             </div>
+
+                            <hr class="my-4">
+                            <h6 class="fw-bold mb-3">إعدادات لوجو العلامة المائية (للصورة الرئيسية)</h6>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">تفعيل اللوجو المائي</label>
+                                    <select name="watermark_enabled" class="form-select">
+                                        <option value="1" {{ old('watermark_enabled', (bool)($setting?->watermark_enabled ?? true)) ? 'selected' : '' }}>مفعل</option>
+                                        <option value="0" {{ !old('watermark_enabled', (bool)($setting?->watermark_enabled ?? true)) ? 'selected' : '' }}>معطل</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">حجم اللوجو (%)</label>
+                                    <input type="number" min="1" max="100" step="1" class="form-control" name="watermark_scale_percent"
+                                           value="{{ old('watermark_scale_percent', (int) ($setting?->watermark_scale_percent ?? 20)) }}">
+                                    <div class="form-text">نسبة من عرض الصورة.</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">موضع Y (PX من الأعلى)</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="watermark_y_offset"
+                                           value="{{ old('watermark_y_offset', (int) ($setting?->watermark_y_offset ?? 0)) }}">
+                                </div>
+                            </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">اللوجو الأول: X من اليمين (PX)</label>
+                                    <input type="number" min="0" step="1" class="form-control" name="watermark_x_offset"
+                                           value="{{ old('watermark_x_offset', (int) ($setting?->watermark_x_offset ?? 20)) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">تفعيل اللوجو الثاني</label>
+                                    <select name="watermark_second_enabled" class="form-select">
+                                        <option value="1" {{ old('watermark_second_enabled', (bool)($setting?->watermark_second_enabled ?? true)) ? 'selected' : '' }}>مفعل</option>
+                                        <option value="0" {{ !old('watermark_second_enabled', (bool)($setting?->watermark_second_enabled ?? true)) ? 'selected' : '' }}>معطل</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">اللوجو الثاني: إزاحة X (PX)</label>
+                                    <input type="number" step="1" class="form-control" name="watermark_second_x_offset"
+                                           value="{{ old('watermark_second_x_offset', (int) ($setting?->watermark_second_x_offset ?? 40)) }}">
+                                    <div class="form-text">قيمة موجبة = يمين، سالبة = يسار.</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="input-group-text text-dark">اللوجو الثاني: إزاحة Y (PX)</label>
+                                    <input type="number" step="1" class="form-control" name="watermark_second_y_offset"
+                                           value="{{ old('watermark_second_y_offset', (int) ($setting?->watermark_second_y_offset ?? 0)) }}">
+                                    <div class="form-text">قيمة موجبة = تحت، سالبة = فوق.</div>
+                                </div>
+                            </div>
+                            <div class="form-text mt-2">
+                                هذه الإعدادات تتحكم فقط باللوجو المضاف تلقائياً بعد معالجة الصورة الرئيسية.
+                            </div>
                         @else
                             <div class="text-muted">
                                 لتفعيل إعدادات التغبيش من لوحة التحكم شغّل: <code>php artisan migrate --force</code>
@@ -713,7 +765,8 @@
             'account_top_area_mode','account_top_area_size_px','account_top_area_width_px','account_top_area_x_from_right_px','account_top_area_blur_strength',
             'account_name_blur_enabled','account_name_blur_mode','account_name_blur_width','account_name_blur_height','account_name_blur_x_offset_from_right','account_name_blur_y','account_name_blur_strength',
             'account_name_blur_x_offset_from_right_ratio','account_name_blur_y_ratio','account_name_blur_width_ratio','account_name_blur_height_ratio',
-            'account_center_blur_enabled','account_center_blur_width','account_center_blur_height','account_center_blur_x','account_center_blur_x_from_right','account_center_blur_y','account_center_blur_strength'
+            'account_center_blur_enabled','account_center_blur_width','account_center_blur_height','account_center_blur_x','account_center_blur_x_from_right','account_center_blur_y','account_center_blur_strength',
+            'watermark_enabled','watermark_x_offset','watermark_y_offset','watermark_scale_percent','watermark_second_enabled','watermark_second_x_offset','watermark_second_y_offset'
         ].forEach((id) => {
             const el = fieldEl(id);
             if (!el) return;

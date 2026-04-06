@@ -5,7 +5,6 @@ namespace App\Repositories;
 use App\Models\{Product, Category, Type, Brand, Tag, Section};
 use App\Services\Contracts\ProductInterface;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use App\DataTables\Dashboard\Admin\ProductDataTable;
 use App\Models\Concerns\UploadVideoTrait;
 use Illuminate\Support\Str;
@@ -397,6 +396,19 @@ if ($request->hasFile('video')) {
                 return;
             }
 
+            $settings = \App\Models\Setting::query()->latest('id')->first();
+            $wmEnabled = (bool) ($settings?->watermark_enabled ?? true);
+            if (! $wmEnabled) {
+                return;
+            }
+
+            $xOffset = max(0, (int) ($settings?->watermark_x_offset ?? 20));
+            $yOffset = max(0, (int) ($settings?->watermark_y_offset ?? 0));
+            $scalePercent = max(5, min(90, (int) ($settings?->watermark_scale_percent ?? 20)));
+            $secondEnabled = (bool) ($settings?->watermark_second_enabled ?? true);
+            $secondXOffset = (int) ($settings?->watermark_second_x_offset ?? 40);
+            $secondYOffset = (int) ($settings?->watermark_second_y_offset ?? 0);
+
             $info = getimagesize($imagePath);
             $mime = $info['mime'];
 
@@ -416,7 +428,7 @@ if ($request->hasFile('video')) {
             $logoWidth   = imagesx($logo);
             $logoHeight  = imagesy($logo);
 
-            $newLogoWidth  = intval($imageWidth * 0.2);
+            $newLogoWidth  = intval($imageWidth * ($scalePercent / 100));
             $scale         = $newLogoWidth / $logoWidth;
             $newLogoHeight = intval($logoHeight * $scale);
 
@@ -434,14 +446,17 @@ if ($request->hasFile('video')) {
                 $logoHeight
             );
 
-            $y = intval($imageHeight * 0.11);
-
-            $x1 = $imageWidth - $newLogoWidth - 20;
+            $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
+            $x1 = max(0, $imageWidth - $newLogoWidth - $xOffset);
             imagecopy($image, $resizedLogo, $x1, $y, 0, 0, $newLogoWidth, $newLogoHeight);
 
 
-            $x2 = intval(($imageWidth - $newLogoWidth) / 2) + 40;
-imagecopy($image, $resizedLogo, $x2, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+            if ($secondEnabled) {
+                $x2Base = (int) floor(($imageWidth - $newLogoWidth) / 2);
+                $x2 = max(0, min($imageWidth - $newLogoWidth, $x2Base + $secondXOffset));
+                $y2 = max(0, min($imageHeight - $newLogoHeight, $y + $secondYOffset));
+                imagecopy($image, $resizedLogo, $x2, $y2, 0, 0, $newLogoWidth, $newLogoHeight);
+            }
 
             $mime === 'image/png'
                 ? imagepng($image, $imagePath, 9)
