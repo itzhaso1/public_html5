@@ -275,9 +275,18 @@ trait UploadMedia2 {
             $image->insert($watermark, 'bottom-right', 10, 10);
         }
         if ($useStorage) {
-            $image->save(public_path($filePath));
+            $targetPath = public_path($filePath);
         } else {
-            $image->save(storage_path("app/public/$filePath"));
+            $targetPath = storage_path("app/public/$filePath");
+        }
+        // Preserve higher quality after blur/logo processing.
+        $extensionLower = strtolower((string) $extension);
+        if ($extensionLower === 'png') {
+            $image->save($targetPath, 9, 'png');
+        } elseif ($extensionLower === 'webp') {
+            $image->save($targetPath, 96, 'webp');
+        } else {
+            $image->save($targetPath, 96, 'jpg');
         }
         if ($generateThumbnail) {
             // Build thumbnail from a fresh image instance to avoid double-crop side effects.
@@ -646,8 +655,15 @@ trait UploadMedia2 {
                 $image->insert($watermark, 'bottom-right', 10, 10);
             }
 
-            // حفظ الصورة في public/uploads/...
-            $image->save($filePath);
+            // حفظ الصورة في public/uploads/... مع جودة أعلى بعد المعالجة.
+            $extensionLower = strtolower((string) $extension);
+            if ($extensionLower === 'png') {
+                $image->save($filePath, 9, 'png');
+            } elseif ($extensionLower === 'webp') {
+                $image->save($filePath, 96, 'webp');
+            } else {
+                $image->save($filePath, 96, 'jpg');
+            }
 
             // إنشاء الصورة المصغرة
             if ($generateThumbnail) {
