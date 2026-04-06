@@ -3,7 +3,7 @@
 namespace App\Repositories;
 
 use App\Http\Requests\MainSettingRequest;
-use App\Models\{Product, Setting};
+use App\Models\{Product, Setting, SettingWatermark};
 use App\Services\Contracts\MainSettingInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\{DB, Session};
@@ -314,6 +314,7 @@ class MainSettingRepository implements MainSettingInterface
                 $setting->updateSingleMedia('setting', $request->file('logo'), $setting, null, 'media', true, false, 'logo');
             if ($request->hasFile('favicon'))
                 $setting->updateSingleMedia('setting', $request->file('favicon'), $setting, null, 'media', true, false, 'favicon');
+            $this->syncDynamicWatermarks($request, $setting);
 
             if ($hasHomeQuick) {
                 if ($request->hasFile('home_quick_charge_image')) {
@@ -353,5 +354,79 @@ class MainSettingRepository implements MainSettingInterface
     public function history(HistoryDataTable $historyDataTable)
     {
         return $historyDataTable->render('dashboard.admin.settings.history', ['pageTitle' => 'History']);
+    }
+
+    private function syncDynamicWatermarks(MainSettingRequest $request, Setting $setting): void
+    {
+        if (!Schema::hasTable('setting_watermarks')) {
+            return;
+        }
+
+        $items = $request->input('wm', []);
+        if (!is_array($items)) {
+            $items = [];
+        }
+        $keptIds = [];
+
+        foreach ($items as $idx => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+
+            $id = isset($row['id']) ? (int) $row['id'] : 0;
+            $enabled = isset($row['enabled']) && (string) $row['enabled'] === '1';
+            $x = (int) ($row['x_offset'] ?? 0);
+            $y = (int) ($row['y_offset'] ?? 0);
+            $scale = max(1, min(100, (int) ($row['scale_percent'] ?? 20)));
+            $sortOrder = isset($row['sort_order']) ? (int) $row['sort_order'] : ((int) $idx + 1);
+
+            $wm = null;
+            if ($id > 0) {
+                $wm = $setting->watermarks()->where('id', $id)->first();
+            }
+            if (! $wm) {
+                $wm = $setting->watermarks()->create([
+                    'enabled' => true,
+                    'x_offset' => 0,
+                    'y_offset' => 0,
+                    'scale_percent' => 20,
+                    'sort_order' => $sortOrder,
+                ]);
+            }
+
+            $wm->enabled = $enabled;
+            $wm->x_offset = $x;
+            $wm->y_offset = $y;
+            $wm->scale_percent = $scale;
+            $wm->sort_order = $sortOrder;
+            $wm->save();
+
+            $fileKey = "wm.$idx.image";
+            if ($request->hasFile($fileKey)) {
+                $wm->updateSingleMedia(
+                    'setting/watermarks',
+                    $request->file($fileKey),
+                    $wm,
+                    null,
+                    'media',
+                    true,
+                    false,
+                    'watermark_image'
+                );
+            }
+
+            $keptIds[] = (int) $wm->id;
+        }
+
+        if (!empty($keptIds)) {
+            $toDelete = $setting->watermarks()->whereNotIn('id', $keptIds)->get();
+        } else {
+            $toDelete = $setting->watermarks()->get();
+        }
+
+        foreach ($toDelete as $wm) {
+            $wm->deleteExistingMedia('setting/watermarks', $wm, null, 'media', true, 'watermark_image');
+            $wm->delete();
+        }
     }
 }

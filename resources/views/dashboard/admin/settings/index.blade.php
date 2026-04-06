@@ -6,7 +6,7 @@
 
 @section('content')
     @include('dashboard.layouts.common._partial.messages')
-    <div id="kt_content_container" class="container-xxl">
+    <div id="kt_content_container" class="container-xxl settings-page">
         <div class="mb-5 card card-xxl-stretch mb-xl-8">
             <!--begin::Header-->
             <div class="pt-5 border-0 card-header">
@@ -81,7 +81,7 @@
                     </div>
 
                     <!-- Start Logo & Favicon & Banner -->
-                    <div class="container p-4 mt-2 bg-white rounded shadow">
+                    <div class="settings-card">
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="p-3 mb-3 text-center border rounded">
@@ -117,7 +117,7 @@
                     </div>
 
                     <!-- Home Quick Sections (Homepage cards) -->
-                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                    <div class="settings-card">
                         <h4 class="mb-3 fw-bolder">كروت الأقسام في الصفحة الرئيسية (تعديل الاسم والصورة)</h4>
                         <div class="row g-4">
                             <div class="col-md-6">
@@ -136,7 +136,7 @@
                                         </div>
                                     @endif
                                     <div class="mt-2">
-                                        <label class="form-label fw-bold">الصورة</label>
+                                            <label class="form-label fw-bold">الصورة</label>
                                         <input class="form-control" type="file" name="home_quick_charge_image" accept="image/*">
                                         @if(!empty($homeQuickChargeImg))
                                             <img src="{{ $homeQuickChargeImg }}" class="img-fluid mt-2" style="max-height: 80px;">
@@ -225,7 +225,7 @@
                     </div>
 
                     <!-- Public publish form settings -->
-                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                    <div class="settings-card">
                         <h4 class="mb-3 fw-bolder">إعدادات صفحة نشر الحساب (publish-product)</h4>
                         @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'public_publish_min_gallery_images'))
                             <div class="row g-3">
@@ -252,7 +252,7 @@
                     </div>
 
                     <!-- Account image blur controls -->
-                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                    <div class="settings-card">
                         <h4 class="mb-3 fw-bolder">تحكم تغبيش صور الحسابات</h4>
                         <div class="text-muted mb-3">
                             هذه الإعدادات تتحكم في التغبيش أثناء رفع صور الحسابات (الصورة الرئيسية + صور المعرض).
@@ -456,6 +456,69 @@
                             <div class="form-text mt-2">
                                 هذه الإعدادات تتحكم فقط باللوجو المضاف تلقائياً بعد معالجة الصورة الرئيسية.
                             </div>
+                            @php
+                                $watermarkItemsOld = old('wm', null);
+                                if (!is_array($watermarkItemsOld)) {
+                                    $watermarkItemsOld = collect($setting?->watermarks ?? [])
+                                        ->map(function ($wm) {
+                                            return [
+                                                'id' => $wm->id,
+                                                'enabled' => (int) ($wm->enabled ?? 1),
+                                                'x_offset' => (int) ($wm->x_offset ?? 20),
+                                                'y_offset' => (int) ($wm->y_offset ?? 0),
+                                                'scale_percent' => (int) ($wm->scale_percent ?? 20),
+                                                'sort_order' => (int) ($wm->sort_order ?? 0),
+                                            ];
+                                        })
+                                        ->values()
+                                        ->all();
+                                }
+                            @endphp
+                            <hr class="my-4">
+                            <h6 class="fw-bold mb-3">لوجوهات متعددة (غير محدود)</h6>
+                            <div class="form-text mb-3">
+                                يمكنك إضافة أي عدد من اللوجوهات مع تحكم مستقل بالمكان والحجم لكل لوجو.
+                            </div>
+                            <div id="wmList">
+                                @foreach($watermarkItemsOld as $i => $wmRow)
+                                    <div class="row g-3 align-items-end border rounded p-3 mb-2 wm-item" data-index="{{ $i }}">
+                                        <input type="hidden" name="wm[{{ $i }}][id]" value="{{ (int)($wmRow['id'] ?? 0) }}">
+                                        <div class="col-12 col-md-3">
+                                            <label class="form-label fw-bold">صورة اللوجو</label>
+                                            <input type="file" class="form-control" name="wm[{{ $i }}][image]" accept="image/*">
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label fw-bold">تفعيل</label>
+                                            <select class="form-select" name="wm[{{ $i }}][enabled]">
+                                                <option value="1" {{ (int)($wmRow['enabled'] ?? 1) === 1 ? 'selected' : '' }}>مفعل</option>
+                                                <option value="0" {{ (int)($wmRow['enabled'] ?? 1) === 0 ? 'selected' : '' }}>معطل</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label fw-bold">X</label>
+                                            <input type="number" class="form-control" name="wm[{{ $i }}][x_offset]" value="{{ (int)($wmRow['x_offset'] ?? 20) }}">
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label fw-bold">Y</label>
+                                            <input type="number" class="form-control" name="wm[{{ $i }}][y_offset]" value="{{ (int)($wmRow['y_offset'] ?? 0) }}">
+                                        </div>
+                                        <div class="col-6 col-md-2">
+                                            <label class="form-label fw-bold">الحجم %</label>
+                                            <input type="number" min="1" max="100" class="form-control" name="wm[{{ $i }}][scale_percent]" value="{{ (int)($wmRow['scale_percent'] ?? 20) }}">
+                                        </div>
+                                        <div class="col-6 col-md-1">
+                                            <label class="form-label fw-bold">ترتيب</label>
+                                            <input type="number" class="form-control" name="wm[{{ $i }}][sort_order]" value="{{ (int)($wmRow['sort_order'] ?? 0) }}">
+                                        </div>
+                                        <div class="col-12 col-md-12 text-end">
+                                            <button type="button" class="btn btn-sm btn-light-danger wm-remove-btn">حذف</button>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                            <div class="d-flex gap-2 mt-2">
+                                <button type="button" class="btn btn-sm btn-primary" id="wmAddBtn">+ إضافة لوجو جديد</button>
+                            </div>
                         @else
                             <div class="text-muted">
                                 لتفعيل إعدادات التغبيش من لوحة التحكم شغّل: <code>php artisan migrate --force</code>
@@ -464,7 +527,7 @@
                     </div>
 
                     <!-- Home featured accounts -->
-                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                    <div class="settings-card">
                         <h4 class="mb-3 fw-bolder">الحسابات المميزة في الصفحة الرئيسية (سلايدر)</h4>
                         @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'home_featured_product_ids'))
                             @php
@@ -504,7 +567,7 @@
                     </div>
 
                     <!-- Merchant pricing -->
-                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                    <div class="settings-card">
                         <h4 class="mb-3 fw-bolder">أسعار التجار (قسم شحن الجواهر)</h4>
                         @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'merchant_usd_rate'))
                             <div class="row g-3">
@@ -528,7 +591,7 @@
                     </div>
 
                     <!-- Wallet / Points pricing -->
-                    <div class="container p-4 mt-4 bg-white rounded shadow">
+                    <div class="settings-card">
                         <h4 class="mb-3 fw-bolder">نظام النقاط (المحفظة)</h4>
                         @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'point_price_sar'))
                             <div class="row g-3">
@@ -558,7 +621,7 @@
 
                     <!-- End Name & alert message -->
                     <hr>
-                    <div class="form-row">
+                    <div class="form-row settings-sticky-submit">
                         <div class="text-center col-md-12">
                             <button type="submit" class="btn btn-success btn-lg">تحديث</button>
                         </div>
@@ -571,6 +634,33 @@
         </div>
     </div>
 @endsection
+
+@push('css')
+<style>
+    .settings-card {
+        padding: 1rem;
+        margin-top: 1rem;
+        background: #fff;
+        border-radius: .75rem;
+        box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+    }
+    @media (min-width: 768px) {
+        .settings-card {
+            padding: 1.5rem;
+            margin-top: 1.25rem;
+        }
+    }
+    .settings-sticky-submit {
+        position: sticky;
+        bottom: .75rem;
+        z-index: 5;
+        background: rgba(255, 255, 255, .95);
+        padding: .75rem;
+        border-radius: .75rem;
+        box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+    }
+</style>
+@endpush
 
 @push('js')
     <script>
@@ -774,5 +864,70 @@
             el.addEventListener('change', renderPreviewOverlays);
         });
         window.addEventListener('resize', renderPreviewOverlays);
+
+        // ===== Dynamic multi-watermark UI =====
+        (function initWatermarkItemsUI() {
+            const list = document.getElementById('wmList');
+            const addBtn = document.getElementById('wmAddBtn');
+            if (!list || !addBtn) return;
+
+            const nextIndex = () => {
+                const items = list.querySelectorAll('.wm-item');
+                let max = -1;
+                items.forEach((el) => {
+                    const idx = Number(el.getAttribute('data-index') || 0);
+                    if (Number.isFinite(idx) && idx > max) max = idx;
+                });
+                return max + 1;
+            };
+
+            const rowHtml = (i) => `
+                <div class="row g-3 align-items-end border rounded p-3 mb-2 wm-item" data-index="${i}">
+                    <input type="hidden" name="wm[${i}][id]" value="0">
+                    <div class="col-12 col-md-3">
+                        <label class="form-label fw-bold">صورة اللوجو</label>
+                        <input type="file" class="form-control" name="wm[${i}][image]" accept="image/*">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-bold">تفعيل</label>
+                        <select class="form-select" name="wm[${i}][enabled]">
+                            <option value="1" selected>مفعل</option>
+                            <option value="0">معطل</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-bold">X</label>
+                        <input type="number" class="form-control" name="wm[${i}][x_offset]" value="20">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-bold">Y</label>
+                        <input type="number" class="form-control" name="wm[${i}][y_offset]" value="0">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label fw-bold">الحجم %</label>
+                        <input type="number" min="1" max="100" class="form-control" name="wm[${i}][scale_percent]" value="20">
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label fw-bold">ترتيب</label>
+                        <input type="number" class="form-control" name="wm[${i}][sort_order]" value="${i}">
+                    </div>
+                    <div class="col-12 col-md-12 text-end">
+                        <button type="button" class="btn btn-sm btn-light-danger wm-remove-btn">حذف</button>
+                    </div>
+                </div>
+            `;
+
+            addBtn.addEventListener('click', function () {
+                const i = nextIndex();
+                list.insertAdjacentHTML('beforeend', rowHtml(i));
+            });
+
+            list.addEventListener('click', function (e) {
+                const btn = e.target.closest('.wm-remove-btn');
+                if (!btn) return;
+                const row = btn.closest('.wm-item');
+                if (row) row.remove();
+            });
+        })();
     </script>
 @endpush

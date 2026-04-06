@@ -76,4 +76,9 @@ class Setting extends Model
     {
         return $this->morphMany(Media::class, 'mediable');
     }
+
+    public function watermarks()
+    {
+        return $this->hasMany(SettingWatermark::class)->orderBy('sort_order')->orderBy('id');
+    }
 }

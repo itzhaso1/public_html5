@@ -3,6 +3,7 @@
 namespace App\Repositories;
 
 use App\Models\{Product, Category, Type, Brand, Tag, Section};
+use App\Models\SettingWatermark;
 use App\Services\Contracts\ProductInterface;
 use Illuminate\Http\Request;
 use App\DataTables\Dashboard\Admin\ProductDataTable;
@@ -390,9 +391,7 @@ if ($request->hasFile('video')) {
     private function addWatermark($imagePath)
     {
         try {
-            $logoPath = public_path('watermark/logo.png');
-
-            if (!file_exists($imagePath) || !file_exists($logoPath)) {
+            if (!file_exists($imagePath)) {
                 return;
             }
 
@@ -402,13 +401,6 @@ if ($request->hasFile('video')) {
                 return;
             }
 
-            $xOffset = max(0, (int) ($settings?->watermark_x_offset ?? 20));
-            $yOffset = max(0, (int) ($settings?->watermark_y_offset ?? 0));
-            $scalePercent = max(5, min(90, (int) ($settings?->watermark_scale_percent ?? 20)));
-            $secondEnabled = (bool) ($settings?->watermark_second_enabled ?? true);
-            $secondXOffset = (int) ($settings?->watermark_second_x_offset ?? 40);
-            $secondYOffset = (int) ($settings?->watermark_second_y_offset ?? 0);
-
             $info = getimagesize($imagePath);
             $mime = $info['mime'];
 
@@ -416,46 +408,132 @@ if ($request->hasFile('video')) {
                 ? imagecreatefrompng($imagePath)
                 : imagecreatefromjpeg($imagePath);
 
-            $logo = imagecreatefrompng($logoPath);
-
             imagesavealpha($image, true);
             imagealphablending($image, true);
-            imagesavealpha($logo, true);
-            imagealphablending($logo, true);
 
             $imageWidth  = imagesx($image);
             $imageHeight = imagesy($image);
-            $logoWidth   = imagesx($logo);
-            $logoHeight  = imagesy($logo);
+            $placedCount = 0;
 
-            $newLogoWidth  = intval($imageWidth * ($scalePercent / 100));
-            $scale         = $newLogoWidth / $logoWidth;
-            $newLogoHeight = intval($logoHeight * $scale);
+            // New multi-watermark system (dashboard-managed, unlimited items).
+            $multiWatermarks = collect();
+            if ($settings?->id) {
+                $multiWatermarks = SettingWatermark::query()
+                    ->where('setting_id', (int) $settings->id)
+                    ->where('enabled', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->get();
+            }
 
-            $resizedLogo = imagecreatetruecolor($newLogoWidth, $newLogoHeight);
-            imagesavealpha($resizedLogo, true);
-            imagefill($resizedLogo, 0, 0, imagecolorallocatealpha($resizedLogo, 0, 0, 0, 127));
+            if ($multiWatermarks->isNotEmpty()) {
+                foreach ($multiWatermarks as $wm) {
+                    $wmPath = (string) $wm->getMediaUrl('setting/watermarks', $wm, null, 'media', 'watermark_image');
+                    if ($wmPath === '' || !is_file($wmPath)) {
+                        continue;
+                    }
 
-            imagecopyresampled(
-                $resizedLogo,
-                $logo,
-                0, 0, 0, 0,
-                $newLogoWidth,
-                $newLogoHeight,
-                $logoWidth,
-                $logoHeight
-            );
+                    $logo = @imagecreatefrompng($wmPath);
+                    if (! $logo) {
+                        continue;
+                    }
+                    imagesavealpha($logo, true);
+                    imagealphablending($logo, true);
 
-            $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
-            $x1 = max(0, $imageWidth - $newLogoWidth - $xOffset);
-            imagecopy($image, $resizedLogo, $x1, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+                    $logoWidth = imagesx($logo);
+                    $logoHeight = imagesy($logo);
+                    if ($logoWidth <= 0 || $logoHeight <= 0) {
+                        imagedestroy($logo);
+                        continue;
+                    }
 
+                    $scalePercent = max(1, min(100, (int) $wm->scale_percent));
+                    $newLogoWidth = max(1, (int) floor($imageWidth * ($scalePercent / 100)));
+                    $scale = $newLogoWidth / $logoWidth;
+                    $newLogoHeight = max(1, (int) floor($logoHeight * $scale));
 
-            if ($secondEnabled) {
-                $x2Base = (int) floor(($imageWidth - $newLogoWidth) / 2);
-                $x2 = max(0, min($imageWidth - $newLogoWidth, $x2Base + $secondXOffset));
-                $y2 = max(0, min($imageHeight - $newLogoHeight, $y + $secondYOffset));
-                imagecopy($image, $resizedLogo, $x2, $y2, 0, 0, $newLogoWidth, $newLogoHeight);
+                    $resizedLogo = imagecreatetruecolor($newLogoWidth, $newLogoHeight);
+                    imagesavealpha($resizedLogo, true);
+                    imagefill($resizedLogo, 0, 0, imagecolorallocatealpha($resizedLogo, 0, 0, 0, 127));
+                    imagecopyresampled(
+                        $resizedLogo,
+                        $logo,
+                        0,
+                        0,
+                        0,
+                        0,
+                        $newLogoWidth,
+                        $newLogoHeight,
+                        $logoWidth,
+                        $logoHeight
+                    );
+
+                    $xOffset = (int) ($wm->x_offset ?? 20);
+                    $yOffset = (int) ($wm->y_offset ?? 0);
+                    $x = max(0, min($imageWidth - $newLogoWidth, $xOffset));
+                    $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
+
+                    imagecopy($image, $resizedLogo, $x, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+                    $placedCount++;
+
+                    imagedestroy($logo);
+                    imagedestroy($resizedLogo);
+                }
+            }
+
+            // Backward-compatible fallback to the old two-logo behavior
+            // when no multi-watermark item is configured yet.
+            if ($placedCount === 0) {
+                $logoPath = public_path('watermark/logo.png');
+                if (is_file($logoPath)) {
+                    $xOffset = max(0, (int) ($settings?->watermark_x_offset ?? 20));
+                    $yOffset = max(0, (int) ($settings?->watermark_y_offset ?? 0));
+                    $scalePercent = max(5, min(90, (int) ($settings?->watermark_scale_percent ?? 20)));
+                    $secondEnabled = (bool) ($settings?->watermark_second_enabled ?? true);
+                    $secondXOffset = (int) ($settings?->watermark_second_x_offset ?? 40);
+                    $secondYOffset = (int) ($settings?->watermark_second_y_offset ?? 0);
+
+                    $logo = imagecreatefrompng($logoPath);
+                    imagesavealpha($logo, true);
+                    imagealphablending($logo, true);
+
+                    $logoWidth   = imagesx($logo);
+                    $logoHeight  = imagesy($logo);
+                    $newLogoWidth  = intval($imageWidth * ($scalePercent / 100));
+                    $scale         = $newLogoWidth / max(1, $logoWidth);
+                    $newLogoHeight = intval($logoHeight * $scale);
+
+                    $resizedLogo = imagecreatetruecolor($newLogoWidth, $newLogoHeight);
+                    imagesavealpha($resizedLogo, true);
+                    imagefill($resizedLogo, 0, 0, imagecolorallocatealpha($resizedLogo, 0, 0, 0, 127));
+
+                    imagecopyresampled(
+                        $resizedLogo,
+                        $logo,
+                        0,
+                        0,
+                        0,
+                        0,
+                        $newLogoWidth,
+                        $newLogoHeight,
+                        $logoWidth,
+                        $logoHeight
+                    );
+
+                    $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
+                    $x1 = max(0, $imageWidth - $newLogoWidth - $xOffset);
+                    imagecopy($image, $resizedLogo, $x1, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+
+                    if ($secondEnabled) {
+                        $x2Base = (int) floor(($imageWidth - $newLogoWidth) / 2);
+                        $x2 = max(0, min($imageWidth - $newLogoWidth, $x2Base + $secondXOffset));
+                        $y2 = max(0, min($imageHeight - $newLogoHeight, $y + $secondYOffset));
+                        imagecopy($image, $resizedLogo, $x2, $y2, 0, 0, $newLogoWidth, $newLogoHeight);
+                    }
+
+                    imagedestroy($logo);
+                    imagedestroy($resizedLogo);
+                }
             }
 
             $mime === 'image/png'
@@ -463,11 +541,10 @@ if ($request->hasFile('video')) {
                 : imagejpeg($image, $imagePath, 90);
 
             imagedestroy($image);
-            imagedestroy($logo);
-            imagedestroy($resizedLogo);
 
         } catch (\Exception $e) {
             // تجاهل الخطأ
         }
     }
+
 }
