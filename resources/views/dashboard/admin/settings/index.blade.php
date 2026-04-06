@@ -551,13 +551,33 @@
                                 $selectedFeatured = array_map('intval', $selectedFeatured);
                             @endphp
                             <div class="row g-3">
-                                <div class="col-12">
+                                <div class="col-12 col-lg-4">
+                                    <label class="input-group-text text-dark mb-2">بحث سريع</label>
+                                    <input type="text"
+                                           id="featuredSearchInput"
+                                           class="form-control"
+                                           placeholder="ابحث بالاسم أو رقم الحساب...">
+                                    <div class="form-text mt-2">
+                                        اضغط على البطاقة لاختيارها أو إلغاء اختيارها.
+                                    </div>
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button type="button" class="btn btn-light-primary btn-sm" id="featuredSelectAllBtn">تحديد الكل (الظاهر)</button>
+                                        <button type="button" class="btn btn-light-danger btn-sm" id="featuredClearAllBtn">إلغاء الكل</button>
+                                    </div>
+                                    <div class="mt-3">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="fw-bold">المحدد الآن</div>
+                                            <span class="badge bg-primary" id="featuredSelectedCount">0</span>
+                                        </div>
+                                        <div id="featuredSelectedBadges" class="d-flex flex-wrap gap-2"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-8">
                                     <label class="input-group-text text-dark mb-2">اختر الحسابات المميزة</label>
                                     <select id="home_featured_product_ids"
                                             name="home_featured_product_ids[]"
-                                            class="form-select"
-                                            multiple
-                                            size="10">
+                                            class="d-none"
+                                            multiple>
                                         @foreach(($homeFeaturedProducts ?? collect()) as $p)
                                             @php
                                                 $pid = (int) $p->id;
@@ -569,6 +589,38 @@
                                             </option>
                                         @endforeach
                                     </select>
+                                    <div id="featuredCardsGrid" class="row g-2">
+                                        @forelse(($homeFeaturedProducts ?? collect()) as $p)
+                                            @php
+                                                $pid = (int) $p->id;
+                                                $pname = trim((string) ($p->name ?? "حساب #{$pid}"));
+                                                $priceText = is_numeric($p->price ?? null) ? number_format((float) $p->price, 2) : '-';
+                                                $isSelected = in_array($pid, $selectedFeatured, true);
+                                            @endphp
+                                            <div class="col-12 col-md-6 featured-card-wrap" data-featured-wrap>
+                                                <button type="button"
+                                                        class="featured-card {{ $isSelected ? 'is-selected' : '' }}"
+                                                        data-featured-id="{{ $pid }}"
+                                                        data-featured-name="{{ e($pname) }}"
+                                                        data-featured-price="{{ $priceText }}"
+                                                        aria-pressed="{{ $isSelected ? 'true' : 'false' }}">
+                                                    <div class="d-flex align-items-start justify-content-between gap-2">
+                                                        <div class="text-start">
+                                                            <div class="featured-title">#{{ $pid }} — {{ $pname }}</div>
+                                                            <div class="featured-subtitle">{{ $priceText }} ر.س</div>
+                                                        </div>
+                                                        <span class="featured-check">{{ $isSelected ? '✓' : '+' }}</span>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        @empty
+                                            <div class="col-12">
+                                                <div class="alert alert-light text-center mb-0">
+                                                    لا توجد حسابات منشورة متاحة للاختيار حالياً.
+                                                </div>
+                                            </div>
+                                        @endforelse
+                                    </div>
                                     <div class="form-text mt-2">
                                         الحسابات المختارة هنا ستظهر في سلايدر "الحسابات المميزة" في الصفحة الرئيسية.
                                     </div>
@@ -674,6 +726,72 @@
         border-radius: .75rem;
         box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
     }
+    .featured-card {
+        width: 100%;
+        border: 1px solid #dee2e6;
+        border-radius: .75rem;
+        padding: .75rem;
+        background: #fff;
+        text-align: inherit;
+        transition: all .15s ease;
+    }
+    .featured-card:hover {
+        border-color: #0d6efd;
+        box-shadow: 0 .25rem .75rem rgba(13, 110, 253, .12);
+        transform: translateY(-1px);
+    }
+    .featured-card.is-selected {
+        border-color: #198754;
+        background: #f1fff6;
+    }
+    .featured-title {
+        font-weight: 700;
+        font-size: .93rem;
+        line-height: 1.35;
+    }
+    .featured-subtitle {
+        margin-top: .2rem;
+        color: #6c757d;
+        font-size: .85rem;
+    }
+    .featured-check {
+        min-width: 28px;
+        min-height: 28px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        border: 1px solid #dee2e6;
+        font-weight: 700;
+        color: #6c757d;
+        background: #f8f9fa;
+    }
+    .featured-card.is-selected .featured-check {
+        border-color: #198754;
+        background: #198754;
+        color: #fff;
+    }
+    .featured-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
+        border-radius: 999px;
+        background: #eef5ff;
+        color: #0b5ed7;
+        border: 1px solid #cfe2ff;
+        padding: .25rem .6rem;
+        font-size: .8rem;
+        line-height: 1.2;
+    }
+    .featured-chip button {
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+    }
 </style>
 @endpush
 
@@ -712,17 +830,115 @@
         previewImage("logoInput", "logoPreview");
         previewImage("faviconInput", "faviconPreview");
 
-        if (window.jQuery && $.fn && $.fn.select2) {
-            const featuredSelect = $('#home_featured_product_ids');
-            if (featuredSelect.length) {
-                featuredSelect.select2({
-                    placeholder: 'اختر الحسابات المميزة',
-                    width: '100%',
-                    dir: 'rtl',
-                    closeOnSelect: false
+        (function initFeaturedAccountsPicker() {
+            const hiddenSelect = document.getElementById('home_featured_product_ids');
+            const searchInput = document.getElementById('featuredSearchInput');
+        const selectAllBtn = document.getElementById('featuredSelectAllBtn');
+        const clearAllBtn = document.getElementById('featuredClearAllBtn');
+            const cards = Array.from(document.querySelectorAll('[data-featured-id]'));
+            const wraps = Array.from(document.querySelectorAll('[data-featured-wrap]'));
+            const badgesWrap = document.getElementById('featuredSelectedBadges');
+            const countEl = document.getElementById('featuredSelectedCount');
+            if (!hiddenSelect || cards.length === 0) return;
+
+            const optionById = (id) => {
+                return Array.from(hiddenSelect.options).find((o) => String(o.value) === String(id)) || null;
+            };
+            const cardById = (id) => cards.find((c) => String(c.dataset.featuredId) === String(id)) || null;
+
+            const setCardVisual = (card, selected) => {
+                if (!card) return;
+                card.classList.toggle('is-selected', !!selected);
+                card.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                const check = card.querySelector('.featured-check');
+                if (check) check.textContent = selected ? '✓' : '+';
+            };
+
+            const renderSelected = () => {
+                if (!badgesWrap || !countEl) return;
+                const selectedOpts = Array.from(hiddenSelect.options).filter((o) => o.selected);
+                countEl.textContent = String(selectedOpts.length);
+                badgesWrap.innerHTML = '';
+                selectedOpts.forEach((opt) => {
+                    const id = String(opt.value);
+                    const card = cardById(id);
+                    const name = card?.dataset.featuredName || opt.textContent || ('#' + id);
+                    const chip = document.createElement('span');
+                    chip.className = 'featured-chip';
+                    chip.innerHTML = `<span>${name}</span><button type="button" data-remove-featured="${id}">×</button>`;
+                    badgesWrap.appendChild(chip);
+                });
+            };
+
+            cards.forEach((card) => {
+                const id = card.dataset.featuredId;
+                const option = optionById(id);
+                const selected = !!option?.selected;
+                setCardVisual(card, selected);
+                card.addEventListener('click', function () {
+                    const opt = optionById(id);
+                    if (!opt) return;
+                    opt.selected = !opt.selected;
+                    setCardVisual(card, opt.selected);
+                    renderSelected();
+                });
+            });
+
+            if (badgesWrap) {
+                badgesWrap.addEventListener('click', function (e) {
+                    const btn = e.target.closest('[data-remove-featured]');
+                    if (!btn) return;
+                    const id = btn.getAttribute('data-remove-featured');
+                    const opt = optionById(id);
+                    if (!opt) return;
+                    opt.selected = false;
+                    setCardVisual(cardById(id), false);
+                    renderSelected();
                 });
             }
-        }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    const q = String(this.value || '').trim().toLowerCase();
+                    wraps.forEach((wrap) => {
+                        const card = wrap.querySelector('[data-featured-id]');
+                        if (!card) return;
+                        const id = String(card.dataset.featuredId || '');
+                        const name = String(card.dataset.featuredName || '').toLowerCase();
+                        const text = `${id} ${name}`;
+                        wrap.style.display = q === '' || text.includes(q) ? '' : 'none';
+                    });
+                });
+            }
+
+            if (selectAllBtn) {
+                selectAllBtn.addEventListener('click', function () {
+                    wraps.forEach((wrap) => {
+                        if (wrap.style.display === 'none') return;
+                        const card = wrap.querySelector('[data-featured-id]');
+                        if (!card) return;
+                        const opt = optionById(card.dataset.featuredId);
+                        if (!opt) return;
+                        opt.selected = true;
+                        setCardVisual(card, true);
+                    });
+                    renderSelected();
+                });
+            }
+            if (clearAllBtn) {
+                clearAllBtn.addEventListener('click', function () {
+                    cards.forEach((card) => {
+                        const opt = optionById(card.dataset.featuredId);
+                        if (!opt) return;
+                        opt.selected = false;
+                        setCardVisual(card, false);
+                    });
+                    renderSelected();
+                });
+            }
+
+            renderSelected();
+        })();
 
         function updateLoyaltyPointsDisplay(value) {
             document.getElementById('loyalty_points_display').textContent = value;
