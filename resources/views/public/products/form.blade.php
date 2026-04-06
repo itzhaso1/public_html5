@@ -560,17 +560,17 @@ let currentStep = {{ (int) $initialWizardStep }};
 const totalSteps = 7;
 let isProcessingImages = false;
 const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-const MAX_IMG_DIM = IS_IOS ? 1560 : 2048;
-const JPEG_QUALITY = IS_IOS ? 0.78 : 0.85;
+const MAX_IMG_DIM = IS_IOS ? 1820 : 2560;
+const JPEG_QUALITY = IS_IOS ? 0.90 : 0.94;
 // Keep payload safely below common server post_max_size values.
 // We start high-quality, then only lower quality when absolutely needed.
 const SERVER_POST_MAX_MB = {{ json_encode((float) ($serverPostMaxMb ?? 0)) }};
-const BASE_MAX_TOTAL_UPLOAD_MB = IS_IOS ? 9.5 : 12.5;
+const BASE_MAX_TOTAL_UPLOAD_MB = IS_IOS ? 12.0 : 16.0;
 // Use only ~65% of server post_max_size to leave room for multipart/form-data overhead.
 const MAX_TOTAL_UPLOAD_MB = SERVER_POST_MAX_MB > 0
   ? Math.max(2.5, Math.min(BASE_MAX_TOTAL_UPLOAD_MB, SERVER_POST_MAX_MB * 0.65))
   : BASE_MAX_TOTAL_UPLOAD_MB;
-const UPLOAD_SOFT_TARGET_MB = Math.max(2.0, MAX_TOTAL_UPLOAD_MB * 0.86);
+const UPLOAD_SOFT_TARGET_MB = Math.max(2.0, MAX_TOTAL_UPLOAD_MB * 0.92);
 const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
 const GUIDED_KEYS = @json($guidedGalleryKeys);
 let processedMainImage = null;
@@ -669,12 +669,12 @@ function getCurrentTotalBytes(mode) {
 
 async function emergencyFitWithinBudget(mode) {
   const emergencyProfiles = [
-    { maxDim: IS_IOS ? 1360 : 1760, quality: IS_IOS ? 0.72 : 0.80 },
-    { maxDim: IS_IOS ? 1220 : 1600, quality: IS_IOS ? 0.66 : 0.74 },
-    { maxDim: IS_IOS ? 1080 : 1440, quality: IS_IOS ? 0.60 : 0.68 },
-    { maxDim: IS_IOS ? 920 : 1280, quality: IS_IOS ? 0.54 : 0.62 },
-    { maxDim: IS_IOS ? 820 : 1120, quality: IS_IOS ? 0.48 : 0.56 },
-    { maxDim: IS_IOS ? 700 : 980, quality: IS_IOS ? 0.42 : 0.50 },
+    { maxDim: IS_IOS ? 1680 : 2280, quality: IS_IOS ? 0.86 : 0.90 },
+    { maxDim: IS_IOS ? 1540 : 2120, quality: IS_IOS ? 0.82 : 0.87 },
+    { maxDim: IS_IOS ? 1400 : 1960, quality: IS_IOS ? 0.78 : 0.84 },
+    { maxDim: IS_IOS ? 1260 : 1820, quality: IS_IOS ? 0.74 : 0.80 },
+    { maxDim: IS_IOS ? 1120 : 1680, quality: IS_IOS ? 0.70 : 0.76 },
+    { maxDim: IS_IOS ? 980 : 1520, quality: IS_IOS ? 0.66 : 0.72 },
   ];
 
   if (bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB) return true;
@@ -691,9 +691,9 @@ async function emergencyFitWithinBudget(mode) {
 
 async function forceUltraCompression(mode) {
   const ultraProfiles = [
-    { maxDim: IS_IOS ? 620 : 900, quality: IS_IOS ? 0.36 : 0.44 },
-    { maxDim: IS_IOS ? 560 : 820, quality: IS_IOS ? 0.32 : 0.40 },
-    { maxDim: IS_IOS ? 500 : 740, quality: IS_IOS ? 0.28 : 0.36 },
+    { maxDim: IS_IOS ? 840 : 1280, quality: IS_IOS ? 0.58 : 0.66 },
+    { maxDim: IS_IOS ? 760 : 1160, quality: IS_IOS ? 0.52 : 0.60 },
+    { maxDim: IS_IOS ? 680 : 1040, quality: IS_IOS ? 0.46 : 0.54 },
   ];
   for (const p of ultraProfiles) {
     await compressStateWithProfile(mode, p);
@@ -749,8 +749,8 @@ async function enforceUploadBudget() {
   // Compress only when needed (quality first).
   if (bytesToMB(totalBytes) > UPLOAD_SOFT_TARGET_MB) {
     await compressStateWithProfile(mode, {
-      maxDim: IS_IOS ? 1500 : 1920,
-      quality: IS_IOS ? 0.76 : 0.84,
+      maxDim: IS_IOS ? 1760 : 2360,
+      quality: IS_IOS ? 0.88 : 0.92,
     });
     totalBytes = getCurrentTotalBytes(mode);
   }

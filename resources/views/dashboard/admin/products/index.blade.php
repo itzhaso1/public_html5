@@ -366,6 +366,14 @@ $(function () {
     // Search UX for accounts list
     const isAccounts = @json(($group ?? null) === 'accounts');
     if (isAccounts) {
+        // Hide "Tags" and "Price" columns only in accounts list UI.
+        // We keep backend/data intact; this is display-only as requested.
+        try {
+            table.column(6).visible(false, false); // tags
+            table.column(7).visible(false, false); // price
+            table.columns.adjust().draw(false);
+        } catch (e) {}
+
         const $input = $('#accounts-search');
         const $btn = $('#accounts-search-btn');
         const $clear = $('#accounts-search-clear');

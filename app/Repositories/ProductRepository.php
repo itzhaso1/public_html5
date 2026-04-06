@@ -564,7 +564,7 @@ if ($request->hasFile('video')) {
 
             $mime === 'image/png'
                 ? imagepng($image, $imagePath, 9)
-                : imagejpeg($image, $imagePath, 90);
+                : imagejpeg($image, $imagePath, 96);
 
             imagedestroy($image);
 
