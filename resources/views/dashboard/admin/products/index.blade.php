@@ -366,11 +366,12 @@ $(function () {
     // Search UX for accounts list
     const isAccounts = @json(($group ?? null) === 'accounts');
     if (isAccounts) {
-        // Hide "Tags" and "Price" columns only in accounts list UI.
-        // We keep backend/data intact; this is display-only as requested.
+        // Hide specific columns in accounts list UI only (display-only).
+        // Keep backend/data intact.
         try {
-            table.column(6).visible(false, false); // tags
-            table.column(7).visible(false, false); // price
+            table.column(4).visible(false, false); // category
+            table.column(5).visible(false, false); // brand
+            table.column(8).visible(false, false); // Shop2TopUp itemID
             table.columns.adjust().draw(false);
         } catch (e) {}
 
