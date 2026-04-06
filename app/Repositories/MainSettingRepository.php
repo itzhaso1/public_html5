@@ -98,6 +98,7 @@ class MainSettingRepository implements MainSettingInterface
             $hasCenterBlurRightOffset = false;
             $hasTopAreaControls = false;
             $hasWatermarkEnabled = false;
+            $hasWatermarkMultiEnabled = false;
             $hasWatermarkXOffset = false;
             $hasWatermarkYOffset = false;
             $hasWatermarkScale = false;
@@ -131,6 +132,7 @@ class MainSettingRepository implements MainSettingInterface
                     && Schema::hasColumn('settings', 'account_top_area_x_from_right_px')
                     && Schema::hasColumn('settings', 'account_top_area_blur_strength');
                 $hasWatermarkEnabled = Schema::hasColumn('settings', 'watermark_enabled');
+                $hasWatermarkMultiEnabled = Schema::hasColumn('settings', 'watermark_multi_enabled');
                 $hasWatermarkXOffset = Schema::hasColumn('settings', 'watermark_x_offset');
                 $hasWatermarkYOffset = Schema::hasColumn('settings', 'watermark_y_offset');
                 $hasWatermarkScale = Schema::hasColumn('settings', 'watermark_scale_percent');
@@ -147,6 +149,7 @@ class MainSettingRepository implements MainSettingInterface
                 $hasCenterBlurRightOffset = false;
                 $hasTopAreaControls = false;
                 $hasWatermarkEnabled = false;
+                $hasWatermarkMultiEnabled = false;
                 $hasWatermarkXOffset = false;
                 $hasWatermarkYOffset = false;
                 $hasWatermarkScale = false;
@@ -290,6 +293,9 @@ class MainSettingRepository implements MainSettingInterface
                 if ($hasWatermarkEnabled) {
                 $setting->watermark_enabled = $request->boolean('watermark_enabled', true);
                 }
+                if ($hasWatermarkMultiEnabled) {
+                    $setting->watermark_multi_enabled = $request->boolean('watermark_multi_enabled', false);
+                }
                 if ($hasWatermarkXOffset) {
                     $setting->watermark_x_offset = max(0, (int) $request->input('watermark_x_offset', 20));
                 }
@@ -314,7 +320,9 @@ class MainSettingRepository implements MainSettingInterface
                 $setting->updateSingleMedia('setting', $request->file('logo'), $setting, null, 'media', true, false, 'logo');
             if ($request->hasFile('favicon'))
                 $setting->updateSingleMedia('setting', $request->file('favicon'), $setting, null, 'media', true, false, 'favicon');
-            $this->syncDynamicWatermarks($request, $setting);
+            if ($hasWatermarkMultiEnabled && $request->boolean('watermark_multi_enabled', false)) {
+                $this->syncDynamicWatermarks($request, $setting);
+            }
 
             if ($hasHomeQuick) {
                 if ($request->hasFile('home_quick_charge_image')) {

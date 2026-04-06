@@ -400,6 +400,7 @@ if ($request->hasFile('video')) {
             if (! $wmEnabled) {
                 return;
             }
+            $multiEnabled = (bool) ($settings?->watermark_multi_enabled ?? false);
 
             $info = getimagesize($imagePath);
             $mime = $info['mime'];
@@ -417,7 +418,7 @@ if ($request->hasFile('video')) {
 
             // New multi-watermark system (dashboard-managed, unlimited items).
             $multiWatermarks = collect();
-            if ($settings?->id) {
+            if ($multiEnabled && $settings?->id) {
                 $multiWatermarks = SettingWatermark::query()
                     ->where('setting_id', (int) $settings->id)
                     ->where('enabled', true)

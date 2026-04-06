@@ -457,6 +457,19 @@
                                 هذه الإعدادات تتحكم فقط باللوجو المضاف تلقائياً بعد معالجة الصورة الرئيسية.
                             </div>
                             @php
+                                $multiEnabledOld = old('watermark_multi_enabled', (bool)($setting?->watermark_multi_enabled ?? false));
+                            @endphp
+                            <div class="row g-3 mt-2">
+                                <div class="col-md-4">
+                                    <label class="input-group-text text-dark">تفعيل اللوجوهات المتعددة</label>
+                                    <select name="watermark_multi_enabled" id="watermark_multi_enabled" class="form-select">
+                                        <option value="1" {{ $multiEnabledOld ? 'selected' : '' }}>مفعل</option>
+                                        <option value="0" {{ !$multiEnabledOld ? 'selected' : '' }}>معطل (افتراضي)</option>
+                                    </select>
+                                    <div class="form-text">عند التعطيل سيتم استخدام نظام اللوجو الأساسي فقط مثل قبل.</div>
+                                </div>
+                            </div>
+                            @php
                                 $watermarkItemsOld = old('wm', null);
                                 if (!is_array($watermarkItemsOld)) {
                                     $watermarkItemsOld = collect($setting?->watermarks ?? [])
@@ -479,6 +492,7 @@
                             <div class="form-text mb-3">
                                 يمكنك إضافة أي عدد من اللوجوهات مع تحكم مستقل بالمكان والحجم لكل لوجو.
                             </div>
+                            <div id="wmMultiWrap" style="{{ $multiEnabledOld ? '' : 'display:none;' }}">
                             <div id="wmList">
                                 @foreach($watermarkItemsOld as $i => $wmRow)
                                     <div class="row g-3 align-items-end border rounded p-3 mb-2 wm-item" data-index="{{ $i }}">
@@ -518,6 +532,7 @@
                             </div>
                             <div class="d-flex gap-2 mt-2">
                                 <button type="button" class="btn btn-sm btn-primary" id="wmAddBtn">+ إضافة لوجو جديد</button>
+                            </div>
                             </div>
                         @else
                             <div class="text-muted">
@@ -869,7 +884,18 @@
         (function initWatermarkItemsUI() {
             const list = document.getElementById('wmList');
             const addBtn = document.getElementById('wmAddBtn');
+            const multiToggle = document.getElementById('watermark_multi_enabled');
+            const multiWrap = document.getElementById('wmMultiWrap');
             if (!list || !addBtn) return;
+
+            function refreshMultiVisibility() {
+                if (!multiToggle || !multiWrap) return;
+                multiWrap.style.display = String(multiToggle.value) === '1' ? '' : 'none';
+            }
+            if (multiToggle) {
+                multiToggle.addEventListener('change', refreshMultiVisibility);
+                refreshMultiVisibility();
+            }
 
             const nextIndex = () => {
                 const items = list.querySelectorAll('.wm-item');

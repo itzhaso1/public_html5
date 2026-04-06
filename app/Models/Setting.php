@@ -66,6 +66,7 @@ class Setting extends Model
         'watermark_second_enabled',
         'watermark_second_x_offset',
         'watermark_second_y_offset',
+        'watermark_multi_enabled',
     ];
 
     protected $casts = [
