@@ -321,7 +321,7 @@ $(function () {
     // يمسك نفس الجدول (بدون إعادة تهيئة)
     const table = $('#products-table').DataTable();
     const groupName = @json($group ?? 'all') || 'all';
-    const columnsStorageKey = `admin.products.columns.visibility.${groupName}`;
+    const columnsStorageKey = `admin.products.columns.visibility.v2.${groupName}`;
 
     // Bulk delete selected (checkboxes)
     const $bulkBtn = $('#products-bulk-delete-selected');
@@ -395,7 +395,7 @@ $(function () {
         const allIndexes = [];
         table.columns().every(function (idx) { allIndexes.push(idx); });
 
-        const defaultHidden = (groupName === 'accounts') ? [4, 5, 8] : [];
+        const defaultHidden = (groupName === 'accounts') ? [4, 5, 6, 8] : [];
         const buildDefaultMap = () => {
             const map = {};
             allIndexes.forEach((idx) => { map[idx] = true; });
