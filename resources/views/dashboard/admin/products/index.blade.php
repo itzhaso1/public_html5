@@ -126,18 +126,7 @@
 .table-wrap::-webkit-scrollbar{ height:8px; }
 .table-wrap::-webkit-scrollbar-thumb{ background:#d9e2ff; border-radius:999px; }
 
-/* أخفي الأعمدة الثقيلة على الجوال فقط */
 @media (max-width: 992px){
-    /* بعد إضافة عمود تحديد (checkbox) صار ترتيب الأعمدة مختلف */
-    #products-table thead th:nth-child(5),
-    #products-table tbody td:nth-child(5),
-    #products-table thead th:nth-child(6),
-    #products-table tbody td:nth-child(6),
-    #products-table thead th:nth-child(7),
-    #products-table tbody td:nth-child(7){
-        display:none !important;
-    }
-
     .product-header{
         padding: 16px !important;
     }
@@ -157,6 +146,16 @@
 
 /* اخفاء أزرار DataTables */
 div.dt-buttons{ display:none !important; }
+
+.columns-manager {
+    border: 1px dashed #d8def0;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fbfdff;
+}
+.columns-manager .col-check {
+    min-width: 160px;
+}
 </style>
 @endpush
 
@@ -280,6 +279,28 @@ div.dt-buttons{ display:none !important; }
                     </div>
                 @endif
 
+                <div class="mb-3">
+                    <button class="btn btn-light-primary btn-sm"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#products-columns-manager"
+                            aria-expanded="false"
+                            aria-controls="products-columns-manager">
+                        إخفاء / إظهار الأعمدة
+                    </button>
+                </div>
+
+                <div class="collapse mb-3" id="products-columns-manager">
+                    <div class="columns-manager">
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-light-success" id="columns-show-all">إظهار الكل</button>
+                            <button type="button" class="btn btn-sm btn-light-warning" id="columns-hide-all">إخفاء الكل</button>
+                            <button type="button" class="btn btn-sm btn-light" id="columns-reset-default">استعادة الافتراضي</button>
+                        </div>
+                        <div class="row g-2" id="products-columns-list"></div>
+                    </div>
+                </div>
+
                 <div class="table-wrap">
                     {!! $dataTable->table(['id' => 'products-table', 'class' => 'table table-striped table-row-bordered gy-5 gs-7 align-middle text-center w-100']) !!}
                 </div>
@@ -299,6 +320,8 @@ div.dt-buttons{ display:none !important; }
 $(function () {
     // يمسك نفس الجدول (بدون إعادة تهيئة)
     const table = $('#products-table').DataTable();
+    const groupName = @json($group ?? 'all') || 'all';
+    const columnsStorageKey = `admin.products.columns.visibility.${groupName}`;
 
     // Bulk delete selected (checkboxes)
     const $bulkBtn = $('#products-bulk-delete-selected');
@@ -363,18 +386,111 @@ $(function () {
         });
     });
 
+    // Column visibility manager (UI-only, keeps backend intact)
+    (function initColumnsManager() {
+        const listEl = $('#products-columns-list');
+        const showAllBtn = $('#columns-show-all');
+        const hideAllBtn = $('#columns-hide-all');
+        const resetBtn = $('#columns-reset-default');
+        const allIndexes = [];
+        table.columns().every(function (idx) { allIndexes.push(idx); });
+
+        const defaultHidden = (groupName === 'accounts') ? [4, 5, 8] : [];
+        const buildDefaultMap = () => {
+            const map = {};
+            allIndexes.forEach((idx) => { map[idx] = true; });
+            defaultHidden.forEach((idx) => { map[idx] = false; });
+            map[0] = true; // keep select column visible
+            return map;
+        };
+        const loadMap = () => {
+            try {
+                const raw = localStorage.getItem(columnsStorageKey);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                return (parsed && typeof parsed === 'object') ? parsed : null;
+            } catch (e) {
+                return null;
+            }
+        };
+        const currentMap = () => {
+            const map = {};
+            allIndexes.forEach((idx) => {
+                map[idx] = table.column(idx).visible();
+            });
+            map[0] = true;
+            return map;
+        };
+        const saveMap = (map) => {
+            try { localStorage.setItem(columnsStorageKey, JSON.stringify(map)); } catch (e) {}
+        };
+        const applyMap = (map) => {
+            allIndexes.forEach((idx) => {
+                const visible = (idx === 0) ? true : (map[idx] !== false);
+                table.column(idx).visible(visible, false);
+            });
+            table.columns.adjust().draw(false);
+        };
+        const renderList = () => {
+            listEl.empty();
+            allIndexes.forEach((idx) => {
+                if (idx === 0) return;
+                const th = $(table.column(idx).header());
+                const title = (th.text() || '').replace(/\s+/g, ' ').trim() || `عمود ${idx + 1}`;
+                const checked = table.column(idx).visible() ? 'checked' : '';
+                const id = `col-toggle-${idx}`;
+                const item = `
+                    <div class="col-6 col-md-4 col-lg-3 col-check">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input js-col-toggle" type="checkbox" id="${id}" data-col-idx="${idx}" ${checked}>
+                            <label class="form-check-label" for="${id}">${title}</label>
+                        </div>
+                    </div>
+                `;
+                listEl.append(item);
+            });
+        };
+
+        const initial = loadMap() || buildDefaultMap();
+        applyMap(initial);
+        saveMap(initial);
+        renderList();
+
+        listEl.on('change', '.js-col-toggle', function () {
+            const idx = Number($(this).data('col-idx'));
+            if (!Number.isFinite(idx)) return;
+            table.column(idx).visible(!!this.checked, false);
+            table.columns.adjust().draw(false);
+            saveMap(currentMap());
+        });
+
+        showAllBtn.on('click', function () {
+            const map = {};
+            allIndexes.forEach((idx) => { map[idx] = true; });
+            map[0] = true;
+            applyMap(map);
+            saveMap(map);
+            renderList();
+        });
+        hideAllBtn.on('click', function () {
+            const map = {};
+            allIndexes.forEach((idx) => { map[idx] = false; });
+            map[0] = true;
+            applyMap(map);
+            saveMap(map);
+            renderList();
+        });
+        resetBtn.on('click', function () {
+            const map = buildDefaultMap();
+            applyMap(map);
+            saveMap(map);
+            renderList();
+        });
+    })();
+
     // Search UX for accounts list
     const isAccounts = @json(($group ?? null) === 'accounts');
     if (isAccounts) {
-        // Hide specific columns in accounts list UI only (display-only).
-        // Keep backend/data intact.
-        try {
-            table.column(4).visible(false, false); // category
-            table.column(5).visible(false, false); // brand
-            table.column(8).visible(false, false); // Shop2TopUp itemID
-            table.columns.adjust().draw(false);
-        } catch (e) {}
-
         const $input = $('#accounts-search');
         const $btn = $('#accounts-search-btn');
         const $clear = $('#accounts-search-clear');
