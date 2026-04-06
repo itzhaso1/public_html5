@@ -97,7 +97,13 @@ class MainSettingRepository implements MainSettingInterface
             $hasAccountBlurControls = false;
             $hasCenterBlurRightOffset = false;
             $hasTopAreaControls = false;
-            $hasWatermarkControls = false;
+            $hasWatermarkEnabled = false;
+            $hasWatermarkXOffset = false;
+            $hasWatermarkYOffset = false;
+            $hasWatermarkScale = false;
+            $hasWatermarkSecondEnabled = false;
+            $hasWatermarkSecondXOffset = false;
+            $hasWatermarkSecondYOffset = false;
             try {
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
                 $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
@@ -124,14 +130,13 @@ class MainSettingRepository implements MainSettingInterface
                     && Schema::hasColumn('settings', 'account_top_area_width_px')
                     && Schema::hasColumn('settings', 'account_top_area_x_from_right_px')
                     && Schema::hasColumn('settings', 'account_top_area_blur_strength');
-                $hasWatermarkControls =
-                    Schema::hasColumn('settings', 'watermark_enabled')
-                    && Schema::hasColumn('settings', 'watermark_x_offset')
-                    && Schema::hasColumn('settings', 'watermark_y_offset')
-                    && Schema::hasColumn('settings', 'watermark_scale_percent')
-                    && Schema::hasColumn('settings', 'watermark_second_enabled')
-                    && Schema::hasColumn('settings', 'watermark_second_x_offset')
-                    && Schema::hasColumn('settings', 'watermark_second_y_offset');
+                $hasWatermarkEnabled = Schema::hasColumn('settings', 'watermark_enabled');
+                $hasWatermarkXOffset = Schema::hasColumn('settings', 'watermark_x_offset');
+                $hasWatermarkYOffset = Schema::hasColumn('settings', 'watermark_y_offset');
+                $hasWatermarkScale = Schema::hasColumn('settings', 'watermark_scale_percent');
+                $hasWatermarkSecondEnabled = Schema::hasColumn('settings', 'watermark_second_enabled');
+                $hasWatermarkSecondXOffset = Schema::hasColumn('settings', 'watermark_second_x_offset');
+                $hasWatermarkSecondYOffset = Schema::hasColumn('settings', 'watermark_second_y_offset');
             } catch (\Throwable $e) {
                 $hasMoneyToggle = false;
                 $hasChargeToggle = false;
@@ -141,7 +146,13 @@ class MainSettingRepository implements MainSettingInterface
                 $hasAccountBlurControls = false;
                 $hasCenterBlurRightOffset = false;
                 $hasTopAreaControls = false;
-                $hasWatermarkControls = false;
+                $hasWatermarkEnabled = false;
+                $hasWatermarkXOffset = false;
+                $hasWatermarkYOffset = false;
+                $hasWatermarkScale = false;
+                $hasWatermarkSecondEnabled = false;
+                $hasWatermarkSecondXOffset = false;
+                $hasWatermarkSecondYOffset = false;
             }
 
             // Always update the latest settings row (singleton behavior).
@@ -275,14 +286,28 @@ class MainSettingRepository implements MainSettingInterface
                 $setting->account_top_area_blur_strength = max(1, min(100, (int) $request->input('account_top_area_blur_strength', 35)));
             }
 
-            if ($hasWatermarkControls) {
+            if ($hasWatermarkEnabled || $hasWatermarkXOffset || $hasWatermarkYOffset || $hasWatermarkScale || $hasWatermarkSecondEnabled || $hasWatermarkSecondXOffset || $hasWatermarkSecondYOffset) {
+                if ($hasWatermarkEnabled) {
                 $setting->watermark_enabled = $request->boolean('watermark_enabled', true);
-                $setting->watermark_x_offset = max(0, (int) $request->input('watermark_x_offset', 20));
-                $setting->watermark_y_offset = max(0, (int) $request->input('watermark_y_offset', 0));
-                $setting->watermark_scale_percent = max(1, min(100, (int) $request->input('watermark_scale_percent', 20)));
-                $setting->watermark_second_enabled = $request->boolean('watermark_second_enabled', true);
-                $setting->watermark_second_x_offset = (int) $request->input('watermark_second_x_offset', 40);
-                $setting->watermark_second_y_offset = (int) $request->input('watermark_second_y_offset', 0);
+                }
+                if ($hasWatermarkXOffset) {
+                    $setting->watermark_x_offset = max(0, (int) $request->input('watermark_x_offset', 20));
+                }
+                if ($hasWatermarkYOffset) {
+                    $setting->watermark_y_offset = (int) $request->input('watermark_y_offset', 0);
+                }
+                if ($hasWatermarkScale) {
+                    $setting->watermark_scale_percent = max(1, min(100, (int) $request->input('watermark_scale_percent', 20)));
+                }
+                if ($hasWatermarkSecondEnabled) {
+                    $setting->watermark_second_enabled = $request->boolean('watermark_second_enabled', true);
+                }
+                if ($hasWatermarkSecondXOffset) {
+                    $setting->watermark_second_x_offset = (int) $request->input('watermark_second_x_offset', 40);
+                }
+                if ($hasWatermarkSecondYOffset) {
+                    $setting->watermark_second_y_offset = (int) $request->input('watermark_second_y_offset', 0);
+                }
             }
             $setting->save();
             if ($request->hasFile('logo'))
