@@ -530,15 +530,31 @@ if ($request->hasFile('video')) {
                         $logoHeight
                     );
 
-                    $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
-                    $x1 = max(0, $imageWidth - $newLogoWidth - $xOffset);
-                    imagecopy($image, $resizedLogo, $x1, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+                    if ($wmCustomEnabled) {
+                        $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
+                        $x1 = max(0, $imageWidth - $newLogoWidth - $xOffset);
+                        imagecopy($image, $resizedLogo, $x1, $y, 0, 0, $newLogoWidth, $newLogoHeight);
 
-                    if ($secondEnabled) {
-                        $x2Base = (int) floor(($imageWidth - $newLogoWidth) / 2);
-                        $x2 = max(0, min($imageWidth - $newLogoWidth, $x2Base + $secondXOffset));
-                        $y2 = max(0, min($imageHeight - $newLogoHeight, $y + $secondYOffset));
-                        imagecopy($image, $resizedLogo, $x2, $y2, 0, 0, $newLogoWidth, $newLogoHeight);
+                        if ($secondEnabled) {
+                            $x2Base = (int) floor(($imageWidth - $newLogoWidth) / 2);
+                            $x2 = max(0, min($imageWidth - $newLogoWidth, $x2Base + $secondXOffset));
+                            $y2 = max(0, min($imageHeight - $newLogoHeight, $y + $secondYOffset));
+                            imagecopy($image, $resizedLogo, $x2, $y2, 0, 0, $newLogoWidth, $newLogoHeight);
+                        }
+                    } else {
+                        // Exact legacy placement before dashboard controls:
+                        // y at ~11% from top, first logo top-right with -20px,
+                        // second logo near top-center with +40px on X.
+                        $yLegacy = (int) floor($imageHeight * 0.11);
+                        $yLegacy = max(0, min($imageHeight - $newLogoHeight, $yLegacy));
+
+                        $x1Legacy = $imageWidth - $newLogoWidth - 20;
+                        $x1Legacy = max(0, min($imageWidth - $newLogoWidth, $x1Legacy));
+                        imagecopy($image, $resizedLogo, $x1Legacy, $yLegacy, 0, 0, $newLogoWidth, $newLogoHeight);
+
+                        $x2Legacy = (int) floor(($imageWidth - $newLogoWidth) / 2) + 40;
+                        $x2Legacy = max(0, min($imageWidth - $newLogoWidth, $x2Legacy));
+                        imagecopy($image, $resizedLogo, $x2Legacy, $yLegacy, 0, 0, $newLogoWidth, $newLogoHeight);
                     }
 
                     imagedestroy($logo);
