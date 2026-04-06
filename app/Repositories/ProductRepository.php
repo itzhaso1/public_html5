@@ -11,6 +11,7 @@ use App\Models\Concerns\UploadVideoTrait;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class ProductRepository implements ProductInterface
 {
@@ -111,6 +112,7 @@ class ProductRepository implements ProductInterface
                     true
                 );
             } catch (\Throwable $e) {
+                report($e);
                 throw ValidationException::withMessages([
                     'product' => 'تعذر معالجة الصورة الرئيسية. ارفع صورة أوضح بصيغة JPG/PNG/WEBP.',
                 ]);
@@ -137,6 +139,7 @@ class ProductRepository implements ProductInterface
                     (int) config('account_image.top_area.size_px', 35)
                 );
             } catch (\Throwable $e) {
+                report($e);
                 throw ValidationException::withMessages([
                     'gallery' => 'تعذر معالجة صور المعرض. تأكد أن الصور واضحة وبصيغة مدعومة.',
                 ]);

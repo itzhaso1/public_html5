@@ -367,9 +367,22 @@ trait UploadMedia2 {
 
     private function isValidImage(UploadedFile $file) {
         try {
+            // Prefer MIME declared by upload first (more tolerant with some hosts/CDN uploads).
+            $declaredMime = strtolower((string) ($file->getMimeType() ?? ''));
+            if (in_array($declaredMime, ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'], true)) {
+                return true;
+            }
+
+            // Fallback to Intervention decoding.
             $image = Image::make($file->getRealPath());
-            return in_array($image->mime(), ['image/jpeg', 'image/png', 'image/webp']);
-        } catch (\Exception $e) {
+            $mime = strtolower((string) $image->mime());
+            return in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'], true);
+        } catch (\Throwable $e) {
+            // Final fallback for edge uploads where image library fails but extension/mime are okay.
+            $ext = strtolower((string) $file->getClientOriginalExtension());
+            if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+                return true;
+            }
             return false;
         }
     }
