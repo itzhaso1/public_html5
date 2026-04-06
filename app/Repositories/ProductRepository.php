@@ -5,6 +5,7 @@ namespace App\Repositories;
 use App\Models\{Product, Category, Type, Brand, Tag, Section};
 use App\Services\Contracts\ProductInterface;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use App\DataTables\Dashboard\Admin\ProductDataTable;
 use App\Models\Concerns\UploadVideoTrait;
 use Illuminate\Support\Str;
@@ -95,19 +96,25 @@ class ProductRepository implements ProductInterface
 
         // الصورة الرئيسية
         if ($request->hasFile('product')) {
-            $media = $product->uploadSingleMedia(
-                'product',
-                $request->file('product'),
-                $product,
-                null,
-                'media',
-                true,
-                false,
-                null,
-                false,
-                (int) config('account_image.top_area.size_px', 35),
-                true
-            );
+            try {
+                $media = $product->uploadSingleMedia(
+                    'product',
+                    $request->file('product'),
+                    $product,
+                    null,
+                    'media',
+                    true,
+                    false,
+                    null,
+                    false,
+                    (int) config('account_image.top_area.size_px', 35),
+                    true
+                );
+            } catch (\Throwable $e) {
+                throw ValidationException::withMessages([
+                    'product' => 'تعذر معالجة الصورة الرئيسية. ارفع صورة أوضح بصيغة JPG/PNG/WEBP.',
+                ]);
+            }
 
             if ($media) {
                 $imagePath = public_path("uploads/product/{$media}");
@@ -117,24 +124,30 @@ class ProductRepository implements ProductInterface
 
         // صور المعرض
         if ($request->hasFile('gallery')) {
-            $uploadedGallery = $product->uploadMultipleMedia(
-                'product/gallery',
-                $request->file('gallery'),
-                $product,
-                'media',
-                false,
-                true,
-                'gallery',
-                false,
-                (int) config('account_image.top_area.size_px', 35)
-            );
+            try {
+                $uploadedGallery = $product->uploadMultipleMedia(
+                    'product/gallery',
+                    $request->file('gallery'),
+                    $product,
+                    'media',
+                    false,
+                    true,
+                    'gallery',
+                    false,
+                    (int) config('account_image.top_area.size_px', 35)
+                );
+            } catch (\Throwable $e) {
+                throw ValidationException::withMessages([
+                    'gallery' => 'تعذر معالجة صور المعرض. تأكد أن الصور واضحة وبصيغة مدعومة.',
+                ]);
+            }
 
             if (empty($uploadedGallery)) {
                 // Avoid leaving an orphan product when all gallery files fail processing.
                 try { $product->delete(); } catch (\Throwable $e) {}
-                return back()
-                    ->withErrors(['gallery' => 'تعذر رفع الصور الفرعية. تأكد أن الملفات صور صالحة (JPG/PNG/WEBP).'])
-                    ->withInput();
+                throw ValidationException::withMessages([
+                    'gallery' => 'تعذر رفع الصور الفرعية. تأكد أن الملفات صور صالحة (JPG/PNG/WEBP).',
+                ]);
             }
         }
 

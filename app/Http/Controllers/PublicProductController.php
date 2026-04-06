@@ -308,6 +308,23 @@ class PublicProductController extends Controller
                 ->withErrors($e->errors())
                 ->withInput();
 
+        } catch (\RuntimeException $e) {
+            $msg = trim((string) $e->getMessage());
+            if ($msg === '') {
+                $msg = 'تعذر رفع بعض الصور، يرجى إعادة المحاولة.';
+            }
+            if ($this->expectsAjaxJson($request)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => $msg,
+                    'errors' => ['gallery' => [$msg]],
+                ], 422);
+            }
+            return redirect()
+                ->back()
+                ->withErrors(['gallery' => $msg])
+                ->withInput();
+
         } catch (\Throwable $e) {
             report($e);
             if ($this->expectsAjaxJson($request)) {
@@ -363,7 +380,11 @@ class PublicProductController extends Controller
                     (filter_var($email, FILTER_VALIDATE_EMAIL) ? "Email: {$email}\n" : '') .
                     "متابعة الطلب: {$track}\n"
                 );
-                EmailNotifier::sendAfterCommit($admins, 'طلب جديد: نشر حساب', $adminText);
+                try {
+                    EmailNotifier::sendAfterCommit($admins, 'طلب جديد: نشر حساب', $adminText);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         }
 
@@ -374,7 +395,11 @@ class PublicProductController extends Controller
                 "سنراجعه ونرسل لك النتيجة (قبول/رفض) قريباً.\n" .
                 "متابعة الطلب: {$track}\n"
             );
-            EmailNotifier::sendAfterCommit($email, 'تم استلام طلب نشر الحساب ✅', $customerText);
+            try {
+                EmailNotifier::sendAfterCommit($email, 'تم استلام طلب نشر الحساب ✅', $customerText);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 
