@@ -635,7 +635,22 @@
 
                     <!-- Merchant pricing -->
                     <div class="settings-card">
-                        <h4 class="mb-3 fw-bolder">أسعار التجار (قسم شحن الجواهر)</h4>
+                        <h4 class="mb-3 fw-bolder">أسعار الصرف (حسابات الريس + عرض الدولار)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'custom_usd_to_sar_rate'))
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="input-group-text text-dark">سعر الصرف اليدوي (1 USD = كم SAR)</label>
+                                    <input type="number" step="0.0001" min="0" class="form-control"
+                                           name="custom_usd_to_sar_rate"
+                                           value="{{ old('custom_usd_to_sar_rate', $setting?->custom_usd_to_sar_rate) }}"
+                                           placeholder="مثال: 3.9000">
+                                    <div class="form-text">
+                                        إذا تركته فارغًا أو 0 سيستمر النظام بأخذ السعر التلقائي. إذا وضعت قيمة (مثال 3.9)،
+                                        سيتم اعتمادها في كل صفحات عرض الأسعار بالدولار (الرئيسية + تفاصيل المنتج + باقي الصفحات).
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                         @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'merchant_usd_rate'))
                             <div class="row g-3">
                                 <div class="col-md-6">

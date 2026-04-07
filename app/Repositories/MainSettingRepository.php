@@ -204,6 +204,13 @@ class MainSettingRepository implements MainSettingInterface
                 // ignore
             }
             try {
+                if (Schema::hasColumn('settings', 'custom_usd_to_sar_rate')) {
+                    $fields[] = 'custom_usd_to_sar_rate';
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+            try {
                 if (Schema::hasColumn('settings', 'merchant_charge_discount_percent')) {
                     $fields[] = 'merchant_charge_discount_percent';
                 }
@@ -222,6 +229,14 @@ class MainSettingRepository implements MainSettingInterface
             }
 
             $setting->fill($request->only($fields));
+            try {
+                if (Schema::hasColumn('settings', 'custom_usd_to_sar_rate')) {
+                    $usdToSar = (float) $request->input('custom_usd_to_sar_rate', 0);
+                    $setting->custom_usd_to_sar_rate = $usdToSar > 0 ? round($usdToSar, 6) : null;
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
             if ($hasCashToggle) {
                 // checkbox => set false when unchecked
                 $setting->cash_exchange_enabled = $request->boolean('cash_exchange_enabled');

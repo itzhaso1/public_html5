@@ -32,6 +32,7 @@ class Setting extends Model
         'public_publish_min_gallery_images',
         'home_featured_product_ids',
         'merchant_usd_rate',
+        'custom_usd_to_sar_rate',
         'merchant_charge_discount_percent',
         'point_price_sar',
         'point_price_usd',

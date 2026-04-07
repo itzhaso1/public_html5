@@ -87,7 +87,22 @@ class AppServiceProvider extends ServiceProvider
                 'US' => (float) ($fx['USD'] ?? 0.2666),
             ];
 
+            // Manual global USD rate override (admin controlled):
+            // input is stored as 1 USD = X SAR, then converted to SAR -> USD for UI conversion.
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'custom_usd_to_sar_rate')) {
+                    $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+                    $usdToSar = (float) ($s?->custom_usd_to_sar_rate ?? 0);
+                    if ($usdToSar > 0) {
+                        $ratesByCountry['US'] = 1 / $usdToSar;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+
             // Merchant USD override: affects USD display only.
+            // Keep this after the global override so merchant accounts can still have their own special rate.
             try {
                 if (auth()->check() && (bool) (auth()->user()?->is_merchant ?? false)) {
                     if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'merchant_usd_rate')) {
