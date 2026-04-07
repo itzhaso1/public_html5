@@ -23,6 +23,21 @@
       </div>
     </div>
 
+    <!-- روابط مهمة -->
+    <div class="flex flex-col items-center sm:items-start">
+      <h2 class="font-bold text-lg mb-3 tracking-wide">روابط مهمة</h2>
+      <ul class="space-y-2 text-sm text-gray-300">
+        <li><a href="{{ route('home') }}" class="hover:text-yellow-400 transition">الرئيسية</a></li>
+        <li><a href="{{ route('shop.index') }}" class="hover:text-yellow-400 transition">المتجر</a></li>
+        <li><a href="{{ route('about') }}" class="hover:text-yellow-400 transition">من نحن</a></li>
+        <li><a href="{{ route('contact') }}" class="hover:text-yellow-400 transition">اتصل بنا</a></li>
+        <li><a href="{{ route('privacy') }}" class="hover:text-yellow-400 transition">سياسة الخصوصية</a></li>
+        <li><a href="{{ route('refund_policy') }}" class="hover:text-yellow-400 transition">سياسة الإرجاع والاسترداد</a></li>
+        <li><a href="{{ route('terms_and_conditions') }}" class="hover:text-yellow-400 transition">الشروط والأحكام</a></li>
+        <li><a href="{{ route('delivery_policy') }}" class="hover:text-yellow-400 transition">سياسة التسليم</a></li>
+      </ul>
+    </div>
+
     <!-- قسم التواصل -->
     <div class="flex flex-col items-center sm:items-start">
       <h2 class="font-bold text-lg mb-3 tracking-wide">تواصل معنا</h2>
@@ -45,6 +60,11 @@
             إنستغرام
           </a>
         </li>
+        <li>
+          <a href="mailto:king2game.com@gmail.com" class="flex items-center justify-center sm:justify-start gap-2 hover:text-yellow-400 transition">
+            📧 king2game.com@gmail.com
+          </a>
+        </li>
       </ul>
     </div>
 
@@ -52,6 +72,6 @@
 
   <!-- الحقوق -->
   <div class="text-center text-xs text-gray-400 mt-8 border-t border-white/10 pt-3 px-4">
-    جميع الحقوق محفوظة © 2025 <span class="font-semibold text-white">King2Game</span>
+    جميع الحقوق محفوظة © 2025 <span class="font-semibold text-white">متجر الممالك</span>
   </div>
 </footer>

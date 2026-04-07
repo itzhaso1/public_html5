@@ -12,11 +12,11 @@
                 <div class="container-privacy-policy">
                     <h1 class="title mb--40">سياسة الإرجاع والاسترداد</h1>
 
-                    <h2 class="title mt--40">[اسم الموقع]</h2>
+                    <h2 class="title mt--40">متجر الممالك</h2>
                     <ul class="section-list">
                         <li><p>المنتجات رقمية ولا يمكن استرجاعها بعد الشراء.</p></li>
                         <li><p>في حال وجود مشكلة تقنية أو عدم استلام المنتج، يمكن التواصل مع الدعم خلال 48 ساعة.</p></li>
-                        <li><p>للتواصل: [البريد الإلكتروني]</p></li>
+                        <li><p>للتواصل: king2game.com@gmail.com</p></li>
                     </ul>
                 </div>
             </div>

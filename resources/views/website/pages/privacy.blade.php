@@ -17,10 +17,10 @@
         </ul>
 
         <p class="text-sm text-gray-700 mt-5 mb-1">
-            اسم الموقع: [اسم الموقع]
+            اسم الموقع: متجر الممالك
         </p>
         <p class="text-sm text-gray-700">
-            البريد الإلكتروني: [البريد الإلكتروني]
+            البريد الإلكتروني: king2game.com@gmail.com
         </p>
     </div>
 </section>

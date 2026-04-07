@@ -10,11 +10,11 @@
         <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-6">سياسة التسليم</h1>
 
         <div class="space-y-4 text-gray-700 leading-8">
-            <p><strong>اسم الموقع:</strong> [اسم الموقع]</p>
+            <p><strong>اسم الموقع:</strong> متجر الممالك</p>
             <p>يتم تسليم المنتج فور الدفع.</p>
             <p>التسليم عبر البريد الإلكتروني أو رابط داخل الموقع.</p>
             <p>في حال عدم الاستلام، يتم التواصل مع الدعم.</p>
-            <p><strong>البريد الإلكتروني:</strong> [البريد الإلكتروني]</p>
+            <p><strong>البريد الإلكتروني:</strong> king2game.com@gmail.com</p>
         </div>
     </div>
 </section>
