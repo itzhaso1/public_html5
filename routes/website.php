@@ -201,6 +201,15 @@ Route::group(
         Route::get('about-us', Website\AboutController::class)->name('about');
         Route::get('contact-us', Website\ContactUsController::class)->name('contact');
         Route::get('privacy-policy', Website\PrivacyController::class)->name('privacy');
+        Route::view('refund-policy', 'website.pages.refund_policy', [
+            'pageTitle' => 'سياسة الإرجاع والاسترداد',
+        ])->name('refund_policy');
+        Route::view('terms-and-conditions', 'website.pages.terms_and_conditions', [
+            'pageTitle' => 'الشروط والأحكام',
+        ])->name('terms_and_conditions');
+        Route::view('delivery-policy', 'website.pages.delivery_policy', [
+            'pageTitle' => 'سياسة التسليم',
+        ])->name('delivery_policy');
  
         // ===============================
         // Shop

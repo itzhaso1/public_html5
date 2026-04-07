@@ -5,41 +5,23 @@
 @endsection
 
 @section('content')
-    <!-- privacy policy area start -->
-    <div class="rts-pricavy-policy-area rts-section-gap">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div class="container-privacy-policy">
-                        <h1 class="title mb--40">{{ $pageTitle }}</h1>
+<section class="max-w-4xl mx-auto px-4 py-8" dir="rtl">
+    <div class="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 sm:p-7">
+        <h1 class="text-2xl font-extrabold text-gray-900 mb-4">{{ $pageTitle }}</h1>
 
-                        @foreach($privacy as $item)
-                            @php
-                                $translation = $item->translate(app()->getLocale());
-                                $title = $translation->title ?? '';
-                                $description = $translation->description ?? [];
-                            @endphp
+        <ul class="list-disc pr-5 space-y-2 text-gray-800 leading-7">
+            <li>يتم جمع بيانات مثل الاسم والبريد الإلكتروني ومعلومات الدفع.</li>
+            <li>تستخدم البيانات فقط لإتمام الطلب.</li>
+            <li>لا يتم مشاركة البيانات إلا مع بوابات الدفع عند الحاجة.</li>
+            <li>يتم الحفاظ على أمان المعلومات.</li>
+        </ul>
 
-                            @if($title)
-                                <h2 class="title mt--40">{{ $title }}</h2>
-                            @endif
-
-                            @if(is_array($description) && count($description))
-                                <ul class="section-list">
-                                    @foreach($description as $point)
-                                        <li>
-                                            <p>{{ $point }}</p>
-                                        </li>
-                                    @endforeach
-                                </ul>
-                            @else
-                                <p class="disc text-muted">لا توجد تفاصيل متاحة</p>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
+        <p class="text-sm text-gray-700 mt-5 mb-1">
+            اسم الموقع: [اسم الموقع]
+        </p>
+        <p class="text-sm text-gray-700">
+            البريد الإلكتروني: [البريد الإلكتروني]
+        </p>
     </div>
-    <!-- privacy policy area end -->
+</section>
 @endsection
