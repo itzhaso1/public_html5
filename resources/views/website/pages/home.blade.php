@@ -275,192 +275,34 @@
             @endunless
         </a>
 
-    </div>
-</div>
-
-
-
-<!-- الأقسام والمنتجات -->
-@foreach($sections as $section)
-    <div class="px-4 py-6">
-        <h2 class="text-center font-bold text-xl mb-4">{{ $section->name }}</h2>
-
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            @foreach(($section->products ?? collect())->sortByDesc(fn($p) => (float) ($p->price ?? 0)) as $product)
-                @php
-                    $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
-                    $thumb = ($product->service_type ?? null) === 'codes' ? ($product->codeThumbnail?->image_path ?? null) : null;
-                    $thumbUrl = $thumb ? Storage::disk('public')->url($thumb) : null;
-                    $productImage = $imageUrl ?: ($thumbUrl ?: $fallbackImage);
-                    $isSold = (bool) ($product->featured ?? false);
-                    $discountPercent = null;
-                    $dealEndsAt = $product->deal_ends_at ?? null;
-
-                    if (!empty($product->price_before_discount) && $product->price_before_discount > 0) {
-                        $discountPercent = round((($product->price_before_discount - $product->price) / $product->price_before_discount) * 100);
-                    }
-
-                    $hasCountdown = false;
-                    try {
-                        $hasCountdown = (! $isSold) && ($discountPercent > 0) && $dealEndsAt && $dealEndsAt->isFuture();
-                    } catch (\Throwable $e) {
-                        $hasCountdown = false;
-                    }
-                @endphp
-
-                <div class="relative bg-white p-3 rounded-lg shadow text-center overflow-hidden flex flex-col h-full">
-                    @if($isSold)
-                        <div class="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow">
-                            مباع
-                        </div>
-                    @endif
-
-                    @if(!$isSold && !empty($discountPercent) && $discountPercent > 0)
-                        <div class="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded shadow">
-                            خصم {{ $discountPercent }}%
-                        </div>
-                    @endif
-
-                    @if($hasCountdown)
-                        <div class="deal-countdown-wrap absolute top-9 left-1/2 -translate-x-1/2 bg-black/85 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
-                            ⏳ ينتهي خلال:
-                            <span class="deal-countdown font-mono" data-ends="{{ $dealEndsAt->toIso8601String() }}">--:--:--</span>
-                        </div>
-                    @endif
-
-                    <img src="{{ $productImage }}"
-                         class="product-img mx-auto rounded-md object-cover w-full h-auto"
-                         alt="{{ $product->name ?? 'Product' }}"
-                         width="600" height="300"
-                         loading="lazy"
-                         decoding="async">
-
-                    <h3 class="font-bold mt-2">{{ $product->name }}</h3>
-
-                    <p class="text-gray-500 text-sm">
-                        {{ $product->short_description ?? 'لا يوجد وصف لهذا المنتج' }}
-                    </p>
-
-                    @if(!empty($product->price_before_discount))
-                        <p class="font-semibold mt-1 product-price text-red-600"
-                           data-base-price="{{ $product->price }}"
-                           data-base-old="{{ $product->price_before_discount }}">
-                            <span class="current-price">ر.س {{ $product->price }}</span>
-                            <span class="old-price text-gray-500 text-sm line-through">
-                                {{ $product->price_before_discount }}
-                            </span>
-                        </p>
-                    @else
-                        <p class="font-semibold mt-1 product-price" data-base-price="{{ $product->price }}">
-                            <span class="current-price">ر.س {{ $product->price }}</span>
-                        </p>
-                    @endif
-
-                    @if($isSold)
-                        <button class="mt-auto w-full bg-gray-400 text-white py-1 rounded text-sm cursor-not-allowed">
-                            مباع
-                        </button>
-                    @else
-                        <a href="{{ route('website.product.show', $product->id) }}"
-                           class="mt-auto block w-full bg-black text-white py-1 rounded text-sm text-center hover:bg-gray-800 transition">
-                            عرض تفاصيل
-                        </a>
-                    @endif
+        <!-- حسابات فري فاير -->
+        <a href="{{ route('website.freefire_accounts') }}"
+           class="group relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-l from-amber-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99]">
+            <div class="p-2.5 sm:p-4">
+                <div class="flex items-center justify-center">
+                    <div class="w-full h-24 sm:h-32 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-700 text-4xl font-extrabold">
+                        🎮
+                    </div>
                 </div>
-            @endforeach
-        </div>
-    </div>
-@endforeach
 
-<!-- حسابات متجر الممالك -->
-<div class="px-4 py-6">
-    <h2 class="text-center font-bold text-xl mb-4 border-b border-gray-300 pb-2 text-yellow-500">
-        حسابات متجر الممالك
-    </h2>
+                <div class="mt-2 text-center">
+                    <span class="inline-block text-xs text-gray-500">القسم</span>
+                    <h3 class="font-extrabold text-sm sm:text-base text-gray-900 mt-0.5">حسابات فري فاير</h3>
+                </div>
 
-    <div class="grid grid-cols-2 md:grid-cols-3 gap-4" data-sort-by-base-price>
-       @foreach($products->sortByDesc(fn($p) => (float) ($p->price ?? 0)) as $product)
-            @php
-                $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
-                $productImage = $imageUrl ?: $fallbackImage;
-                $isSold = (bool) ($product->featured ?? false);
-                $discountPercent = null;
-                $dealEndsAt = $product->deal_ends_at ?? null;
-
-                if (!empty($product->price_before_discount) && $product->price_before_discount > 0) {
-                    $discountPercent = round((($product->price_before_discount - $product->price) / $product->price_before_discount) * 100);
-                }
-
-                $hasCountdown = false;
-                try {
-                    $hasCountdown = (! $isSold) && ($discountPercent > 0) && $dealEndsAt && $dealEndsAt->isFuture();
-                } catch (\Throwable $e) {
-                    $hasCountdown = false;
-                }
-            @endphp
-
-            <div class="relative bg-white p-3 rounded-lg shadow text-center product flex flex-col h-full"
-                 data-status="{{ $isSold ? 'مباع' : '' }}">
-
-                @if($isSold)
-                    <div class="absolute top-2 left-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded shadow">
-                        مباع
-                    </div>
-                @endif
-
-                @if(!$isSold && !empty($discountPercent) && $discountPercent > 0)
-                    <div class="absolute top-2 right-2 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded shadow">
-                        خصم {{ $discountPercent }}%
-                    </div>
-                @endif
-
-                @if($hasCountdown)
-                    <div class="deal-countdown-wrap absolute top-9 left-1/2 -translate-x-1/2 bg-black/85 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow">
-                        ⏳ ينتهي خلال:
-                        <span class="deal-countdown font-mono" data-ends="{{ $dealEndsAt->toIso8601String() }}">--:--:--</span>
-                    </div>
-                @endif
-
-                <img src="{{ $productImage }}"
-                     class="product-img mx-auto rounded-md object-cover"
-                     alt="{{ $product->name }}"
-                     width="600" height="300"
-                     loading="lazy"
-                     decoding="async">
-
-                <h2 class="font-bold mt-2">{{ $product->name }}</h2>
-
-                <p class="text-gray-500 text-sm">
-                    {{ $product->short_description ?? 'لا يوجد وصف متاح' }}
+                <p class="text-[11px] sm:text-sm text-gray-600 mt-2 text-center leading-relaxed">
+                    تصفح جميع الحسابات المميزة وباقي الحسابات داخل قسم مستقل
                 </p>
 
-                @if(!empty($product->price_before_discount))
-                    <p class="font-semibold mt-1 product-price text-red-600"
-                       data-base-price="{{ $product->price }}"
-                       data-base-old="{{ $product->price_before_discount }}">
-                        <span class="current-price">ر.س {{ $product->price }}</span>
-                        <span class="old-price text-gray-500 text-sm line-through">
-                            {{ $product->price_before_discount }}
-                        </span>
-                    </p>
-                @else
-                    <p class="font-semibold mt-1 product-price" data-base-price="{{ $product->price }}">
-                        <span class="current-price">ر.س {{ $product->price }}</span>
-                    </p>
-                @endif
-
-                @if($isSold)
-                    <button class="mt-auto w-full bg-gray-400 text-white py-1 rounded text-sm cursor-not-allowed">
-                        مباع
-                    </button>
-                @else
-                    <a href="{{ route('website.product.show', $product->id) }}"
-                       class="mt-auto block w-full bg-black text-white py-1 rounded text-sm text-center">
-                        عرض تفاصيل
-                    </a>
-                @endif
+                <div class="mt-3 flex justify-center">
+                    <span class="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-700">
+                        <i class="bi bi-controller"></i>
+                        دخول القسم
+                    </span>
+                </div>
             </div>
-        @endforeach
+        </a>
+
     </div>
 </div>
 

@@ -206,6 +206,7 @@ Route::group(
         // Shop
         // ===============================
         Route::get('shop', [Website\ShopController::class, 'index'])->name('shop.index');
+        Route::get('freefire-accounts', [Website\WebsiteController::class, 'freefireAccounts'])->name('website.freefire_accounts');
         Route::get('product/{product}', [Website\WebsiteController::class, 'show'])->name('website.product.show');
         Route::post('product/{productId}/unlock-client', [Website\ShopController::class, 'unlockClientNumber'])->name('product.unlock.client');
  

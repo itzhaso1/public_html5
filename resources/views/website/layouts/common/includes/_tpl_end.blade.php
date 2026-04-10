@@ -320,10 +320,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {}
             };
 
+            const initHomeFeaturedAccountsSwiper = () => {
+                document.querySelectorAll('.home-featured-accounts-swiper').forEach((el) => {
+                    if (!el || el.swiper) return;
+                    const slidesCount = el.querySelectorAll('.swiper-slide').length;
+                    if (!slidesCount) return;
+                    const paginationEl = el.querySelector('.swiper-pagination');
+                    try {
+                        new Swiper(el, {
+                            loop: slidesCount > 1,
+                            autoplay: slidesCount > 1 ? { delay: 3200, disableOnInteraction: false } : false,
+                            centeredSlides: true,
+                            watchOverflow: true,
+                            grabCursor: true,
+                            slidesPerView: 1,
+                            spaceBetween: 10,
+                            speed: 550,
+                            breakpoints: {
+                                640: { centeredSlides: true, slidesPerView: 1.3, spaceBetween: 14 },
+                                768: { centeredSlides: false, slidesPerView: 1.9, spaceBetween: 16 },
+                                1024: { centeredSlides: false, slidesPerView: 2.5, spaceBetween: 18 },
+                            },
+                            pagination: paginationEl ? {
+                                el: paginationEl,
+                                clickable: true,
+                                bulletClass: 'home-featured-dot',
+                                bulletActiveClass: 'is-active',
+                                renderBullet: function (index, className) {
+                                    return `<span class="${className}" aria-label="انتقل للسلايد ${index + 1}"></span>`;
+                                }
+                            } : undefined,
+                        });
+                    } catch (e) {}
+                });
+            };
+
             const initAll = () => {
                 if (!window.Swiper) return;
                 initHeroSwipers();
                 initReviewsSwiper();
+                initHomeFeaturedAccountsSwiper();
             };
 
             const loadSwiperOnce = (cb) => {
