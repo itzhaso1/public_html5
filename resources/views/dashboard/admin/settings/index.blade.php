@@ -792,7 +792,7 @@
                                                         <option value="1" {{ $mobileCols === 1 ? 'selected' : '' }}>منتج واحد في الصف</option>
                                                         <option value="2" {{ $mobileCols === 2 ? 'selected' : '' }}>منتجين في الصف</option>
                                                     </select>
-                                                    <div class="form-text">السلايدر سيبقى بصفّين على الهاتف.</div>
+                                                    <div class="form-text">سيظهر سطر واحد فقط: منتج واحد أو منتجين جنب بعض حسب اختيارك.</div>
                                                 </div>
                                                 <div class="col-12 col-md-6">
                                                     <label class="input-group-text text-dark">سرعة التبديل التلقائي</label>

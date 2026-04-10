@@ -489,10 +489,7 @@ document.addEventListener("DOMContentLoaded", () => {
             allowTouchMove: true,
             simulateTouch: true,
             loop: slidesCount > 1,
-            grid: {
-                rows: 2,
-                fill: 'row',
-            },
+            grid: { rows: 1, fill: 'row' },
             autoplay: slidesCount > 1 ? {
                 delay: autoplaySeconds * 1000,
                 disableOnInteraction: false,
@@ -507,7 +504,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 },
             },
             breakpoints: {
-                480: { slidesPerView: mobileColumns, spaceBetween: 12, grid: { rows: 2, fill: 'row' } },
+                480: { slidesPerView: mobileColumns, spaceBetween: 12, grid: { rows: 1, fill: 'row' } },
                 640: { slidesPerView: 2, spaceBetween: 14, grid: { rows: 1, fill: 'row' } },
                 1024: { slidesPerView: 3, spaceBetween: 16, grid: { rows: 1, fill: 'row' } },
             },
