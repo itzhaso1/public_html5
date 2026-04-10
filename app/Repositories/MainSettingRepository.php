@@ -101,6 +101,8 @@ class MainSettingRepository implements MainSettingInterface
             'selectedHomeFeaturedProductIds' => $selectedHomeFeaturedProductIds,
             'homeFeaturedAllProducts' => $homeFeaturedAllProducts,
             'selectedHomeFeaturedAllProductIds' => $selectedHomeFeaturedAllProductIds,
+            'homeFeaturedAllMobileColumns' => (int) ($setting?->home_featured_all_mobile_columns ?? 1),
+            'homeFeaturedAllAutoplaySeconds' => (int) ($setting?->home_featured_all_autoplay_seconds ?? 3),
             'accountImageSettings' => $setting,
         ]);
     }
@@ -126,6 +128,7 @@ class MainSettingRepository implements MainSettingInterface
             $hasPublishMinGallery = false;
             $hasHomeFeaturedProducts = false;
             $hasHomeFeaturedProductsAll = false;
+            $hasHomeFeaturedAllSliderControls = false;
             $hasAccountBlurControls = false;
             $hasCenterBlurRightOffset = false;
             $hasTopAreaControls = false;
@@ -145,6 +148,9 @@ class MainSettingRepository implements MainSettingInterface
                 $hasPublishMinGallery = Schema::hasColumn('settings', 'public_publish_min_gallery_images');
                 $hasHomeFeaturedProducts = Schema::hasColumn('settings', 'home_featured_product_ids');
                 $hasHomeFeaturedProductsAll = Schema::hasColumn('settings', 'home_featured_product_ids_all');
+                $hasHomeFeaturedAllSliderControls =
+                    Schema::hasColumn('settings', 'home_featured_all_mobile_columns')
+                    && Schema::hasColumn('settings', 'home_featured_all_autoplay_seconds');
                 $hasAccountBlurControls =
                     Schema::hasColumn('settings', 'account_name_blur_enabled')
                     && Schema::hasColumn('settings', 'account_name_blur_x_offset_from_right')
@@ -181,6 +187,7 @@ class MainSettingRepository implements MainSettingInterface
                 $hasPublishMinGallery = false;
                 $hasHomeFeaturedProducts = false;
                 $hasHomeFeaturedProductsAll = false;
+                $hasHomeFeaturedAllSliderControls = false;
                 $hasAccountBlurControls = false;
                 $hasCenterBlurRightOffset = false;
                 $hasTopAreaControls = false;
@@ -235,6 +242,10 @@ class MainSettingRepository implements MainSettingInterface
             }
             if ($hasPublishMinGallery) {
                 $fields[] = 'public_publish_min_gallery_images';
+            }
+            if ($hasHomeFeaturedAllSliderControls) {
+                $fields[] = 'home_featured_all_mobile_columns';
+                $fields[] = 'home_featured_all_autoplay_seconds';
             }
             try {
                 if (Schema::hasColumn('settings', 'merchant_usd_rate')) {
@@ -319,6 +330,13 @@ class MainSettingRepository implements MainSettingInterface
             if ($hasFreefirePosition) {
                 $freefirePosition = strtolower(trim((string) $request->input('home_quick_freefire_position', 'end')));
                 $setting->home_quick_freefire_position = in_array($freefirePosition, ['start', 'end'], true) ? $freefirePosition : 'end';
+            }
+            if ($hasHomeFeaturedAllSliderControls) {
+                $mobileColumns = (int) $request->input('home_featured_all_mobile_columns', 1);
+                $setting->home_featured_all_mobile_columns = in_array($mobileColumns, [1, 2], true) ? $mobileColumns : 1;
+
+                $autoplaySeconds = (int) $request->input('home_featured_all_autoplay_seconds', 3);
+                $setting->home_featured_all_autoplay_seconds = in_array($autoplaySeconds, [2, 3], true) ? $autoplaySeconds : 3;
             }
 
             if ($hasAccountBlurControls) {

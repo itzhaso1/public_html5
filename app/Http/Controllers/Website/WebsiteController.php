@@ -189,6 +189,8 @@ class WebsiteController extends Controller
 
         $featuredAllProductIds = collect();
         $freefirePosition = 'end';
+        $featuredAllMobileColumns = 1;
+        $featuredAllAutoplaySeconds = 3;
         try {
             if (Schema::hasTable('settings')) {
                 $appSettings = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
@@ -208,10 +210,20 @@ class WebsiteController extends Controller
                     $pos = strtolower(trim((string) ($appSettings?->home_quick_freefire_position ?? 'end')));
                     $freefirePosition = in_array($pos, ['start', 'end'], true) ? $pos : 'end';
                 }
+                if (Schema::hasColumn('settings', 'home_featured_all_mobile_columns')) {
+                    $mobileCols = (int) ($appSettings?->home_featured_all_mobile_columns ?? 1);
+                    $featuredAllMobileColumns = in_array($mobileCols, [1, 2], true) ? $mobileCols : 1;
+                }
+                if (Schema::hasColumn('settings', 'home_featured_all_autoplay_seconds')) {
+                    $autoSec = (int) ($appSettings?->home_featured_all_autoplay_seconds ?? 3);
+                    $featuredAllAutoplaySeconds = in_array($autoSec, [2, 3], true) ? $autoSec : 3;
+                }
             }
         } catch (\Throwable $e) {
             $featuredAllProductIds = collect();
             $freefirePosition = 'end';
+            $featuredAllMobileColumns = 1;
+            $featuredAllAutoplaySeconds = 3;
         }
 
         $featuredAllProducts = collect();
@@ -231,6 +243,8 @@ class WebsiteController extends Controller
             'sections' => $sections,
             'featuredAllProducts' => $featuredAllProducts,
             'homeQuickFreefirePosition' => $freefirePosition,
+            'homeFeaturedAllMobileColumns' => $featuredAllMobileColumns,
+            'homeFeaturedAllAutoplaySeconds' => $featuredAllAutoplaySeconds,
         ];
     }
 }

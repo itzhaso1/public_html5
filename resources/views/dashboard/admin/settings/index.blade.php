@@ -778,6 +778,40 @@
                                     <div class="form-text mt-2">
                                         المنتجات المختارة هنا ستظهر أعلى الأقسام في الصفحة الرئيسية.
                                     </div>
+                                    <div class="mt-3 border rounded p-3 bg-light">
+                                        <div class="fw-bold mb-2">إعدادات سلايدر المنتجات المميزة (الهاتف)</div>
+                                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'home_featured_all_mobile_columns'))
+                                            <div class="row g-3">
+                                                <div class="col-12 col-md-6">
+                                                    <label class="input-group-text text-dark">عدد المنتجات الظاهرة في الصف الواحد (الجوال)</label>
+                                                    @php
+                                                        $mobileCols = (int) old('home_featured_all_mobile_columns', (int) ($setting?->home_featured_all_mobile_columns ?? 1));
+                                                        if (!in_array($mobileCols, [1, 2], true)) $mobileCols = 1;
+                                                    @endphp
+                                                    <select class="form-select" name="home_featured_all_mobile_columns">
+                                                        <option value="1" {{ $mobileCols === 1 ? 'selected' : '' }}>منتج واحد في الصف</option>
+                                                        <option value="2" {{ $mobileCols === 2 ? 'selected' : '' }}>منتجين في الصف</option>
+                                                    </select>
+                                                    <div class="form-text">السلايدر سيبقى بصفّين على الهاتف.</div>
+                                                </div>
+                                                <div class="col-12 col-md-6">
+                                                    <label class="input-group-text text-dark">سرعة التبديل التلقائي</label>
+                                                    @php
+                                                        $autoplaySec = (int) old('home_featured_all_autoplay_seconds', (int) ($setting?->home_featured_all_autoplay_seconds ?? 3));
+                                                        if (!in_array($autoplaySec, [2, 3], true)) $autoplaySec = 3;
+                                                    @endphp
+                                                    <select class="form-select" name="home_featured_all_autoplay_seconds">
+                                                        <option value="2" {{ $autoplaySec === 2 ? 'selected' : '' }}>كل 2 ثانية</option>
+                                                        <option value="3" {{ $autoplaySec === 3 ? 'selected' : '' }}>كل 3 ثواني</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        @else
+                                            <div class="text-muted">
+                                                لتفعيل هذه الإعدادات شغّل: <code>php artisan migrate --force</code>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             </div>
                         @else

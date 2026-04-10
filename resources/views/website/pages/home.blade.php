@@ -107,6 +107,12 @@
 @section('content')
 @php
     $fallbackImage = asset('img/قريبا.jpg');
+    $featuredAllMobileColumns = in_array((int) ($settings?->home_featured_all_mobile_columns ?? 1), [1, 2], true)
+        ? (int) ($settings?->home_featured_all_mobile_columns ?? 1)
+        : 1;
+    $featuredAllAutoplaySeconds = in_array((int) ($settings?->home_featured_all_autoplay_seconds ?? 3), [2, 3], true)
+        ? (int) ($settings?->home_featured_all_autoplay_seconds ?? 3)
+        : 3;
     $chargeTitle = $settings?->home_quick_charge_title ?: 'شحن جواهر';
     $codesTitle = $settings?->home_quick_codes_title ?: 'أكواد ملابس';
     $cashTitle = $settings?->home_quick_cash_exchange_title ?: 'استبدل رصيدك كاش';
@@ -249,7 +255,9 @@
         المنتجات المميزة
     </h2>
 
-    <div class="swiper home-featured-products-swiper">
+    <div class="swiper home-featured-products-swiper"
+         data-mobile-columns="{{ $featuredAllMobileColumns }}"
+         data-autoplay-seconds="{{ $featuredAllAutoplaySeconds }}">
         <div class="swiper-wrapper">
             @foreach($featuredAllProducts as $product)
                 @php
@@ -469,8 +477,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!homeFeaturedEl || !window.Swiper || homeFeaturedEl.swiper) return;
 
         const slidesCount = homeFeaturedEl.querySelectorAll('.swiper-slide').length;
+        const mobileColumns = Number(homeFeaturedEl.dataset.mobileColumns || 1) === 2 ? 2 : 1;
+        const autoplaySecondsRaw = Number(homeFeaturedEl.dataset.autoplaySeconds || 3);
+        const autoplaySeconds = autoplaySecondsRaw === 2 ? 2 : 3;
         new Swiper(homeFeaturedEl, {
-            slidesPerView: 1.35,
+            slidesPerView: mobileColumns,
             spaceBetween: 10,
             grabCursor: true,
             centeredSlides: false,
@@ -478,6 +489,14 @@ document.addEventListener("DOMContentLoaded", () => {
             allowTouchMove: true,
             simulateTouch: true,
             loop: slidesCount > 1,
+            grid: {
+                rows: 2,
+                fill: 'row',
+            },
+            autoplay: slidesCount > 1 ? {
+                delay: autoplaySeconds * 1000,
+                disableOnInteraction: false,
+            } : false,
             pagination: {
                 el: '.home-featured-products-swiper .swiper-pagination',
                 clickable: true,
@@ -488,9 +507,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 },
             },
             breakpoints: {
-                480: { slidesPerView: 1.6, spaceBetween: 12 },
-                640: { slidesPerView: 2.1, spaceBetween: 14 },
-                1024: { slidesPerView: 3, spaceBetween: 16 },
+                480: { slidesPerView: mobileColumns, spaceBetween: 12, grid: { rows: 2, fill: 'row' } },
+                640: { slidesPerView: 2, spaceBetween: 14, grid: { rows: 1, fill: 'row' } },
+                1024: { slidesPerView: 3, spaceBetween: 16, grid: { rows: 1, fill: 'row' } },
             },
         });
     };
