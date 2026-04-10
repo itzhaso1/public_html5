@@ -5,6 +5,7 @@ namespace App\Exceptions;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -70,6 +71,22 @@ class Handler extends ExceptionHandler
             }
 
             return $redirect;
+        });
+
+        $this->renderable(function (TokenMismatchException $e, Request $request) {
+            $message = 'انتهت صلاحية الجلسة. رجاءً حدّث الصفحة ثم حاول مرة أخرى.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'message' => $message,
+                    'error' => 'session_expired',
+                ], 419);
+            }
+
+            return redirect()
+                ->back()
+                ->withInput($request->except('_token'))
+                ->with('error', $message);
         });
     }
 }
