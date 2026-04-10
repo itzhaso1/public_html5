@@ -20,7 +20,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->string('content_title')->nullable();
             $table->text('content_description')->nullable();
-            $table->unique(['contactus_id', 'locale']);
+            $table->unique(['contact_us_id', 'locale']);
         });
     }
 
@@ -29,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('contact_us_translations');
+        Schema::dropIfExists('contactus_translations');
     }
 };

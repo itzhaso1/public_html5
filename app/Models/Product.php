@@ -25,6 +25,7 @@ class Product extends Model implements TranslatableContract {
         'status',
         'published_at',
         'client_number',
+        'client_email',
         'publish_source',
         'review_note',
         'review_reject_reasons',
@@ -32,6 +33,8 @@ class Product extends Model implements TranslatableContract {
         'reviewed_at',
         'rejected_at',
         'service_type',
+        'is_lucky_draw_codes',
+        'points_price',
         // Shop2TopUp offer id (column name in DB is itemID)
         'itemID',
 
@@ -47,6 +50,8 @@ class Product extends Model implements TranslatableContract {
         'reviewed_at' => 'datetime',
         'rejected_at' => 'datetime',
         'review_reject_reasons' => 'array',
+        'points_price' => 'int',
+        'is_lucky_draw_codes' => 'bool',
     ];
 
     public $translatedAttributes = [
@@ -152,10 +157,18 @@ class Product extends Model implements TranslatableContract {
         });
     }
     
-    public function getImageUrl()
-{
+    public function getImageUrl(): string
+    {
+        try {
+            $url = $this->getMediaUrl('product', $this, null, 'media', 'product');
+            if (! empty($url)) {
+                return (string) $url;
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
 
-    return asset('public/uploads/product/68f671923ab1a.jpg');
-}
+        return asset('img/قريبا.jpg');
+    }
 
 }

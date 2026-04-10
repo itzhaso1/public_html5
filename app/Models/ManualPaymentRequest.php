@@ -12,6 +12,7 @@ class ManualPaymentRequest extends Model
     protected $fillable = [
         'reference',
         'product_id',
+        'reserved_diamond_code_id',
         'user_id',
         'player_id',
         'contact_phone',
@@ -19,6 +20,8 @@ class ManualPaymentRequest extends Model
         'amount',
         'currency',
         'payment_method',
+        'points_spent',
+        'points_refunded_at',
         'receipt_path',
         'status',
         'approved_at',
@@ -37,6 +40,7 @@ class ManualPaymentRequest extends Model
         'approved_at' => 'datetime',
         'shop2topup_delivery_at' => 'datetime',
         'shop2topup_response' => 'array',
+        'points_refunded_at' => 'datetime',
     ];
 
     public function product()
@@ -52,6 +56,11 @@ class ManualPaymentRequest extends Model
     public function diamondCode()
     {
         return $this->hasOne(DiamondCode::class, 'manual_payment_request_id');
+    }
+
+    public function reservedDiamondCode()
+    {
+        return $this->belongsTo(DiamondCode::class, 'reserved_diamond_code_id');
     }
 }
 

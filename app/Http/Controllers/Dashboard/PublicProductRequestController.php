@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Dashboard;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WasenderNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class PublicProductRequestController extends Controller
 {
@@ -152,18 +154,14 @@ class PublicProductRequestController extends Controller
 
     private function notifyPublisher(Product $product, bool $approved): void
     {
-        if (! (bool) config('services.wasender.enabled', false)) return;
-        if (! (bool) config('services.wasender.notify_customers', true)) return;
-
-        $to = WhatsAppNumber::normalize((string) ($product->client_number ?? ''));
-        if ($to === '') return;
-
         $app = (string) config('app.name', 'المتجر');
         $name = (string) ($product->name ?? '');
         $trackUrl = route('public.products.track', ['slug' => $product->slug]);
         $publishUrl = route('public.products.create');
         $note = trim((string) ($product->review_note ?? ''));
         $noteLine = $note !== '' ? ("\nملاحظة الإدارة: " . mb_substr($note, 0, 250)) : '';
+
+        $subject = $approved ? 'تم قبول طلب نشر حسابك ✅' : 'تم رفض طلب نشر حسابك ❌';
 
         if ($approved) {
             $productUrl = route('website.product.show', $product);
@@ -196,7 +194,21 @@ class PublicProductRequestController extends Controller
             );
         }
 
-        WasenderNotifier::sendAfterCommit($to, $text);
+        // WhatsApp (optional)
+        if ((bool) config('services.wasender.enabled', false) && (bool) config('services.wasender.notify_customers', true)) {
+            $to = WhatsAppNumber::normalize((string) ($product->client_number ?? ''));
+            if ($to !== '') {
+                WasenderNotifier::sendAfterCommit($to, $text);
+            }
+        }
+
+        // Email (optional additional channel)
+        if ((bool) config('services.email_notify.enabled', false) && (bool) config('services.email_notify.notify_customers', true)) {
+            $email = trim((string) ($product->client_email ?? ''));
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                EmailNotifier::sendAfterCommit($email, $subject, $text);
+            }
+        }
     }
 
     public function destroy(Request $request, Product $product)
@@ -206,6 +218,65 @@ class PublicProductRequestController extends Controller
         $request->validate([
             'confirm' => ['required', 'in:DELETE'],
         ]);
+
+        $this->deletePublicProductRequest($product);
+
+        return redirect()
+            ->route('admin.public_products.index', ['status' => 'all'])
+            ->with('success', 'تم حذف الطلب ✅');
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer', 'min:1'],
+            'confirm' => ['required', 'in:DELETE'],
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', (array) ($data['ids'] ?? []))));
+        if (count($ids) === 0) {
+            return back()->withErrors(['error' => 'اختر عنصر واحد على الأقل.']);
+        }
+
+        $q = Product::query()
+            ->whereIn('id', $ids)
+            ->where('publish_source', 'public')
+            ->whereNull('service_type');
+
+        $found = $q->get();
+        if ($found->isEmpty()) {
+            return back()->withErrors(['error' => 'لم يتم العثور على الطلبات المحددة.']);
+        }
+
+        $deleted = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($found as $product) {
+                try {
+                    $this->deletePublicProductRequest($product, false);
+                    $deleted++;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
+
+        $this->flushWebsiteProductCaches();
+
+        return redirect()
+            ->route('admin.public_products.index', ['status' => 'all'])
+            ->with('success', "تم حذف {$deleted} طلب(ات) ✅");
+    }
+
+    private function deletePublicProductRequest(Product $product, bool $flushCaches = true): void
+    {
+        $this->ensurePublic($product);
 
         try { $product->loadMissing(['media', 'translations']); } catch (\Throwable $e) {}
 
@@ -252,11 +323,9 @@ class PublicProductRequestController extends Controller
 
         $product->delete();
 
-        $this->flushWebsiteProductCaches();
-
-        return redirect()
-            ->route('admin.public_products.index', ['status' => 'all'])
-            ->with('success', 'تم حذف الطلب ✅');
+        if ($flushCaches) {
+            $this->flushWebsiteProductCaches();
+        }
     }
 }
 

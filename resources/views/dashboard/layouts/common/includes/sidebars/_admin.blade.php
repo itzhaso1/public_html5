@@ -61,6 +61,14 @@
         </a>
     </div>
 
+    <!-- Merchant requests -->
+    <div class="menu-item">
+        <a class="menu-link {{ is_active('admin.merchant_requests.*') }}" href="{{ route('admin.merchant_requests.index') }}">
+            <span class="menu-icon"><i class="bi bi-person-badge fs-2"></i></span>
+            <span class="menu-title">طلبات التجار</span>
+        </a>
+    </div>
+
     <!-- Sections (homepage groupings) -->
     <div class="menu-item">
         <a class="menu-link {{ is_active('admin.sections.*') }}" href="{{ route('admin.sections.index') }}">
@@ -82,6 +90,30 @@
         <a class="menu-link {{ is_active('admin.manual_payments.*') }}" href="{{ route('admin.manual_payments.index') }}">
             <span class="menu-icon"><i class="bi bi-receipt fs-2"></i></span>
             <span class="menu-title">طلبات الدفع اليدوي</span>
+        </a>
+    </div>
+
+    <!-- Payment methods -->
+    <div class="menu-item">
+        <a class="menu-link {{ is_active('admin.payment_methods.*') }}" href="{{ route('admin.payment_methods.index') }}">
+            <span class="menu-icon"><i class="bi bi-credit-card fs-2"></i></span>
+            <span class="menu-title">طرق الدفع</span>
+        </a>
+    </div>
+
+    <!-- Wallet points orders -->
+    <div class="menu-item">
+        <a class="menu-link {{ is_active('admin.wallet_points_orders.*') }}" href="{{ route('admin.wallet_points_orders.index') }}">
+            <span class="menu-icon"><i class="bi bi-lightning-charge fs-2"></i></span>
+            <span class="menu-title">طلبات الشحن بالنقاط</span>
+        </a>
+    </div>
+
+    <!-- Wallet topups -->
+    <div class="menu-item">
+        <a class="menu-link {{ is_active('admin.wallet_topups.*') }}" href="{{ route('admin.wallet_topups.index') }}">
+            <span class="menu-icon"><i class="bi bi-wallet2 fs-2"></i></span>
+            <span class="menu-title">طلبات إيداع النقاط</span>
         </a>
     </div>
 
@@ -198,8 +230,8 @@
     </div>
 
     <!-- Settings -->
-    <div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ is_active('admin.mainSettings.*') }}">
-        <span class="menu-link {{ is_active('admin.mainSettings.*') }}">
+    <div data-kt-menu-trigger="click" class="menu-item menu-accordion {{ is_active('admin.mainSettings.*') || is_active('admin.sliders.*') }}">
+        <span class="menu-link {{ is_active('admin.mainSettings.*') || is_active('admin.sliders.*') }}">
             <span class="menu-icon"><i class="bi bi-gear fs-2"></i></span>
             <span class="menu-title">الإعدادات</span>
             <span class="menu-arrow"></span>
@@ -209,6 +241,12 @@
                 <a class="menu-link {{ is_active('admin.mainSettings.index') }}" href="{{ route('admin.mainSettings.index') }}">
                     <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
                     <span class="menu-title">الإعدادات العامة</span>
+                </a>
+            </div>
+            <div class="menu-item">
+                <a class="menu-link {{ is_active('admin.sliders.*') }}" href="{{ route('admin.sliders.index') }}">
+                    <span class="menu-bullet"><span class="bullet bullet-dot"></span></span>
+                    <span class="menu-title">سلايدر الصفحة الرئيسية</span>
                 </a>
             </div>
         </div>

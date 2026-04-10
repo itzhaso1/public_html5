@@ -20,6 +20,8 @@ class User extends Authenticatable /*implements JWTSubject*/ {
         'first_name',
         'last_name',
         'status',
+        'is_merchant',
+        'wallet_points_balance',
     ];
 
     protected $hidden = [
@@ -31,6 +33,8 @@ class User extends Authenticatable /*implements JWTSubject*/ {
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_merchant' => 'bool',
+            'wallet_points_balance' => 'int',
         ];
     }
 

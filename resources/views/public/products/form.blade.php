@@ -8,6 +8,8 @@
 
 @php
     $isEdit = isset($product);
+    $formAction = $formAction ?? route('public.products.store', request()->query());
+    $namePrefix = $namePrefix ?? null;
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
@@ -50,7 +52,7 @@
 
         <form
             id="productForm"
-            action="{{ route('public.products.store', request()->query()) }}"
+            action="{{ $formAction }}"
             method="POST"
             enctype="multipart/form-data"
            class="space-y-6"
@@ -83,6 +85,7 @@
                             minlength="3"
                             placeholder="مثال: حساب فير 8 لليوم او حساب كلاش محروق"
                             value="{{ old($locale.'.name', $product?->translateOrNew($locale)->name ?? '') }}"
+                            @if(!empty($namePrefix)) data-name-prefix="{{ $namePrefix }}" @endif
                             oninput="updateCounter(this, 'nameCounter')"
                             class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
                                    px-4 py-5 text-lg
@@ -197,11 +200,32 @@
                            value="{{ old('client_number', $product->client_number ?? '') }}">
 
                     <div class="mt-2 text-xs text-gray-500">
-                        سيتم إرسال إشعار واتساب عند <b>قبول</b> أو <b>رفض</b> طلبك.
+                        سيتم إرسال إشعار واتساب (وبريد إذا أضفت بريدك) عند <b>قبول</b> أو <b>رفض</b> طلبك.
                     </div>
                     @error('client_number')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
+
+                    <div class="mt-5">
+                        <label class="text-sm text-gray-600">البريد الإلكتروني (اختياري)</label>
+                        <input
+                            type="email"
+                            name="client_email"
+                            autocomplete="email"
+                            placeholder="example@email.com"
+                            value="{{ old('client_email', $product->client_email ?? '') }}"
+                            class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
+                                   px-4 py-5 text-lg
+                                   placeholder:text-gray-400
+                                   focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                        <div class="mt-2 text-xs text-gray-500">
+                            إذا أدخلت بريدك، سنرسل لك إشعارًا عبر البريد أيضًا.
+                        </div>
+                        @error('client_email')
+                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
 
                 <div>
@@ -215,6 +239,19 @@
                                px-4 py-5 text-lg
                                focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     >
+                    <div class="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 text-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-gray-700 font-semibold">العمولة</span>
+                            <span id="commissionFee" class="font-extrabold text-indigo-700">—</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between gap-3">
+                            <span class="text-gray-700 font-semibold">السعر بعد العمولة</span>
+                            <span id="commissionFinal" class="font-extrabold text-green-700">—</span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            اكتب سعر الحساب الأساسي (بدون عمولة)، وسيتم إضافة العمولة تلقائياً عند الإرسال.
+                        </div>
+                    </div>
                     @error('price')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -277,23 +314,100 @@
                         </span>
                     </label>
 
-                    <label for="gallery_images"
-                           class="flex items-center justify-center gap-2
-                                  w-full py-4 rounded-2xl
-                                  border-2 border-dashed border-emerald-300
-                                  bg-emerald-50 text-emerald-700
-                                  font-semibold text-base
-                                  cursor-pointer
-                                  active:scale-[0.98] transition">
-                        🖼️ اختر صور
-                    </label>
+                    <input type="hidden" name="gallery_mode" id="galleryMode" value="guided">
 
-                    <input id="gallery_images" type="file" name="gallery[]" accept="image/*" multiple
-                           class="hidden" onchange="previewGalleryImages(this)">
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                        <div class="font-bold mb-1">✅ رفع مرتب (الموصى به)</div>
+                        <div class="text-xs text-emerald-800">
+                            ارفع الصور بالترتيب المطلوب. هذا يساعد الإدارة تراجع حسابك بسرعة ويقلل الرفض.
+                        </div>
+                        <button type="button" id="toggleAdvancedGallery"
+                                class="mt-3 inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                            ⚙️ إعدادات متقدمة (رفع 12 صورة دفعة واحدة)
+                        </button>
+                    </div>
 
-                    <p id="gallery_images_name" class="text-xs text-gray-500">لم يتم اختيار أي ملفات</p>
+                    <!-- Guided gallery (12 slots) -->
+                    <div id="guidedGalleryWrap" class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        @php
+                            $slots = [
+                                ['key' => 'weapons_gallery', 'title' => '1) معرض أسلحة', 'hint' => 'صورة واضحة للأسلحة/الاسكنات'],
+                                ['key' => 'shotgun', 'title' => '2) الشوت قان', 'hint' => 'صورة الشوت قان أو أفضل سلاح عندك'],
+                                ['key' => 'hair', 'title' => '3) الشعر', 'hint' => 'صورة الشعر/الهيت'],
+                                ['key' => 'face', 'title' => '4) الوجه', 'hint' => 'صورة الوجه/الماسك'],
+                                ['key' => 'tops', 'title' => '5) الصدريات / تيشيرتات', 'hint' => 'أفضل صدرية/تيشيرت'],
+                                ['key' => 'pants', 'title' => '6) السراويل', 'hint' => 'أفضل بنطلون/سروال'],
+                                ['key' => 'emotes', 'title' => '7) الرقصات', 'hint' => 'أشهر الرقصات'],
+                                ['key' => 'login_emotes', 'title' => '8) رقصات تسجيل دخول', 'hint' => 'رقصات الدخول/اللوبي'],
+                                ['key' => 'banners', 'title' => '9) البنرات', 'hint' => 'بنرات/بادجات الحساب'],
+                                ['key' => 'fire_pass', 'title' => '10) الفير باسات', 'hint' => 'صورة الفير باس/الباس'],
+                                ['key' => 'extra_1', 'title' => '11) صورة إضافية 1', 'hint' => 'أي شيء قوي بالحساب'],
+                                ['key' => 'extra_2', 'title' => '12) صورة إضافية 2', 'hint' => 'أي شيء قوي بالحساب'],
+                            ];
+                        @endphp
+                        @foreach($slots as $s)
+                            <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-extrabold text-sm text-gray-900">{{ $s['title'] }}</div>
+                                        <div class="text-xs text-gray-500 mt-1">{{ $s['hint'] }}</div>
+                                    </div>
+                                    <span class="text-[11px] font-extrabold text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">مطلوب</span>
+                                </div>
 
-                    <div id="galleryPreview" class="grid grid-cols-3 gap-2 mt-3"></div>
+                                <div class="mt-3">
+                                    <label for="gallery_guided_{{ $s['key'] }}"
+                                           class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 font-extrabold text-sm cursor-pointer active:scale-[0.98] transition">
+                                        📷 اختر صورة
+                                    </label>
+                                    <input id="gallery_guided_{{ $s['key'] }}"
+                                           type="file"
+                                           name="gallery_guided[{{ $s['key'] }}]"
+                                           accept="image/*"
+                                           class="hidden"
+                                           onchange="previewGuidedGallery('{{ $s['key'] }}', this)">
+
+                                    <div id="guided_preview_box_{{ $s['key'] }}" class="hidden mt-3 relative">
+                                        <img id="guided_preview_img_{{ $s['key'] }}" class="w-full h-36 object-cover rounded-xl border" alt="preview">
+                                        <button type="button"
+                                                onclick="clearGuidedGallery('{{ $s['key'] }}')"
+                                                class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-lg border border-white">
+                                            ✕
+                                        </button>
+                                    </div>
+                                    <p id="guided_file_name_{{ $s['key'] }}" class="text-xs text-gray-500 mt-2">لم يتم اختيار ملف</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <!-- Advanced (old) uploader -->
+                    <div id="advancedGalleryWrap" class="hidden mt-4">
+                        <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                            <div class="text-sm font-extrabold text-yellow-900">⚠️ تنبيه</div>
+                            <div class="text-xs text-yellow-800 mt-1">
+                                الوضع المتقدم يتيح رفع كل الصور دفعة واحدة. استخدمه فقط إذا كنت مرتب صورك بنفس الترتيب.
+                            </div>
+                        </div>
+
+                        <label for="gallery_images_advanced"
+                               class="mt-3 flex items-center justify-center gap-2
+                                      w-full py-4 rounded-2xl
+                                      border-2 border-dashed border-emerald-300
+                                      bg-emerald-50 text-emerald-700
+                                      font-semibold text-base
+                                      cursor-pointer
+                                      active:scale-[0.98] transition">
+                            🖼️ اختر صور (دفعة واحدة)
+                        </label>
+
+                        <input id="gallery_images_advanced" type="file" name="gallery[]" accept="image/*" multiple
+                               class="hidden" onchange="previewGalleryImages(this)">
+
+                        <p id="gallery_images_name" class="text-xs text-gray-500">لم يتم اختيار أي ملفات</p>
+
+                        <div id="galleryPreview" class="grid grid-cols-3 gap-2 mt-3"></div>
+                    </div>
 
                     @error('gallery')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -411,6 +525,17 @@ function setWizardBusy(state, label = 'التالي') {
     const nextBtn = document.getElementById('wizardNextBtn');
     const submitBtn = document.getElementById('finalSubmit');
 
+    try {
+        if (window.__wizardBusyTimer) clearTimeout(window.__wizardBusyTimer);
+        if (state) {
+            // Safety net: never keep the wizard locked forever (iOS can throw in DataTransfer).
+            window.__wizardBusyTimer = setTimeout(() => {
+                isProcessingImages = false;
+                setWizardBusy(false, label);
+            }, 45000);
+        }
+    } catch (e) {}
+
     if (nextBtn) {
         nextBtn.disabled = state;
         nextBtn.classList.toggle('opacity-50', state);
@@ -484,10 +609,25 @@ function validateStep(step) {
         }
     }
     if (step === 6) {
-        const gallery = document.querySelector('input[name="gallery[]"]');
-        if (!gallery || gallery.files.length < 12) {
-            alert('يجب رفع 12 صورة على الأقل');
-            return false;
+        const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+        if (mode === 'advanced') {
+            const gallery = document.getElementById('gallery_images_advanced');
+            if (!gallery || gallery.files.length < 12) {
+                alert('يجب رفع 12 صورة على الأقل (الوضع المتقدم)');
+                return false;
+            }
+        } else {
+            const requiredKeys = [
+                'weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'
+            ];
+            const missing = requiredKeys.filter(k => {
+                const inp = document.getElementById('gallery_guided_' + k);
+                return !inp || !inp.files || inp.files.length === 0;
+            });
+            if (missing.length > 0) {
+                alert('يجب رفع كل الصور بالترتيب (12 صورة).');
+                return false;
+            }
         }
     }
     return true;
@@ -535,15 +675,47 @@ function prevStep() {
 function updateReview() {
     const name = document.querySelector('input[name="ar[name]"]')?.value?.trim() || '—';
     const shortDesc = document.querySelector('textarea[name="ar[short_description]"]')?.value?.trim() || '—';
-    const price = document.querySelector('input[name="price"]')?.value?.trim() || '—';
+    const priceRaw = document.querySelector('input[name="price"]')?.value?.trim() || '';
     syncClientNumber();
     const phone = document.getElementById('clientNumberFull')?.value?.trim() || '—';
     const mainImage = document.querySelector('input[name="product"]')?.files?.[0]?.name || 'غير مرفوعة';
-    const galleryCount = document.querySelector('input[name="gallery[]"]')?.files?.length || 0;
+    const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+    let galleryCount = 0;
+    if (mode === 'advanced') {
+        galleryCount = document.getElementById('gallery_images_advanced')?.files?.length || 0;
+    } else {
+        const keys = ['weapons_gallery','shotgun','hair','face','tops','pants','emotes','login_emotes','banners','fire_pass','extra_1','extra_2'];
+        galleryCount = keys.reduce((acc, k) => {
+            const inp = document.getElementById('gallery_guided_' + k);
+            return acc + ((inp && inp.files && inp.files.length) ? 1 : 0);
+        }, 0);
+    }
+
+    const toNum = (v) => {
+        const n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+        return isNaN(n) ? 0 : n;
+    };
+    const calcCommission = (base) => {
+        const p = toNum(base);
+        if (p <= 0) return 0;
+        if (p <= 500) return 50;
+        if (p <= 1000) return 75;
+        if (p <= 1500) return 75;
+        if (p <= 2000) return 100;
+        if (p <= 3000) return 175;
+        if (p <= 4000) return 250;
+        return 270;
+    };
+    const basePrice = toNum(priceRaw);
+    const fee = calcCommission(basePrice);
+    const finalPrice = basePrice > 0 ? (basePrice + fee) : 0;
 
     document.getElementById('reviewName').textContent = name;
     document.getElementById('reviewShort').textContent = shortDesc;
-    document.getElementById('reviewPrice').textContent = price ? `${price} ريال` : '—';
+    document.getElementById('reviewPrice').textContent =
+        basePrice > 0
+            ? `${finalPrice} ريال (شامل عمولة ${fee})`
+            : '—';
     document.getElementById('reviewPhone').textContent = phone;
     document.getElementById('reviewMain').textContent = mainImage;
     document.getElementById('reviewGallery').textContent = galleryCount;
@@ -551,6 +723,26 @@ function updateReview() {
 
 document.addEventListener('DOMContentLoaded', () => {
     showStep(currentStep);
+    initGalleryModeToggle();
+    setGalleryMode('guided');
+    // Optional name prefix enforcement (admin publish link)
+    try {
+        const nameInput = document.querySelector('input[name="ar[name]"][data-name-prefix]');
+        if (nameInput) {
+            const prefix = String(nameInput.getAttribute('data-name-prefix') || '').trim();
+            const ensure = () => {
+                if (!prefix) return;
+                const v = String(nameInput.value || '').trimStart();
+                if (!v) return;
+                if (v.startsWith(prefix) || v.startsWith(prefix + ' ')) return;
+                nameInput.value = (prefix + ' ' + v).slice(0, parseInt(nameInput.getAttribute('maxlength') || '999', 10));
+                try { updateCounter(nameInput, 'nameCounter'); } catch (e) {}
+            };
+            nameInput.addEventListener('input', ensure);
+            nameInput.addEventListener('blur', ensure);
+            ensure();
+        }
+    } catch (e) {}
     // Keep hidden full phone in sync.
     try {
         document.getElementById('clientDial')?.addEventListener('change', syncClientNumber);
@@ -578,7 +770,60 @@ document.addEventListener('DOMContentLoaded', () => {
             syncClientNumber();
         }
     } catch (e) {}
+
+    // iOS Safari sometimes ignores taps when keyboard is open
+    try {
+        const submitBtn = document.getElementById('finalSubmit');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
+            }, { passive: true });
+        }
+    } catch (e) {}
 });
+</script>
+
+<script>
+  (function () {
+    const input = document.querySelector('input[name="price"]');
+    const feeEl = document.getElementById('commissionFee');
+    const finalEl = document.getElementById('commissionFinal');
+    if (!input || !feeEl || !finalEl) return;
+
+    const toNum = (v) => {
+      const n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
+    const calcCommission = (base) => {
+      const p = toNum(base);
+      if (p <= 0) return 0;
+      if (p <= 500) return 50;
+      if (p <= 1000) return 75;
+      if (p <= 1500) return 75;
+      if (p <= 2000) return 100;
+      if (p <= 3000) return 175;
+      if (p <= 4000) return 250;
+      return 270;
+    };
+    const fmt = (n) => {
+      try { return (Math.round(n * 100) / 100).toString().replace(/\.00$/, ''); } catch (e) { return String(n); }
+    };
+    const render = () => {
+      const base = toNum(input.value);
+      if (!base || base <= 0) {
+        feeEl.textContent = '—';
+        finalEl.textContent = '—';
+        return;
+      }
+      const fee = calcCommission(base);
+      const finalPrice = base + fee;
+      feeEl.textContent = `+${fmt(fee)} ريال`;
+      finalEl.textContent = `${fmt(finalPrice)} ريال`;
+    };
+
+    input.addEventListener('input', render);
+    render();
+  })();
 </script>
 
 <script>
@@ -605,17 +850,27 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     if (uploadBox) uploadBox.classList.remove('hidden');
 
     // If SweetAlert2 didn't load yet, fallback to alert later
-    const showSuccess = () => {
+    const showSuccess = (message = 'تم رفع المنتج بنجاح', redirectUrl = '') => {
         if (window.Swal && Swal.fire) {
             Swal.fire({
                 icon: 'success',
                 title: 'تم تحميل الحساب',
-                text: 'تم رفع المنتج بنجاح',
+                text: message,
                 confirmButtonText: 'تمام'
-            }).then(() => window.location.reload());
+            }).then(() => {
+                if (redirectUrl) {
+                    window.location.href = redirectUrl;
+                } else {
+                    window.location.reload();
+                }
+            });
         } else {
-            alert('تم رفع المنتج بنجاح');
-            window.location.reload();
+            alert(message);
+            if (redirectUrl) {
+                window.location.href = redirectUrl;
+            } else {
+                window.location.reload();
+            }
         }
     };
     const showError = (msg) => {
@@ -652,6 +907,8 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
 
     xhr.open('POST', form.action, true);
     xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.setRequestHeader('Accept', 'application/json');
     xhr.timeout = 12 * 60 * 1000; // 12 minutes
 
     xhr.upload.onprogress = function (e) {
@@ -673,12 +930,29 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     };
 
     xhr.onload = function () {
+        let payload = null;
+        try {
+            payload = JSON.parse(xhr.responseText || '{}');
+        } catch (e) {}
+
         if (xhr.status >= 200 && xhr.status < 300) {
-            showSuccess();
-        } else {
-            console.error(xhr.responseText);
-            showError('حدث خطأ أثناء رفع المنتج');
+            const redirectUrl = (payload && payload.track_url) ? String(payload.track_url) : '';
+            const message = (payload && payload.message) ? String(payload.message) : 'تم رفع المنتج بنجاح';
+            showSuccess(message, redirectUrl);
+            return;
         }
+
+        if (xhr.status === 422 && payload && payload.errors) {
+            const firstField = Object.keys(payload.errors)[0];
+            const firstError = firstField && Array.isArray(payload.errors[firstField])
+                ? payload.errors[firstField][0]
+                : null;
+            showError(firstError || (payload.message || 'تحقق من البيانات في الخطوات المطلوبة.'));
+            return;
+        }
+
+        console.error(xhr.responseText);
+        showError((payload && payload.message) ? payload.message : 'حدث خطأ أثناء رفع المنتج');
     };
 
     xhr.onerror = function () {
@@ -703,42 +977,46 @@ function updateCounter(input, counterId) {
 <script>
 async function previewMainImage(input) {
   setWizardBusy(true);
-
-  let file = input.files[0];
-  const previewBox = document.getElementById('imagePreviewBox');
-  const previewImg = document.getElementById('imagePreview');
-  const fileName = document.getElementById('product_image_name');
-
-  if (!file) {
-    setWizardBusy(false);
-    return;
-  }
-
-  if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
-    const convertedBlob = await heic2any({
-      blob: file,
-      toType: 'image/jpeg',
-      quality: 0.75
-    });
-
-    file = new File([convertedBlob], file.name.replace('.heic', '.jpg'), { type: 'image/jpeg' });
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-  }
-
   try {
-    file = await downscaleToJpeg(file);
-    const dt2 = new DataTransfer();
-    dt2.items.add(file);
-    input.files = dt2.files;
-  } catch (e) {}
+    let file = input.files[0];
+    const previewBox = document.getElementById('imagePreviewBox');
+    const previewImg = document.getElementById('imagePreview');
+    const fileName = document.getElementById('product_image_name');
 
-  fileName.innerText = file.name;
-  previewImg.src = URL.createObjectURL(file);
-  previewBox.classList.remove('hidden');
+    if (!file) return;
 
-  setWizardBusy(false);
+    try {
+      if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: 'image/jpeg',
+          quality: 0.75
+        });
+
+        file = new File([convertedBlob], file.name.replace('.heic', '.jpg'), { type: 'image/jpeg' });
+        try {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          input.files = dt.files;
+        } catch (e) {}
+      }
+    } catch (e) {}
+
+    try {
+      file = await downscaleToJpeg(file);
+      try {
+        const dt2 = new DataTransfer();
+        dt2.items.add(file);
+        input.files = dt2.files;
+      } catch (e) {}
+    } catch (e) {}
+
+    if (fileName) fileName.innerText = file.name;
+    if (previewImg) previewImg.src = URL.createObjectURL(file);
+    if (previewBox) previewBox.classList.remove('hidden');
+  } finally {
+    setWizardBusy(false);
+  }
 }
 
 function removeMainImage() {
@@ -764,48 +1042,133 @@ function copyStoreOnly() {
 <script>
 let galleryFiles = [];
 
-async function previewGalleryImages(input) {
-    setWizardBusy(true);
+function setGalleryMode(mode) {
+    const m = (mode === 'advanced') ? 'advanced' : 'guided';
+    const inp = document.getElementById('galleryMode');
+    if (inp) inp.value = m;
 
-    const preview = document.getElementById('galleryPreview');
-    const nameLabel = document.getElementById('gallery_images_name');
+    const guided = document.getElementById('guidedGalleryWrap');
+    const adv = document.getElementById('advancedGalleryWrap');
+    if (guided) guided.classList.toggle('hidden', m === 'advanced');
+    if (adv) adv.classList.toggle('hidden', m !== 'advanced');
+}
 
-    let files = Array.from(input.files);
-    galleryFiles = [];
-    preview.innerHTML = '';
-
-    for (let i = 0; i < files.length; i++) {
-        let file = files[i];
-
-        if (nameLabel) {
-            nameLabel.textContent = `جاري تجهيز الصور... (${i + 1} / ${files.length})`;
-            nameLabel.classList.remove('text-red-600', 'text-green-600');
-            nameLabel.classList.add('text-gray-500');
+function initGalleryModeToggle() {
+    const btn = document.getElementById('toggleAdvancedGallery');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+        const current = (document.getElementById('galleryMode')?.value || 'guided').toString();
+        if (current === 'advanced') {
+            setGalleryMode('guided');
+            btn.textContent = '⚙️ إعدادات متقدمة (رفع 12 صورة دفعة واحدة)';
+        } else {
+            setGalleryMode('advanced');
+            btn.textContent = '✅ رجوع للوضع المرتب';
         }
+        try { updateReview(); } catch (e) {}
+    });
+}
+
+async function previewGuidedGallery(key, input) {
+    setWizardBusy(true);
+    try {
+        let file = input.files && input.files[0] ? input.files[0] : null;
+        if (!file) return;
 
         try {
-            if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
-                const blob = await heic2any({
-                    blob: file,
-                    toType: 'image/jpeg',
-                    quality: 0.8
-                });
-
-                file = new File([blob], file.name.replace('.heic', '.jpg'), {
-                    type: 'image/jpeg'
-                });
+            if (file.type === 'image/heic' || (file.name || '').toLowerCase().endsWith('.heic')) {
+                const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
+                file = new File([blob], (file.name || 'image').replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
             }
         } catch (e) {}
 
+        try { file = await downscaleToJpeg(file); } catch (e) {}
+
+        // Replace file on input (best-effort)
         try {
-            file = await downscaleToJpeg(file);
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
         } catch (e) {}
 
-        galleryFiles.push(file);
-    }
+        const box = document.getElementById('guided_preview_box_' + key);
+        const img = document.getElementById('guided_preview_img_' + key);
+        const name = document.getElementById('guided_file_name_' + key);
+        if (name) name.textContent = file.name || 'تم اختيار ملف';
+        if (img) img.src = URL.createObjectURL(file);
+        if (box) box.classList.remove('hidden');
 
-    renderGallery();
-    setWizardBusy(false);
+        try { updateReview(); } catch (e) {}
+    } finally {
+        setWizardBusy(false);
+    }
+}
+
+function clearGuidedGallery(key) {
+    const input = document.getElementById('gallery_guided_' + key);
+    const box = document.getElementById('guided_preview_box_' + key);
+    const name = document.getElementById('guided_file_name_' + key);
+    try { if (input) input.value = ''; } catch (e) {}
+    if (box) box.classList.add('hidden');
+    if (name) name.textContent = 'لم يتم اختيار ملف';
+    try { updateReview(); } catch (e) {}
+}
+
+async function previewGalleryImages(input) {
+    setWizardBusy(true);
+    try {
+        const preview = document.getElementById('galleryPreview');
+        const nameLabel = document.getElementById('gallery_images_name');
+
+        let files = Array.from(input.files || []);
+        galleryFiles = [];
+        if (preview) preview.innerHTML = '';
+
+        for (let i = 0; i < files.length; i++) {
+            let file = files[i];
+
+            if (nameLabel) {
+                nameLabel.textContent = `جاري تجهيز الصور... (${i + 1} / ${files.length})`;
+                nameLabel.classList.remove('text-red-600', 'text-green-600');
+                nameLabel.classList.add('text-gray-500');
+            }
+
+            try {
+                if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+                    const blob = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.8
+                    });
+
+                    file = new File([blob], file.name.replace('.heic', '.jpg'), {
+                        type: 'image/jpeg'
+                    });
+                }
+            } catch (e) {}
+
+            try { file = await downscaleToJpeg(file); } catch (e) {}
+
+            galleryFiles.push(file);
+        }
+
+        try {
+            renderGallery();
+        } catch (e) {
+            // Fallback: don't block the wizard if preview/sync fails on iOS.
+            const nextBtn = document.getElementById('wizardNextBtn');
+            const nameLabel2 = document.getElementById('gallery_images_name');
+            const count = (input.files && input.files.length) ? input.files.length : galleryFiles.length;
+            if (nameLabel2) {
+                nameLabel2.textContent = count < 12
+                    ? `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${count})`
+                    : `${count} صور مختارة`;
+            }
+            if (nextBtn) nextBtn.disabled = count < 12;
+        }
+    } finally {
+        setWizardBusy(false);
+    }
 }
 
 function renderGallery() {
@@ -813,25 +1176,34 @@ function renderGallery() {
     const nameLabel = document.getElementById('gallery_images_name');
     const nextBtn = document.getElementById('wizardNextBtn');
 
-    preview.innerHTML = '';
+    if (preview) preview.innerHTML = '';
 
-    const dt = new DataTransfer();
-    galleryFiles.forEach(f => dt.items.add(f));
-    document.getElementById('gallery_images').files = dt.files;
+    try {
+        const dt = new DataTransfer();
+        galleryFiles.forEach(f => dt.items.add(f));
+        const input = document.getElementById('gallery_images_advanced');
+        if (input) input.files = dt.files;
+    } catch (e) {
+        // DataTransfer may throw on iOS Safari; keep original input.files untouched.
+    }
 
     if (galleryFiles.length < 12) {
-        nameLabel.textContent = `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${galleryFiles.length})`;
-        nameLabel.classList.add('text-red-600');
-        nameLabel.classList.remove('text-green-600');
+        if (nameLabel) {
+            nameLabel.textContent = `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${galleryFiles.length})`;
+            nameLabel.classList.add('text-red-600');
+            nameLabel.classList.remove('text-green-600');
+        }
 
         if (nextBtn) {
             nextBtn.disabled = true;
             nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
         }
     } else {
-        nameLabel.textContent = `${galleryFiles.length} صور مختارة`;
-        nameLabel.classList.remove('text-red-600');
-        nameLabel.classList.add('text-green-600');
+        if (nameLabel) {
+            nameLabel.textContent = `${galleryFiles.length} صور مختارة`;
+            nameLabel.classList.remove('text-red-600');
+            nameLabel.classList.add('text-green-600');
+        }
 
         if (nextBtn) {
             nextBtn.disabled = false;

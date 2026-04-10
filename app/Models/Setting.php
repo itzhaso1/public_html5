@@ -26,6 +26,13 @@ class Setting extends Model
         'home_quick_cash_exchange_title',
         'home_quick_money_exchange_title',
         'cash_exchange_enabled',
+        'money_exchange_enabled',
+        'charge_enabled',
+        'codes_enabled',
+        'merchant_usd_rate',
+        'merchant_charge_discount_percent',
+        'point_price_sar',
+        'point_price_usd',
     ];
 
     public function media()

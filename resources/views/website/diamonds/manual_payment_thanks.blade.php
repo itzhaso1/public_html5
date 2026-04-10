@@ -28,6 +28,17 @@
         'rejected' => 'تم رفض طلبك. إذا كان لديك استفسار تواصل مع الدعم.',
         default => 'طلبك قيد المراجعة وسيتم تنفيذ الشحن بعد التأكيد.',
     };
+
+    $reservedCode = null;
+    if ($isCodes && !empty($mpr->reserved_diamond_code_id)) {
+        try {
+            $reservedCode = \App\Models\DiamondCode::query()
+                ->whereKey($mpr->reserved_diamond_code_id)
+                ->first();
+        } catch (\Throwable $e) {
+            $reservedCode = null;
+        }
+    }
 @endphp
 
 @include('website.diamonds.partials.header', [
@@ -62,6 +73,23 @@
                 <div class="mt-1 font-bold text-gray-900 select-all">{{ $mpr->player_id }}</div>
             </div>
         </div>
+
+        @if($reservedCode && ($product?->is_lucky_draw_codes ?? false))
+            <div class="mt-6 rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                <div class="text-sm font-extrabold text-gray-900">نتيجة القرعة</div>
+                <div class="text-xs text-gray-700 mt-1">
+                    تم حجز كود لك من القرعة. سيتم تسليمه لك بعد الموافقة.
+                </div>
+                @if(!empty($reservedCode->image_path))
+                    <div class="mt-3">
+                        <img src="{{ asset('storage/' . ltrim($reservedCode->image_path, '/')) }}"
+                             alt="reserved"
+                             class="w-full max-w-xs mx-auto rounded-xl border border-yellow-200"
+                             onerror="this.onerror=null;this.src='{{ asset('img/قريبا.jpg') }}';">
+                    </div>
+                @endif
+            </div>
+        @endif
 
         <div class="mt-6">
             <div class="text-sm font-extrabold text-gray-900 mb-2">طريقة الدفع</div>

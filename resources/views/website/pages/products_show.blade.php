@@ -214,7 +214,7 @@ video {
    
 <div class="video-container relative w-full aspect-video bg-black">
     <video class="absolute inset-0 w-full h-full object-contain" controls controlsList="nodownload">
-        <source src="{{ asset('public/' . $productVideo->video_path) }}" type="video/mp4">
+        <source src="{{ asset($productVideo->video_path) }}" type="video/mp4">
         متصفحك لا يدعم تشغيل الفيديو.
     </video>
 </div>
@@ -405,6 +405,30 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   <div class="flex justify-center gap-3 flex-wrap">
+    @php
+      $waTo = preg_replace('/\D+/', '', (string) (config('bank.whatsapp') ?: ($settings?->phone ?? '')));
+      $u = auth()->user();
+      $buyer = $u ? trim((string) ($u->name ?? $u->email ?? '')) : 'زائر';
+      $buyerPhone = $u ? preg_replace('/\D+/', '', (string) ($u->phone ?? $u->profile?->phone ?? '')) : '';
+      $buyerEmail = $u ? trim((string) ($u->email ?? '')) : '';
+      $msg = "طلب شراء حساب/منتج\n"
+        . "المنتج: " . ($product?->name ?? '') . "\n"
+        . "ID: " . ($product?->id ?? '') . "\n"
+        . "السعر: " . ($product?->price ?? '') . " SAR\n"
+        . "الرابط: " . url()->current() . "\n"
+        . "العميل: " . $buyer . "\n"
+        . ($buyerPhone !== '' ? ("واتساب العميل: " . $buyerPhone . "\n") : '')
+        . ($buyerEmail !== '' ? ("ايميل العميل: " . $buyerEmail . "\n") : '')
+        . "هل المنتج متوفر؟";
+      $waHref = $waTo !== '' ? ('https://wa.me/' . $waTo . '?text=' . urlencode($msg)) : null;
+    @endphp
+
+    @if($waHref)
+      <a href="{{ $waHref }}" target="_blank"
+         class="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-full shadow-md hover:bg-yellow-400 hover:text-black hover:shadow-lg transition-all duration-200">
+        🛒 <span class="font-semibold">تواصل لشراء هذا الحساب</span>
+      </a>
+    @endif
    
 
     <a href="https://chat.whatsapp.com/LiEKm0hQPlB9yeToyetcbh" target="_blank"

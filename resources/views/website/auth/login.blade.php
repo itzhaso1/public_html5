@@ -48,7 +48,9 @@
             <div class="rounded-3xl border border-gray-200 bg-white shadow-sm p-6 sm:p-8">
                 <div class="flex items-center justify-center">
                     <a href="{{ route('home') }}" class="inline-flex items-center gap-2">
-                        <img src="{{ $logo }}" alt="logo" class="h-10 w-auto">
+                        <img src="{{ $logo ?: ($fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg')) }}"
+                             onerror="this.onerror=null;this.src='{{ $fallbackLogo ?? asset('dashboard/assets/media/logos/logo-default.svg') }}';"
+                             alt="logo" class="h-10 w-auto">
                     </a>
                 </div>
 
@@ -67,6 +69,7 @@
 
                 <form action="{{ route('auth.login.submit') }}" method="POST" class="mt-5 space-y-4">
                     @csrf
+                    <input type="hidden" name="redirect_to" value="{{ old('redirect_to', $redirectTo ?? url()->previous()) }}">
 
                     <div>
                         <label for="email" class="block text-sm font-bold text-gray-800 mb-1">{{ trans('site/site.email') }}</label>
@@ -87,6 +90,12 @@
                                autocomplete="current-password"
                                class="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-yellow-400/60"
                                required>
+                    </div>
+
+                    <div class="flex items-center justify-between text-sm">
+                        <a href="{{ route('password.request') }}" class="font-extrabold text-blue-700 hover:underline">
+                            نسيت كلمة السر؟
+                        </a>
                     </div>
 
                     <button type="submit"

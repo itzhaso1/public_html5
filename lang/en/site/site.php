@@ -14,4 +14,5 @@ return [
     'search_placeholder' => 'Search for product, category, brand',
     'need_help_call' => 'Need help? Call',
     'shop' => 'Shop',
+    'phone' => 'Phone number',
 ];

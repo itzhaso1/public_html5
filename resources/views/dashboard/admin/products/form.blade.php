@@ -156,6 +156,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             value="{{ old('price', $product->price ?? '') }}">
                     </div>
 
+                    <div class="form-group mb-3">
+                        <label>السعر بالنقاط (اختياري)</label>
+                        <input type="number" step="1" min="0" name="points_price" class="form-control"
+                               value="{{ old('points_price', $product->points_price ?? '') }}"
+                               placeholder="مثال: 250">
+                        <small class="text-muted">إذا تركته فارغاً فلن يظهر خيار الشراء بالنقاط في أقسام الشحن/الأكواد.</small>
+                    </div>
+
                     {{-- إخفاء حقل الكمية المتاحة --}}
 <div class="form-group mb-3" style="display: none;">
     <label>الكمية المتاحة</label>
