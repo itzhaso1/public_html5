@@ -24,10 +24,18 @@
             <li><a href="{{ route('shop.index') }}" class="hover:text-yellow-300 transition">المتجر</a></li>
             <li><a href="{{ route('about') }}" class="hover:text-yellow-300 transition">من نحن</a></li>
             <li><a href="{{ route('contact') }}" class="hover:text-yellow-300 transition">اتصل بنا</a></li>
-            <li><a href="{{ route('privacy') }}" class="hover:text-yellow-300 transition">الخصوصية</a></li>
-            <li><a href="{{ route('refund_policy') }}" class="hover:text-yellow-300 transition">الاسترداد</a></li>
-            <li><a href="{{ route('terms_and_conditions') }}" class="hover:text-yellow-300 transition">الشروط</a></li>
-            <li><a href="{{ route('delivery_policy') }}" class="hover:text-yellow-300 transition">التسليم</a></li>
+            @if(\Illuminate\Support\Facades\Route::has('privacy'))
+              <li><a href="{{ route('privacy') }}" class="hover:text-yellow-300 transition">الخصوصية</a></li>
+            @endif
+            @if(\Illuminate\Support\Facades\Route::has('refund_policy'))
+              <li><a href="{{ route('refund_policy') }}" class="hover:text-yellow-300 transition">الاسترداد</a></li>
+            @endif
+            @if(\Illuminate\Support\Facades\Route::has('terms_and_conditions'))
+              <li><a href="{{ route('terms_and_conditions') }}" class="hover:text-yellow-300 transition">الشروط</a></li>
+            @endif
+            @if(\Illuminate\Support\Facades\Route::has('delivery_policy'))
+              <li><a href="{{ route('delivery_policy') }}" class="hover:text-yellow-300 transition">التسليم</a></li>
+            @endif
           </ul>
         </div>
 
