@@ -14,7 +14,7 @@
 
     .home-featured-products-swiper .swiper-slide > .product {
         width: 100%;
-        max-width: 330px;
+        max-width: 300px;
         margin-inline: auto;
     }
 
@@ -302,7 +302,7 @@
                         @endif
 
                         <img src="{{ $productImage }}"
-                             class="product-img mx-auto rounded-md object-cover w-full h-auto"
+                             class="product-img mx-auto rounded-md object-cover w-full h-40 sm:h-44"
                              alt="{{ $product->name ?? 'Product' }}"
                              loading="lazy"
                              decoding="async"
@@ -463,44 +463,66 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const homeFeaturedEl = document.querySelector('.home-featured-products-swiper');
-    if (!homeFeaturedEl || typeof Swiper === 'undefined') return;
+(function () {
+    const initHomeFeaturedProductsSwiper = () => {
+        const homeFeaturedEl = document.querySelector('.home-featured-products-swiper');
+        if (!homeFeaturedEl || !window.Swiper || homeFeaturedEl.swiper) return;
 
-    const homeFeaturedSwiper = new Swiper('.home-featured-products-swiper', {
-        slidesPerView: 1.15,
-        spaceBetween: 12,
-        grabCursor: true,
-        centeredSlides: false,
-        watchOverflow: true,
-        loop: false,
-        pagination: {
-            el: '.home-featured-products-swiper .swiper-pagination',
-            clickable: true,
-            bulletClass: 'home-featured-dot',
-            bulletActiveClass: 'is-active',
-            renderBullet: function (index, className) {
-                return `<span class="${className}" aria-label="slide ${index + 1}"></span>`;
+        const slidesCount = homeFeaturedEl.querySelectorAll('.swiper-slide').length;
+        new Swiper(homeFeaturedEl, {
+            slidesPerView: 1.35,
+            spaceBetween: 10,
+            grabCursor: true,
+            centeredSlides: false,
+            watchOverflow: true,
+            allowTouchMove: true,
+            simulateTouch: true,
+            loop: slidesCount > 1,
+            pagination: {
+                el: '.home-featured-products-swiper .swiper-pagination',
+                clickable: true,
+                bulletClass: 'home-featured-dot',
+                bulletActiveClass: 'is-active',
+                renderBullet: function (index, className) {
+                    return `<span class="${className}" aria-label="slide ${index + 1}"></span>`;
+                },
             },
-        },
-        breakpoints: {
-            480: { slidesPerView: 1.4, spaceBetween: 12 },
-            640: { slidesPerView: 2, spaceBetween: 14 },
-            1024: { slidesPerView: 3, spaceBetween: 16 },
-        },
-    });
+            breakpoints: {
+                480: { slidesPerView: 1.6, spaceBetween: 12 },
+                640: { slidesPerView: 2.1, spaceBetween: 14 },
+                1024: { slidesPerView: 3, spaceBetween: 16 },
+            },
+        });
+    };
 
-    homeFeaturedSwiper.on('sliderFirstMove', () => {
-        if (homeFeaturedSwiper.pagination && homeFeaturedSwiper.pagination.el) {
-            homeFeaturedSwiper.pagination.el.style.pointerEvents = 'none';
+    const boot = () => {
+        if (window.Swiper) {
+            initHomeFeaturedProductsSwiper();
+            return;
         }
-    });
-    homeFeaturedSwiper.on('transitionEnd', () => {
-        if (homeFeaturedSwiper.pagination && homeFeaturedSwiper.pagination.el) {
-            homeFeaturedSwiper.pagination.el.style.pointerEvents = 'auto';
-        }
-    });
-});
+
+        window.__swiperQueue = window.__swiperQueue || [];
+        window.__swiperQueue.push(initHomeFeaturedProductsSwiper);
+
+        let tries = 0;
+        const timer = setInterval(() => {
+            tries += 1;
+            if (window.Swiper) {
+                clearInterval(timer);
+                initHomeFeaturedProductsSwiper();
+            }
+            if (tries >= 40) {
+                clearInterval(timer);
+            }
+        }, 150);
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+})();
 </script>
 
 <script>

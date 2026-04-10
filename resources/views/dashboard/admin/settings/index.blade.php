@@ -571,7 +571,18 @@
 
                     <!-- Home featured accounts -->
                     <div class="settings-card">
-                        <h4 class="mb-3 fw-bolder">الحسابات المميزة في الصفحة الرئيسية (سلايدر)</h4>
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-0">
+                            <h4 class="mb-0 fw-bolder">الحسابات المميزة في الصفحة الرئيسية (سلايدر)</h4>
+                            <button class="btn btn-sm btn-light-primary"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#homeFeaturedAccountsCollapse"
+                                    aria-expanded="false"
+                                    aria-controls="homeFeaturedAccountsCollapse">
+                                عرض/إخفاء
+                            </button>
+                        </div>
+                        <div class="collapse mt-3" id="homeFeaturedAccountsCollapse">
                         @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'home_featured_product_ids'))
                             @php
                                 $selectedFeatured = old('home_featured_product_ids', $selectedHomeFeaturedProductIds ?? []);
@@ -659,11 +670,23 @@
                                 لتفعيل هذا الخيار شغّل: <code>php artisan migrate --force</code>
                             </div>
                         @endif
+                        </div>
                     </div>
 
                     <!-- Home featured products (all types) -->
                     <div class="settings-card">
-                        <h4 class="mb-3 fw-bolder">المنتجات المميزة أعلى الأقسام (جميع الأنواع)</h4>
+                        <div class="d-flex align-items-center justify-content-between gap-2 mb-0">
+                            <h4 class="mb-0 fw-bolder">المنتجات المميزة أعلى الأقسام (جميع الأنواع)</h4>
+                            <button class="btn btn-sm btn-light-primary"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#homeFeaturedAllProductsCollapse"
+                                    aria-expanded="false"
+                                    aria-controls="homeFeaturedAllProductsCollapse">
+                                عرض/إخفاء
+                            </button>
+                        </div>
+                        <div class="collapse mt-3" id="homeFeaturedAllProductsCollapse">
                         @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'home_featured_product_ids_all'))
                             @php
                                 $selectedFeaturedAll = old('home_featured_product_ids_all', $selectedHomeFeaturedAllProductIds ?? []);
@@ -762,6 +785,7 @@
                                 لتفعيل هذا الخيار شغّل: <code>php artisan migrate --force</code>
                             </div>
                         @endif
+                        </div>
                     </div>
 
                     <!-- Merchant pricing -->
