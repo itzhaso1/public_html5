@@ -107,16 +107,21 @@
     }
 
     @media (max-width: 639.98px) {
+        .home-featured-products-swiper .featured-product-card {
+            min-height: 352px;
+            grid-template-rows: 128px auto 3.2rem 2.75rem auto;
+        }
+
         .home-featured-products-swiper .product-img {
             height: 128px !important;
         }
 
         .home-featured-products-swiper .featured-product-title {
             line-height: 1.6rem;
-            overflow: visible;
-            display: block;
-            min-height: 0;
-            height: auto;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
         .home-featured-products-swiper .featured-product-price {
@@ -126,6 +131,7 @@
             justify-content: center;
             gap: 0.35rem;
             flex-wrap: wrap;
+            overflow: hidden;
         }
     }
 </style>
