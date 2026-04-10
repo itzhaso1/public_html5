@@ -16,6 +16,25 @@
         width: 100%;
         max-width: 300px;
         margin-inline: auto;
+        min-height: 360px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .home-featured-products-swiper .featured-product-title {
+        min-height: 3.2rem;
+        max-height: 3.2rem;
+        line-height: 1.6rem;
+        overflow: hidden;
+    }
+
+    .home-featured-products-swiper .featured-product-price {
+        min-height: 2.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        flex-wrap: wrap;
     }
 
     .home-featured-products-swiper .swiper-pagination {
@@ -315,10 +334,10 @@
                              loading="lazy"
                              decoding="async"
                              onerror="this.onerror=null;this.src='{{ $fallbackImage }}';">
-                        <h2 class="font-bold mt-2">{{ $product->name }}</h2>
+                        <h2 class="font-bold mt-2 featured-product-title">{{ $product->name }}</h2>
 
                         @if(!empty($product->price_before_discount))
-                            <p class="font-semibold mt-1 product-price text-red-600"
+                            <p class="font-semibold mt-1 product-price featured-product-price text-red-600"
                                data-base-price="{{ $product->price }}"
                                data-base-old="{{ $product->price_before_discount }}">
                                 <span class="current-price">ر.س {{ $product->price }}</span>
@@ -327,7 +346,7 @@
                                 </span>
                             </p>
                         @else
-                            <p class="font-semibold mt-1 product-price" data-base-price="{{ $product->price }}">
+                            <p class="font-semibold mt-1 product-price featured-product-price" data-base-price="{{ $product->price }}">
                                 <span class="current-price">ر.س {{ $product->price }}</span>
                             </p>
                         @endif
