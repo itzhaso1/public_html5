@@ -201,23 +201,12 @@ Route::group(
         Route::get('about-us', Website\AboutController::class)->name('about');
         Route::get('contact-us', Website\ContactUsController::class)->name('contact');
         Route::get('privacy-policy', Website\PrivacyController::class)->name('privacy');
-        Route::view('refund-policy', 'website.pages.refund_policy', [
-            'pageTitle' => 'سياسة الإرجاع والاسترداد',
-        ])->name('refund_policy');
-        Route::view('terms-and-conditions', 'website.pages.terms_and_conditions', [
-            'pageTitle' => 'الشروط والأحكام',
-        ])->name('terms_and_conditions');
-        Route::view('delivery-policy', 'website.pages.delivery_policy', [
-            'pageTitle' => 'سياسة التسليم',
-        ])->name('delivery_policy');
  
         // ===============================
         // Shop
         // ===============================
         Route::get('shop', [Website\ShopController::class, 'index'])->name('shop.index');
-        // Legacy publish URL used by some users: /ar/product
-        Route::get('product', [PublicProductController::class, 'create'])->name('public.products.legacy_create');
-        Route::post('product', [PublicProductController::class, 'store'])->name('public.products.legacy_store');
+        Route::get('freefire-accounts', [Website\WebsiteController::class, 'freefireAccounts'])->name('website.freefire_accounts');
         Route::get('product/{product}', [Website\WebsiteController::class, 'show'])->name('website.product.show');
         Route::post('product/{productId}/unlock-client', [Website\ShopController::class, 'unlockClientNumber'])->name('product.unlock.client');
  

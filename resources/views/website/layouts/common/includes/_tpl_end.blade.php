@@ -302,7 +302,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const el = document.querySelector('.reviewsSwiper');
                 if (!el || el.swiper) return;
                 try {
-                    const paginationEl = el.querySelector('.swiper-pagination');
                     new Swiper(el, {
                         loop: true,
                         autoplay: { delay: 3000, disableOnInteraction: false },
@@ -311,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         centeredSlides: true,
                         speed: 600,
                         effect: "slide",
-                        pagination: paginationEl ? { el: paginationEl, clickable: true } : undefined,
+                        pagination: { el: ".swiper-pagination", clickable: true },
                         breakpoints: {
                             480: { slidesPerView: 1.4 },
                             640: { slidesPerView: 2 },

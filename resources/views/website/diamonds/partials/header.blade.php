@@ -28,7 +28,7 @@
                 </div>
 
                 <div class="w-full lg:w-auto">
-                    <div class="bg-white/10 rounded-2xl p-2 flex gap-2">
+                    <div class="bg-white/10 rounded-2xl p-2 flex gap-2 flex-wrap">
                         <a href="{{ route('website.diamonds.charge') }}"
                            class="flex-1 lg:flex-none text-center rounded-xl px-4 py-2 text-sm font-extrabold transition
                                   {{ $active === 'charge' ? 'bg-yellow-400 text-black' : 'bg-white/10 text-white hover:bg-white/15' }}">
@@ -38,6 +38,11 @@
                            class="flex-1 lg:flex-none text-center rounded-xl px-4 py-2 text-sm font-extrabold transition
                                   {{ $active === 'codes' ? 'bg-blue-500 text-white' : 'bg-white/10 text-white hover:bg-white/15' }}">
                             🎟️ أكواد ملابس
+                        </a>
+                        <a href="{{ route('website.freefire_accounts') }}"
+                           class="flex-1 lg:flex-none text-center rounded-xl px-4 py-2 text-sm font-extrabold transition
+                                  {{ $active === 'accounts' ? 'bg-amber-500 text-black' : 'bg-white/10 text-white hover:bg-white/15' }}">
+                            🎮 حسابات فري فاير
                         </a>
                     </div>
 
