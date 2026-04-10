@@ -2,6 +2,51 @@
 
 @push('css')
 <style>
+    .home-featured-products-swiper {
+        padding: 0 6px 42px;
+    }
+
+    .home-featured-products-swiper .swiper-slide {
+        display: flex;
+        justify-content: center;
+        height: auto;
+    }
+
+    .home-featured-products-swiper .swiper-slide > .product {
+        width: 100%;
+        max-width: 360px;
+        margin-inline: auto;
+    }
+
+    .home-featured-products-swiper .swiper-pagination {
+        position: relative !important;
+        bottom: 0 !important;
+        margin-top: 14px;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        pointer-events: auto;
+    }
+
+    .home-featured-products-swiper .home-featured-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        opacity: 1;
+        margin: 0 5px !important;
+        background: #d1d5db;
+        border-radius: 999px;
+        transition: width 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .home-featured-products-swiper .home-featured-dot.is-active {
+        width: 30px;
+        background: linear-gradient(90deg, #facc15 0%, #f59e0b 100%);
+        box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+    }
+
     .reviewsSwiper {
         padding-bottom: 40px;
     }
@@ -62,6 +107,110 @@
 @section('content')
 @php
     $fallbackImage = asset('img/قريبا.jpg');
+    $chargeTitle = $settings?->home_quick_charge_title ?: 'شحن جواهر';
+    $codesTitle = $settings?->home_quick_codes_title ?: 'أكواد ملابس';
+    $cashTitle = $settings?->home_quick_cash_exchange_title ?: 'استبدل رصيدك كاش';
+    $moneyTitle = $settings?->home_quick_money_exchange_title ?: 'تحويل الأموال';
+    $freefireTitle = $settings?->home_quick_freefire_title ?: 'حسابات فري فاير';
+    $freefirePosition = strtolower((string) ($settings?->home_quick_freefire_position ?? 'end'));
+    $freefirePosition = in_array($freefirePosition, ['start', 'end'], true) ? $freefirePosition : 'end';
+
+    $defaultQuickImg = $fallbackImage;
+    $chargeImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_charge') ?: $defaultQuickImg;
+    $codesImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_codes') ?: $defaultQuickImg;
+    $cashImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_cash_exchange') ?: null;
+    $moneyImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_money_exchange') ?: null;
+    $freefireImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_freefire') ?: null;
+
+    $chargeEnabled = (bool) ($chargeEnabled ?? ($settings?->charge_enabled ?? true));
+    $codesEnabled = (bool) ($codesEnabled ?? ($settings?->codes_enabled ?? true));
+    $cashEnabled = (bool) ($cashExchangeEnabled ?? ($settings?->cash_exchange_enabled ?? true));
+    $moneyEnabled = (bool) ($moneyExchangeEnabled ?? false);
+
+    $quickSections = [
+        [
+            'key' => 'charge',
+            'title' => $chargeTitle,
+            'enabled' => $chargeEnabled,
+            'route' => $chargeEnabled ? route('website.diamonds.charge') : 'javascript:void(0)',
+            'cardClass' => 'border-yellow-200 bg-gradient-to-l from-yellow-50 to-white',
+            'badgeClass' => 'bg-yellow-400/15 text-yellow-700',
+            'overlayClass' => 'bg-yellow-700',
+            'iconClass' => 'bi bi-gem',
+            'desc' => 'ادخل للشحن واختر الباقة المناسبة',
+            'img' => $chargeImg,
+            'emoji' => null,
+            'emojiWrap' => 'bg-yellow-500/10 text-yellow-700',
+        ],
+        [
+            'key' => 'codes',
+            'title' => $codesTitle,
+            'enabled' => $codesEnabled,
+            'route' => $codesEnabled ? route('website.diamonds.codes') : 'javascript:void(0)',
+            'cardClass' => 'border-blue-200 bg-gradient-to-l from-blue-50 to-white',
+            'badgeClass' => 'bg-blue-500/10 text-blue-700',
+            'overlayClass' => 'bg-blue-700',
+            'iconClass' => 'bi bi-upc-scan',
+            'desc' => 'ادخل لشراء/استخدام أكواد الجواهر',
+            'img' => $codesImg,
+            'emoji' => null,
+            'emojiWrap' => 'bg-blue-500/10 text-blue-700',
+        ],
+        [
+            'key' => 'cash',
+            'title' => $cashTitle,
+            'enabled' => $cashEnabled,
+            'route' => $cashEnabled ? route('website.cash_exchange.index') : 'javascript:void(0)',
+            'cardClass' => 'border-emerald-200 bg-gradient-to-l from-emerald-50 to-white',
+            'badgeClass' => 'bg-emerald-500/10 text-emerald-700',
+            'overlayClass' => 'bg-emerald-700',
+            'iconClass' => 'bi bi-cash-coin',
+            'desc' => 'اختر فئة الرصيد وادخل كود البطاقة لاستلام كاش',
+            'img' => $cashImg,
+            'emoji' => '💵',
+            'emojiWrap' => 'bg-emerald-500/10 text-emerald-700',
+        ],
+        [
+            'key' => 'money',
+            'title' => $moneyTitle,
+            'enabled' => $moneyEnabled,
+            'route' => $moneyEnabled ? route('website.money_exchange.index') : 'javascript:void(0)',
+            'cardClass' => 'border-purple-200 bg-gradient-to-l from-purple-50 to-white',
+            'badgeClass' => 'bg-purple-500/10 text-purple-700',
+            'overlayClass' => 'bg-purple-700',
+            'iconClass' => 'bi bi-currency-exchange',
+            'desc' => 'تحويل SAR ↔ USDT حسب سعر الصرف',
+            'img' => $moneyImg,
+            'emoji' => '💱',
+            'emojiWrap' => 'bg-purple-500/10 text-purple-700',
+        ],
+        [
+            'key' => 'freefire',
+            'title' => $freefireTitle,
+            'enabled' => true,
+            'route' => route('website.freefire_accounts'),
+            'cardClass' => 'border-amber-300 bg-gradient-to-l from-amber-50 to-white',
+            'badgeClass' => 'bg-amber-500/10 text-amber-700',
+            'overlayClass' => 'bg-amber-700',
+            'iconClass' => 'bi bi-controller',
+            'desc' => 'تصفح جميع الحسابات المميزة وباقي الحسابات داخل قسم مستقل',
+            'img' => $freefireImg,
+            'emoji' => '🎮',
+            'emojiWrap' => 'bg-amber-500/10 text-amber-700',
+        ],
+    ];
+
+    $freefireIndex = collect($quickSections)->search(fn($item) => ($item['key'] ?? '') === 'freefire');
+    if ($freefireIndex !== false) {
+        $freefireCard = $quickSections[$freefireIndex];
+        unset($quickSections[$freefireIndex]);
+        $quickSections = array_values($quickSections);
+        if ($freefirePosition === 'start') {
+            array_unshift($quickSections, $freefireCard);
+        } else {
+            $quickSections[] = $freefireCard;
+        }
+    }
 @endphp
 
 <!-- السلايدر -->
@@ -93,215 +242,150 @@
     @include('website.partials.currency_picker')
 </div>
 
+<!-- المنتجات المميزة (كل الأنواع) -->
+@if(($featuredAllProducts ?? collect())->isNotEmpty())
+<div class="px-4 py-6">
+    <h2 class="text-center font-bold text-xl mb-4 border-b border-gray-300 pb-2 text-yellow-500">
+        المنتجات المميزة
+    </h2>
+
+    <div class="swiper home-featured-products-swiper">
+        <div class="swiper-wrapper">
+            @foreach($featuredAllProducts as $product)
+                @php
+                    $imageUrl = $product->getMediaUrl('product', $product, null, 'media', 'product');
+                    $thumb = ($product->service_type ?? null) === 'codes' ? ($product->codeThumbnail?->image_path ?? null) : null;
+                    $thumbUrl = $thumb ? asset('storage/' . ltrim($thumb, '/')) : null;
+                    $productImage = $imageUrl ?: ($thumbUrl ?: $fallbackImage);
+                    $isSold = (bool) ($product->featured ?? false);
+                    $discountPercent = null;
+                    $dealEndsAt = $product->deal_ends_at ?? null;
+                    $dealEndsAtIso = $dealEndsAt ? \Illuminate\Support\Carbon::parse($dealEndsAt)->toIso8601String() : null;
+                    if (!empty($product->price_before_discount) && $product->price_before_discount > 0) {
+                        $discountPercent = round((($product->price_before_discount - $product->price) / $product->price_before_discount) * 100);
+                    }
+                    $typeLabel = match((string) ($product->service_type ?? '')) {
+                        'gems' => 'شحن',
+                        'codes' => 'أكواد',
+                        default => 'حساب',
+                    };
+                @endphp
+
+                <div class="swiper-slide">
+                    <div class="relative bg-white p-3 rounded-lg shadow text-center product flex flex-col h-full"
+                         style="box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        @if($discountPercent && $discountPercent > 0)
+                            <span class="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full shadow">
+                                -{{ $discountPercent }}%
+                            </span>
+                        @endif
+                        @if($isSold)
+                            <span class="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full">
+                                مباع
+                            </span>
+                        @else
+                            <span class="absolute top-2 right-2 bg-emerald-600 text-white text-xs px-2 py-1 rounded-full">
+                                متوفر
+                            </span>
+                        @endif
+                        <span class="absolute top-11 right-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                            {{ $typeLabel }}
+                        </span>
+
+                        @if($dealEndsAtIso)
+                            <div class="deal-countdown-wrap absolute top-2 left-20 z-10">
+                                <span class="deal-countdown text-[11px] sm:text-xs bg-black/70 text-white px-2 py-1 rounded-full"
+                                      data-ends="{{ $dealEndsAtIso }}">
+                                    --
+                                </span>
+                            </div>
+                        @endif
+
+                        <img src="{{ $productImage }}"
+                             class="product-img mx-auto rounded-md object-cover w-full h-auto"
+                             alt="{{ $product->name ?? 'Product' }}"
+                             loading="lazy"
+                             decoding="async"
+                             onerror="this.onerror=null;this.src='{{ $fallbackImage }}';">
+                        <h2 class="font-bold mt-2">{{ $product->name }}</h2>
+
+                        @if(!empty($product->price_before_discount))
+                            <p class="font-semibold mt-1 product-price text-red-600"
+                               data-base-price="{{ $product->price }}"
+                               data-base-old="{{ $product->price_before_discount }}">
+                                <span class="current-price">ر.س {{ $product->price }}</span>
+                                <span class="old-price line-through text-gray-400 text-sm ml-1">
+                                    {{ $product->price_before_discount }}
+                                </span>
+                            </p>
+                        @else
+                            <p class="font-semibold mt-1 product-price" data-base-price="{{ $product->price }}">
+                                <span class="current-price">ر.س {{ $product->price }}</span>
+                            </p>
+                        @endif
+
+                        <div class="mt-auto pt-3">
+                            <a href="{{ route('website.product.show', $product->id) }}"
+                               class="block bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600 transition font-medium text-center">
+                                عرض التفاصيل
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+        <div class="swiper-pagination"></div>
+    </div>
+</div>
+@endif
+
 <!-- أقسام سريعة -->
-<div class="px-4 mt-4">
+<div class="px-4 mt-4 mb-10 sm:mb-12">
     <div class="grid grid-cols-2 gap-3 sm:gap-4">
+        @foreach($quickSections as $sectionCard)
+            <a href="{{ $sectionCard['route'] }}"
+               class="group relative overflow-hidden rounded-2xl border shadow-sm transition hover:shadow-md active:scale-[0.99] {{ $sectionCard['cardClass'] }} {{ $sectionCard['enabled'] ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
+                <div class="p-2.5 sm:p-4">
+                    <div class="flex items-center justify-center">
+                        @if(!empty($sectionCard['img']))
+                            <img src="{{ $sectionCard['img'] }}"
+                                 alt="{{ $sectionCard['title'] }}"
+                                 class="w-full h-24 sm:h-32 object-cover rounded-xl"
+                                 loading="lazy"
+                                 decoding="async">
+                        @else
+                            <div class="w-full h-24 sm:h-32 rounded-xl flex items-center justify-center text-4xl font-extrabold {{ $sectionCard['emojiWrap'] }}">
+                                {{ $sectionCard['emoji'] ?: '🎮' }}
+                            </div>
+                        @endif
+                    </div>
 
-        @php
-            $chargeTitle = $settings?->home_quick_charge_title ?: 'شحن جواهر';
-            $codesTitle = $settings?->home_quick_codes_title ?: 'أكواد ملابس';
-            $cashTitle = $settings?->home_quick_cash_exchange_title ?: 'استبدل رصيدك كاش';
-            $moneyTitle = $settings?->home_quick_money_exchange_title ?: 'تحويل الأموال';
+                    <div class="mt-2 text-center">
+                        <span class="inline-block text-xs text-gray-500">القسم</span>
+                        <h3 class="font-extrabold text-sm sm:text-base text-gray-900 mt-0.5">{{ $sectionCard['title'] }}</h3>
+                    </div>
 
-            $defaultQuickImg = $fallbackImage;
-            $chargeImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_charge') ?: $defaultQuickImg;
-            $codesImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_codes') ?: $defaultQuickImg;
-            $cashImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_cash_exchange') ?: null;
-            $moneyImg = $settings?->getMediaUrl('setting', $settings, null, 'media', 'home_quick_money_exchange') ?: null;
+                    <p class="text-[11px] sm:text-sm text-gray-600 mt-2 text-center leading-relaxed">
+                        {{ $sectionCard['desc'] }}
+                    </p>
 
-            $chargeEnabled = (bool) ($chargeEnabled ?? ($settings?->charge_enabled ?? true));
-            $codesEnabled = (bool) ($codesEnabled ?? ($settings?->codes_enabled ?? true));
-            $cashEnabled = (bool) ($cashExchangeEnabled ?? ($settings?->cash_exchange_enabled ?? true));
-            $moneyEnabled = (bool) ($moneyExchangeEnabled ?? false);
-        @endphp
-
-        <!-- شحن جواهر -->
-        <a href="{{ $chargeEnabled ? route('website.diamonds.charge') : 'javascript:void(0)' }}"
-           class="group relative overflow-hidden rounded-2xl border border-yellow-200 bg-gradient-to-l from-yellow-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99] {{ $chargeEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
-            <div class="p-2.5 sm:p-4">
-                <div class="flex items-center justify-center">
-                    {{-- غيّر الصورة كما تريد --}}
-                    <img src="{{ $chargeImg }}"
-                         alt="{{ $chargeTitle }}"
-                         class="w-full h-24 sm:h-32 object-cover rounded-xl"
-                         loading="lazy" decoding="async">
-                </div>
-
-                <div class="mt-2 text-center">
-                    <span class="inline-block text-xs text-gray-500">القسم</span>
-                    <h3 class="font-extrabold text-sm sm:text-base text-gray-900 mt-0.5">{{ $chargeTitle }}</h3>
-                </div>
-
-                <p class="text-[11px] sm:text-sm text-gray-600 mt-2 text-center leading-relaxed">
-                    ادخل للشحن واختر الباقة المناسبة
-                </p>
-
-                <div class="mt-3 flex justify-center">
-                    <span class="inline-flex items-center gap-2 rounded-full bg-yellow-400/15 px-3 py-1 text-xs font-bold text-yellow-700">
-                        <i class="bi bi-gem"></i>
-                        دخول القسم
-                    </span>
-                </div>
-            </div>
-
-            @unless($chargeEnabled)
-                <div class="absolute inset-0 bg-white/70 flex items-center justify-center">
-                    <span class="rounded-full bg-yellow-700 text-white text-xs font-extrabold px-3 py-1.5 shadow">
-                        غير متاح حالياً
-                    </span>
-                </div>
-            @endunless
-        </a>
-
-        <!-- أكواد جواهر -->
-        <a href="{{ $codesEnabled ? route('website.diamonds.codes') : 'javascript:void(0)' }}"
-           class="group relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-l from-blue-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99] {{ $codesEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
-            <div class="p-2.5 sm:p-4">
-                <div class="flex items-center justify-center">
-                    {{-- غيّر الصورة كما تريد --}}
-                    <img src="{{ $codesImg }}"
-                         alt="{{ $codesTitle }}"
-                         class="w-full h-24 sm:h-32 object-cover rounded-xl"
-                         loading="lazy" decoding="async">
-                </div>
-
-                <div class="mt-2 text-center">
-                    <span class="inline-block text-xs text-gray-500">القسم</span>
-                    <h3 class="font-extrabold text-sm sm:text-base text-gray-900 mt-0.5">{{ $codesTitle }}</h3>
-                </div>
-
-                <p class="text-[11px] sm:text-sm text-gray-600 mt-2 text-center leading-relaxed">
-                    ادخل لشراء/استخدام أكواد الجواهر
-                </p>
-
-                <div class="mt-3 flex justify-center">
-                    <span class="inline-flex items-center gap-2 rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-700">
-                        <i class="bi bi-upc-scan"></i>
-                        دخول القسم
-                    </span>
-                </div>
-            </div>
-
-            @unless($codesEnabled)
-                <div class="absolute inset-0 bg-white/70 flex items-center justify-center">
-                    <span class="rounded-full bg-blue-700 text-white text-xs font-extrabold px-3 py-1.5 shadow">
-                        غير متاح حالياً
-                    </span>
-                </div>
-            @endunless
-        </a>
-
-        <!-- استبدل رصيدك كاش -->
-        <a href="{{ $cashEnabled ? route('website.cash_exchange.index') : 'javascript:void(0)' }}"
-           class="group relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99] {{ $cashEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
-            <div class="p-2.5 sm:p-4">
-                <div class="flex items-center justify-center">
-                    @if($cashImg)
-                        <img src="{{ $cashImg }}" alt="{{ $cashTitle }}"
-                             class="w-full h-24 sm:h-32 object-cover rounded-xl"
-                             loading="lazy" decoding="async">
-                    @else
-                        <div class="w-full h-24 sm:h-32 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-700 text-4xl font-extrabold">
-                            💵
-                        </div>
-                    @endif
-                </div>
-
-                <div class="mt-2 text-center">
-                    <span class="inline-block text-xs text-gray-500">القسم</span>
-                    <h3 class="font-extrabold text-sm sm:text-base text-gray-900 mt-0.5">{{ $cashTitle }}</h3>
-                </div>
-
-                <p class="text-[11px] sm:text-sm text-gray-600 mt-2 text-center leading-relaxed">
-                    اختر فئة الرصيد وادخل كود البطاقة لاستلام كاش
-                </p>
-
-                <div class="mt-3 flex justify-center">
-                    <span class="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-700">
-                        <i class="bi bi-cash-coin"></i>
-                        دخول القسم
-                    </span>
-                </div>
-            </div>
-
-            @unless($cashEnabled)
-                <div class="absolute inset-0 bg-white/70 flex items-center justify-center">
-                    <span class="rounded-full bg-emerald-700 text-white text-xs font-extrabold px-3 py-1.5 shadow">
-                        غير متاح حالياً
-                    </span>
-                </div>
-            @endunless
-        </a>
-
-        <!-- تحويل الأموال / تبادل العملات -->
-        <a href="{{ $moneyEnabled ? route('website.money_exchange.index') : 'javascript:void(0)' }}"
-           class="group relative overflow-hidden rounded-2xl border border-purple-200 bg-gradient-to-l from-purple-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99] {{ $moneyEnabled ? '' : 'opacity-60 cursor-not-allowed pointer-events-none' }}">
-            <div class="p-2.5 sm:p-4">
-                <div class="flex items-center justify-center">
-                    @if($moneyImg)
-                        <img src="{{ $moneyImg }}" alt="{{ $moneyTitle }}"
-                             class="w-full h-24 sm:h-32 object-cover rounded-xl"
-                             loading="lazy" decoding="async">
-                    @else
-                        <div class="w-full h-24 sm:h-32 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-700 text-4xl font-extrabold">
-                            💱
-                        </div>
-                    @endif
-                </div>
-
-                <div class="mt-2 text-center">
-                    <span class="inline-block text-xs text-gray-500">القسم</span>
-                    <h3 class="font-extrabold text-sm sm:text-base text-gray-900 mt-0.5">{{ $moneyTitle }}</h3>
-                </div>
-
-                <p class="text-[11px] sm:text-sm text-gray-600 mt-2 text-center leading-relaxed">
-                    تحويل SAR ↔ USDT حسب سعر الصرف
-                </p>
-
-                <div class="mt-3 flex justify-center">
-                    <span class="inline-flex items-center gap-2 rounded-full bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-700">
-                        <i class="bi bi-currency-exchange"></i>
-                        دخول القسم
-                    </span>
-                </div>
-            </div>
-
-            @unless($moneyEnabled)
-                <div class="absolute inset-0 bg-white/70 flex items-center justify-center">
-                    <span class="rounded-full bg-purple-700 text-white text-xs font-extrabold px-3 py-1.5 shadow">
-                        غير متاح حالياً
-                    </span>
-                </div>
-            @endunless
-        </a>
-
-        <!-- حسابات فري فاير -->
-        <a href="{{ route('website.freefire_accounts') }}"
-           class="group relative overflow-hidden rounded-2xl border border-amber-300 bg-gradient-to-l from-amber-50 to-white shadow-sm transition hover:shadow-md active:scale-[0.99]">
-            <div class="p-2.5 sm:p-4">
-                <div class="flex items-center justify-center">
-                    <div class="w-full h-24 sm:h-32 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-700 text-4xl font-extrabold">
-                        🎮
+                    <div class="mt-3 flex justify-center">
+                        <span class="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-bold {{ $sectionCard['badgeClass'] }}">
+                            <i class="{{ $sectionCard['iconClass'] }}"></i>
+                            دخول القسم
+                        </span>
                     </div>
                 </div>
 
-                <div class="mt-2 text-center">
-                    <span class="inline-block text-xs text-gray-500">القسم</span>
-                    <h3 class="font-extrabold text-sm sm:text-base text-gray-900 mt-0.5">حسابات فري فاير</h3>
-                </div>
-
-                <p class="text-[11px] sm:text-sm text-gray-600 mt-2 text-center leading-relaxed">
-                    تصفح جميع الحسابات المميزة وباقي الحسابات داخل قسم مستقل
-                </p>
-
-                <div class="mt-3 flex justify-center">
-                    <span class="inline-flex items-center gap-2 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-700">
-                        <i class="bi bi-controller"></i>
-                        دخول القسم
-                    </span>
-                </div>
-            </div>
-        </a>
+                @unless($sectionCard['enabled'])
+                    <div class="absolute inset-0 bg-white/70 flex items-center justify-center">
+                        <span class="rounded-full {{ $sectionCard['overlayClass'] }} text-white text-xs font-extrabold px-3 py-1.5 shadow">
+                            غير متاح حالياً
+                        </span>
+                    </div>
+                @endunless
+            </a>
+        @endforeach
 
     </div>
 </div>
@@ -374,6 +458,68 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
         });
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const homeFeaturedEl = document.querySelector('.home-featured-products-swiper');
+    if (!homeFeaturedEl || typeof Swiper === 'undefined') return;
+
+    const homeFeaturedSwiper = new Swiper('.home-featured-products-swiper', {
+        slidesPerView: 1.15,
+        spaceBetween: 12,
+        grabCursor: true,
+        centeredSlides: false,
+        watchOverflow: true,
+        loop: false,
+        pagination: {
+            el: '.home-featured-products-swiper .swiper-pagination',
+            clickable: true,
+            bulletClass: 'home-featured-dot',
+            bulletActiveClass: 'is-active',
+            renderBullet: function (index, className) {
+                return `<span class="${className}" aria-label="slide ${index + 1}"></span>`;
+            },
+        },
+        breakpoints: {
+            480: { slidesPerView: 1.4, spaceBetween: 12 },
+            640: { slidesPerView: 2, spaceBetween: 14 },
+            1024: { slidesPerView: 3, spaceBetween: 16 },
+        },
+    });
+
+    const enforceSnap = () => {
+        if (!homeFeaturedSwiper || homeFeaturedSwiper.destroyed) return;
+        if (homeFeaturedSwiper.params.loop) return;
+        const total = homeFeaturedSwiper.slides?.length || 0;
+        if (total <= 1) return;
+        const active = homeFeaturedSwiper.activeIndex || 0;
+        if (active <= 0 || active >= total - 1) return;
+        const progress = homeFeaturedSwiper.touches?.diff || 0;
+        const threshold = 40;
+        if (Math.abs(progress) < threshold) {
+            homeFeaturedSwiper.slideTo(active, 280);
+            return;
+        }
+        if (progress < 0) {
+            homeFeaturedSwiper.slideTo(Math.min(active + 1, total - 1), 280);
+        } else {
+            homeFeaturedSwiper.slideTo(Math.max(active - 1, 0), 280);
+        }
+    };
+
+    homeFeaturedSwiper.on('touchEnd', enforceSnap);
+    homeFeaturedSwiper.on('sliderFirstMove', () => {
+        if (homeFeaturedSwiper.pagination && homeFeaturedSwiper.pagination.el) {
+            homeFeaturedSwiper.pagination.el.style.pointerEvents = 'none';
+        }
+    });
+    homeFeaturedSwiper.on('transitionEnd', () => {
+        if (homeFeaturedSwiper.pagination && homeFeaturedSwiper.pagination.el) {
+            homeFeaturedSwiper.pagination.el.style.pointerEvents = 'auto';
+        }
     });
 });
 </script>

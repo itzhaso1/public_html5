@@ -34,6 +34,8 @@ class WebsiteController extends Controller
 
         $categoryCount = $categories->count();
         $slidesPerView = $categoryCount < 10 ? $categoryCount : 10;
+
+        $homeData = $this->resolveHomeData($locale);
  
         return view('website.pages.home', ['pageTitle' => trans('site/site.home_page_title'),
             'categories' => $categories,
@@ -41,7 +43,7 @@ class WebsiteController extends Controller
             'featuredCategories' => $featuredCategories,
             'categoryCount' => $categoryCount,
             'slidesPerView' => $slidesPerView,
-        ]);
+        ] + $homeData);
     }
 
     public function freefireAccounts()
@@ -159,6 +161,76 @@ class WebsiteController extends Controller
             'sections' => $sections,
             'featuredProducts' => $featuredProducts,
             'products' => $products,
+        ];
+    }
+
+    private function resolveHomeData(string $locale): array
+    {
+        $sections = Cache::remember("home.sections.$locale", 60 * 5, function () {
+            return Section::with([
+                'translations',
+                'products' => function ($query) {
+                    $query->websiteVisible()
+                        ->where('status', 'published')
+                        ->whereNull('service_type')
+                        ->orderByDesc('price')
+                        ->orderByDesc('id');
+                },
+                'products.translations',
+                'products.media',
+                'products.codeThumbnail',
+                'categories.translations',
+            ])
+                ->orderBy('order')
+                ->get()
+                ->filter(fn($section) => ($section->products?->count() ?? 0) > 0)
+                ->values();
+        });
+
+        $featuredAllProductIds = collect();
+        $freefirePosition = 'end';
+        try {
+            if (Schema::hasTable('settings')) {
+                $appSettings = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+                if (Schema::hasColumn('settings', 'home_featured_product_ids_all')) {
+                    $rawIds = $appSettings?->home_featured_product_ids_all ?? [];
+                    if (is_string($rawIds)) {
+                        $decoded = json_decode($rawIds, true);
+                        $rawIds = is_array($decoded) ? $decoded : [];
+                    }
+                    $featuredAllProductIds = collect((array) $rawIds)
+                        ->map(fn($id) => (int) $id)
+                        ->filter(fn($id) => $id > 0)
+                        ->unique()
+                        ->values();
+                }
+                if (Schema::hasColumn('settings', 'home_quick_freefire_position')) {
+                    $pos = strtolower(trim((string) ($appSettings?->home_quick_freefire_position ?? 'end')));
+                    $freefirePosition = in_array($pos, ['start', 'end'], true) ? $pos : 'end';
+                }
+            }
+        } catch (\Throwable $e) {
+            $featuredAllProductIds = collect();
+            $freefirePosition = 'end';
+        }
+
+        $featuredAllProducts = collect();
+        if ($featuredAllProductIds->isNotEmpty()) {
+            $order = array_flip($featuredAllProductIds->all());
+            $featuredAllProducts = Product::query()
+                ->with(['translations', 'media', 'codeThumbnail'])
+                ->websiteVisible()
+                ->where('status', 'published')
+                ->whereIn('id', $featuredAllProductIds->all())
+                ->get()
+                ->sortBy(fn($p) => $order[(int) $p->id] ?? PHP_INT_MAX)
+                ->values();
+        }
+
+        return [
+            'sections' => $sections,
+            'featuredAllProducts' => $featuredAllProducts,
+            'homeQuickFreefirePosition' => $freefirePosition,
         ];
     }
 }

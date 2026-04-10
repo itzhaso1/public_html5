@@ -25,12 +25,15 @@ class Setting extends Model
         'home_quick_codes_title',
         'home_quick_cash_exchange_title',
         'home_quick_money_exchange_title',
+        'home_quick_freefire_title',
+        'home_quick_freefire_position',
         'cash_exchange_enabled',
         'money_exchange_enabled',
         'charge_enabled',
         'codes_enabled',
         'public_publish_min_gallery_images',
         'home_featured_product_ids',
+        'home_featured_product_ids_all',
         'merchant_usd_rate',
         'custom_usd_to_sar_rate',
         'merchant_charge_discount_percent',
@@ -72,6 +75,7 @@ class Setting extends Model
 
     protected $casts = [
         'home_featured_product_ids' => 'array',
+        'home_featured_product_ids_all' => 'array',
     ];
 
     public function media()

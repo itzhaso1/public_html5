@@ -29,9 +29,12 @@ class MainSettingRepository implements MainSettingInterface
         $homeQuickCodesImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_codes') ?? null;
         $homeQuickCashExchangeImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_cash_exchange') ?? null;
         $homeQuickMoneyExchangeImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_money_exchange') ?? null;
+        $homeQuickFreefireImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_freefire') ?? null;
 
         $homeFeaturedProducts = collect();
         $selectedHomeFeaturedProductIds = [];
+        $homeFeaturedAllProducts = collect();
+        $selectedHomeFeaturedAllProductIds = [];
         try {
             if (Schema::hasColumn('settings', 'home_featured_product_ids')) {
                 $raw = $setting?->home_featured_product_ids ?? [];
@@ -55,9 +58,33 @@ class MainSettingRepository implements MainSettingInterface
                     ->limit(500)
                     ->get();
             }
+            if (Schema::hasColumn('settings', 'home_featured_product_ids_all')) {
+                $rawAll = $setting?->home_featured_product_ids_all ?? [];
+                if (is_string($rawAll)) {
+                    $decodedAll = json_decode($rawAll, true);
+                    $rawAll = is_array($decodedAll) ? $decodedAll : [];
+                }
+                $selectedHomeFeaturedAllProductIds = collect((array) $rawAll)
+                    ->map(fn($id) => (int) $id)
+                    ->filter(fn($id) => $id > 0)
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                $homeFeaturedAllProducts = Product::query()
+                    ->select(['id', 'price', 'status', 'service_type'])
+                    ->where('status', 'published')
+                    ->websiteVisible()
+                    ->with(['translations'])
+                    ->orderByDesc('id')
+                    ->limit(700)
+                    ->get();
+            }
         } catch (\Throwable $e) {
             $homeFeaturedProducts = collect();
             $selectedHomeFeaturedProductIds = [];
+            $homeFeaturedAllProducts = collect();
+            $selectedHomeFeaturedAllProductIds = [];
         }
 
         return view('dashboard.admin.settings.index', [
@@ -69,8 +96,11 @@ class MainSettingRepository implements MainSettingInterface
             'homeQuickCodesImg' => $homeQuickCodesImg,
             'homeQuickCashExchangeImg' => $homeQuickCashExchangeImg,
             'homeQuickMoneyExchangeImg' => $homeQuickMoneyExchangeImg,
+            'homeQuickFreefireImg' => $homeQuickFreefireImg,
             'homeFeaturedProducts' => $homeFeaturedProducts,
             'selectedHomeFeaturedProductIds' => $selectedHomeFeaturedProductIds,
+            'homeFeaturedAllProducts' => $homeFeaturedAllProducts,
+            'selectedHomeFeaturedAllProductIds' => $selectedHomeFeaturedAllProductIds,
             'accountImageSettings' => $setting,
         ]);
     }
@@ -92,8 +122,10 @@ class MainSettingRepository implements MainSettingInterface
             $hasMoneyToggle = false;
             $hasChargeToggle = false;
             $hasCodesToggle = false;
+            $hasFreefirePosition = false;
             $hasPublishMinGallery = false;
             $hasHomeFeaturedProducts = false;
+            $hasHomeFeaturedProductsAll = false;
             $hasAccountBlurControls = false;
             $hasCenterBlurRightOffset = false;
             $hasTopAreaControls = false;
@@ -109,8 +141,10 @@ class MainSettingRepository implements MainSettingInterface
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
                 $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
                 $hasCodesToggle = Schema::hasColumn('settings', 'codes_enabled');
+                $hasFreefirePosition = Schema::hasColumn('settings', 'home_quick_freefire_position');
                 $hasPublishMinGallery = Schema::hasColumn('settings', 'public_publish_min_gallery_images');
                 $hasHomeFeaturedProducts = Schema::hasColumn('settings', 'home_featured_product_ids');
+                $hasHomeFeaturedProductsAll = Schema::hasColumn('settings', 'home_featured_product_ids_all');
                 $hasAccountBlurControls =
                     Schema::hasColumn('settings', 'account_name_blur_enabled')
                     && Schema::hasColumn('settings', 'account_name_blur_x_offset_from_right')
@@ -143,8 +177,10 @@ class MainSettingRepository implements MainSettingInterface
                 $hasMoneyToggle = false;
                 $hasChargeToggle = false;
                 $hasCodesToggle = false;
+                $hasFreefirePosition = false;
                 $hasPublishMinGallery = false;
                 $hasHomeFeaturedProducts = false;
+                $hasHomeFeaturedProductsAll = false;
                 $hasAccountBlurControls = false;
                 $hasCenterBlurRightOffset = false;
                 $hasTopAreaControls = false;
@@ -179,6 +215,7 @@ class MainSettingRepository implements MainSettingInterface
                     'home_quick_codes_title',
                     'home_quick_cash_exchange_title',
                     'home_quick_money_exchange_title',
+                    'home_quick_freefire_title',
                 ]);
             }
             if ($hasCashToggle) {
@@ -192,6 +229,9 @@ class MainSettingRepository implements MainSettingInterface
             }
             if ($hasCodesToggle) {
                 $fields[] = 'codes_enabled';
+            }
+            if ($hasFreefirePosition) {
+                $fields[] = 'home_quick_freefire_position';
             }
             if ($hasPublishMinGallery) {
                 $fields[] = 'public_publish_min_gallery_images';
@@ -265,6 +305,20 @@ class MainSettingRepository implements MainSettingInterface
                     ->values()
                     ->all();
                 $setting->home_featured_product_ids = $ids;
+            }
+            if ($hasHomeFeaturedProductsAll) {
+                $idsAll = collect((array) $request->input('home_featured_product_ids_all', []))
+                    ->map(fn($id) => (int) $id)
+                    ->filter(fn($id) => $id > 0)
+                    ->unique()
+                    ->take(150)
+                    ->values()
+                    ->all();
+                $setting->home_featured_product_ids_all = $idsAll;
+            }
+            if ($hasFreefirePosition) {
+                $freefirePosition = strtolower(trim((string) $request->input('home_quick_freefire_position', 'end')));
+                $setting->home_quick_freefire_position = in_array($freefirePosition, ['start', 'end'], true) ? $freefirePosition : 'end';
             }
 
             if ($hasAccountBlurControls) {
@@ -351,6 +405,9 @@ class MainSettingRepository implements MainSettingInterface
                 }
                 if ($request->hasFile('home_quick_money_exchange_image')) {
                     $setting->updateSingleMedia('setting', $request->file('home_quick_money_exchange_image'), $setting, null, 'media', true, false, 'home_quick_money_exchange');
+                }
+                if ($request->hasFile('home_quick_freefire_image')) {
+                    $setting->updateSingleMedia('setting', $request->file('home_quick_freefire_image'), $setting, null, 'media', true, false, 'home_quick_freefire');
                 }
             }
 

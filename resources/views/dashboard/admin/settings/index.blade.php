@@ -221,6 +221,34 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <div class="fw-bold mb-2">كرت حسابات فري فاير</div>
+                                    <label class="input-group-text text-dark">الاسم</label>
+                                    <input type="text" class="form-control" name="home_quick_freefire_title"
+                                           value="{{ old('home_quick_freefire_title', $setting?->home_quick_freefire_title) }}"
+                                           placeholder="حسابات فري فاير">
+                                    <div class="mt-2">
+                                        <label class="input-group-text text-dark">مكان الظهور ضمن الأقسام</label>
+                                        @php
+                                            $freefirePos = old('home_quick_freefire_position', (string) ($setting?->home_quick_freefire_position ?? 'end'));
+                                        @endphp
+                                        <select class="form-select" name="home_quick_freefire_position">
+                                            <option value="start" {{ $freefirePos === 'start' ? 'selected' : '' }}>في البداية</option>
+                                            <option value="end" {{ $freefirePos === 'end' ? 'selected' : '' }}>في النهاية</option>
+                                        </select>
+                                    </div>
+                                    <div class="mt-2">
+                                        <label class="form-label fw-bold">الصورة</label>
+                                        <input class="form-control" type="file" name="home_quick_freefire_image" accept="image/*">
+                                        @if(!empty($homeQuickFreefireImg))
+                                            <img src="{{ $homeQuickFreefireImg }}" class="img-fluid mt-2" style="max-height: 80px;">
+                                        @endif
+                                        <div class="form-text">إذا لم ترفع صورة سيظهر رمز افتراضي.</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -633,6 +661,109 @@
                         @endif
                     </div>
 
+                    <!-- Home featured products (all types) -->
+                    <div class="settings-card">
+                        <h4 class="mb-3 fw-bolder">المنتجات المميزة أعلى الأقسام (جميع الأنواع)</h4>
+                        @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'home_featured_product_ids_all'))
+                            @php
+                                $selectedFeaturedAll = old('home_featured_product_ids_all', $selectedHomeFeaturedAllProductIds ?? []);
+                                if (!is_array($selectedFeaturedAll)) $selectedFeaturedAll = [];
+                                $selectedFeaturedAll = array_map('intval', $selectedFeaturedAll);
+                            @endphp
+                            <div class="row g-3">
+                                <div class="col-12 col-lg-4">
+                                    <label class="input-group-text text-dark mb-2">بحث سريع</label>
+                                    <input type="text"
+                                           id="featuredAllSearchInput"
+                                           class="form-control"
+                                           placeholder="ابحث بالاسم أو رقم المنتج...">
+                                    <div class="form-text mt-2">
+                                        اضغط على البطاقة لاختيارها أو إلغاء اختيارها.
+                                    </div>
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button type="button" class="btn btn-light-primary btn-sm" id="featuredAllSelectAllBtn">تحديد الكل (الظاهر)</button>
+                                        <button type="button" class="btn btn-light-danger btn-sm" id="featuredAllClearAllBtn">إلغاء الكل</button>
+                                    </div>
+                                    <div class="mt-3">
+                                        <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div class="fw-bold">المحدد الآن</div>
+                                            <span class="badge bg-primary" id="featuredAllSelectedCount">0</span>
+                                        </div>
+                                        <div id="featuredAllSelectedBadges" class="d-flex flex-wrap gap-2"></div>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-8">
+                                    <label class="input-group-text text-dark mb-2">اختر المنتجات المميزة (كل الأنواع)</label>
+                                    <select id="home_featured_product_ids_all"
+                                            name="home_featured_product_ids_all[]"
+                                            class="d-none"
+                                            multiple>
+                                        @foreach(($homeFeaturedAllProducts ?? collect()) as $p)
+                                            @php
+                                                $pid = (int) $p->id;
+                                                $pname = trim((string) ($p->name ?? "منتج #{$pid}"));
+                                                $priceText = is_numeric($p->price ?? null) ? number_format((float) $p->price, 2) : '-';
+                                                $typeLabel = match((string) ($p->service_type ?? '')) {
+                                                    'gems' => 'شحن',
+                                                    'codes' => 'أكواد',
+                                                    default => 'حسابات',
+                                                };
+                                            @endphp
+                                            <option value="{{ $pid }}" {{ in_array($pid, $selectedFeaturedAll, true) ? 'selected' : '' }}>
+                                                #{{ $pid }} — {{ $pname }} — {{ $typeLabel }} — {{ $priceText }} ر.س
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                    <div id="featuredAllCardsGrid" class="row g-2">
+                                        @forelse(($homeFeaturedAllProducts ?? collect()) as $p)
+                                            @php
+                                                $pid = (int) $p->id;
+                                                $pname = trim((string) ($p->name ?? "منتج #{$pid}"));
+                                                $priceText = is_numeric($p->price ?? null) ? number_format((float) $p->price, 2) : '-';
+                                                $typeLabel = match((string) ($p->service_type ?? '')) {
+                                                    'gems' => 'شحن',
+                                                    'codes' => 'أكواد',
+                                                    default => 'حسابات',
+                                                };
+                                                $isSelected = in_array($pid, $selectedFeaturedAll, true);
+                                            @endphp
+                                            <div class="col-12 col-md-6 featured-all-card-wrap" data-featured-all-wrap>
+                                                <button type="button"
+                                                        class="featured-card {{ $isSelected ? 'is-selected' : '' }}"
+                                                        data-featured-all-id="{{ $pid }}"
+                                                        data-featured-all-name="{{ e($pname) }}"
+                                                        data-featured-all-price="{{ $priceText }}"
+                                                        data-featured-all-type="{{ $typeLabel }}"
+                                                        aria-pressed="{{ $isSelected ? 'true' : 'false' }}">
+                                                    <div class="d-flex align-items-start justify-content-between gap-2">
+                                                        <div class="text-start">
+                                                            <div class="featured-title">#{{ $pid }} — {{ $pname }}</div>
+                                                            <div class="featured-subtitle">{{ $typeLabel }} — {{ $priceText }} ر.س</div>
+                                                        </div>
+                                                        <span class="featured-check">{{ $isSelected ? '✓' : '+' }}</span>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        @empty
+                                            <div class="col-12">
+                                                <div class="alert alert-light text-center mb-0">
+                                                    لا توجد منتجات منشورة متاحة للاختيار حالياً.
+                                                </div>
+                                            </div>
+                                        @endforelse
+                                    </div>
+                                    <div class="form-text mt-2">
+                                        المنتجات المختارة هنا ستظهر أعلى الأقسام في الصفحة الرئيسية.
+                                    </div>
+                                </div>
+                            </div>
+                        @else
+                            <div class="text-muted">
+                                لتفعيل هذا الخيار شغّل: <code>php artisan migrate --force</code>
+                            </div>
+                        @endif
+                    </div>
+
                     <!-- Merchant pricing -->
                     <div class="settings-card">
                         <h4 class="mb-3 fw-bolder">أسعار الصرف (حسابات الريس + عرض الدولار)</h4>
@@ -944,6 +1075,118 @@
                 clearAllBtn.addEventListener('click', function () {
                     cards.forEach((card) => {
                         const opt = optionById(card.dataset.featuredId);
+                        if (!opt) return;
+                        opt.selected = false;
+                        setCardVisual(card, false);
+                    });
+                    renderSelected();
+                });
+            }
+
+            renderSelected();
+        })();
+
+        (function initFeaturedAllProductsPicker() {
+            const hiddenSelect = document.getElementById('home_featured_product_ids_all');
+            const searchInput = document.getElementById('featuredAllSearchInput');
+            const selectAllBtn = document.getElementById('featuredAllSelectAllBtn');
+            const clearAllBtn = document.getElementById('featuredAllClearAllBtn');
+            const cards = Array.from(document.querySelectorAll('[data-featured-all-id]'));
+            const wraps = Array.from(document.querySelectorAll('[data-featured-all-wrap]'));
+            const badgesWrap = document.getElementById('featuredAllSelectedBadges');
+            const countEl = document.getElementById('featuredAllSelectedCount');
+            if (!hiddenSelect || cards.length === 0) return;
+
+            const optionById = (id) => {
+                return Array.from(hiddenSelect.options).find((o) => String(o.value) === String(id)) || null;
+            };
+            const cardById = (id) => cards.find((c) => String(c.dataset.featuredAllId) === String(id)) || null;
+
+            const setCardVisual = (card, selected) => {
+                if (!card) return;
+                card.classList.toggle('is-selected', !!selected);
+                card.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                const check = card.querySelector('.featured-check');
+                if (check) check.textContent = selected ? '✓' : '+';
+            };
+
+            const renderSelected = () => {
+                if (!badgesWrap || !countEl) return;
+                const selectedOpts = Array.from(hiddenSelect.options).filter((o) => o.selected);
+                countEl.textContent = String(selectedOpts.length);
+                badgesWrap.innerHTML = '';
+                selectedOpts.forEach((opt) => {
+                    const id = String(opt.value);
+                    const card = cardById(id);
+                    const name = card?.dataset.featuredAllName || opt.textContent || ('#' + id);
+                    const type = card?.dataset.featuredAllType || '';
+                    const chip = document.createElement('span');
+                    chip.className = 'featured-chip';
+                    chip.innerHTML = `<span>${name}${type ? (' — ' + type) : ''}</span><button type="button" data-remove-featured-all="${id}">×</button>`;
+                    badgesWrap.appendChild(chip);
+                });
+            };
+
+            cards.forEach((card) => {
+                const id = card.dataset.featuredAllId;
+                const option = optionById(id);
+                const selected = !!option?.selected;
+                setCardVisual(card, selected);
+                card.addEventListener('click', function () {
+                    const opt = optionById(id);
+                    if (!opt) return;
+                    opt.selected = !opt.selected;
+                    setCardVisual(card, opt.selected);
+                    renderSelected();
+                });
+            });
+
+            if (badgesWrap) {
+                badgesWrap.addEventListener('click', function (e) {
+                    const btn = e.target.closest('[data-remove-featured-all]');
+                    if (!btn) return;
+                    const id = btn.getAttribute('data-remove-featured-all');
+                    const opt = optionById(id);
+                    if (!opt) return;
+                    opt.selected = false;
+                    setCardVisual(cardById(id), false);
+                    renderSelected();
+                });
+            }
+
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    const q = String(this.value || '').trim().toLowerCase();
+                    wraps.forEach((wrap) => {
+                        const card = wrap.querySelector('[data-featured-all-id]');
+                        if (!card) return;
+                        const id = String(card.dataset.featuredAllId || '');
+                        const name = String(card.dataset.featuredAllName || '').toLowerCase();
+                        const type = String(card.dataset.featuredAllType || '').toLowerCase();
+                        const text = `${id} ${name} ${type}`;
+                        wrap.style.display = q === '' || text.includes(q) ? '' : 'none';
+                    });
+                });
+            }
+
+            if (selectAllBtn) {
+                selectAllBtn.addEventListener('click', function () {
+                    wraps.forEach((wrap) => {
+                        if (wrap.style.display === 'none') return;
+                        const card = wrap.querySelector('[data-featured-all-id]');
+                        if (!card) return;
+                        const opt = optionById(card.dataset.featuredAllId);
+                        if (!opt) return;
+                        opt.selected = true;
+                        setCardVisual(card, true);
+                    });
+                    renderSelected();
+                });
+            }
+            if (clearAllBtn) {
+                clearAllBtn.addEventListener('click', function () {
+                    cards.forEach((card) => {
+                        const opt = optionById(card.dataset.featuredAllId);
                         if (!opt) return;
                         opt.selected = false;
                         setCardVisual(card, false);
