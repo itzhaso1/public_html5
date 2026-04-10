@@ -14,7 +14,7 @@
 
     .home-featured-products-swiper .swiper-slide > .product {
         width: 100%;
-        max-width: 360px;
+        max-width: 330px;
         margin-inline: auto;
     }
 
@@ -272,7 +272,7 @@
                 @endphp
 
                 <div class="swiper-slide">
-                    <div class="relative bg-white p-3 rounded-lg shadow text-center product flex flex-col h-full"
+                    <div class="relative bg-white p-2.5 rounded-lg shadow text-center product flex flex-col h-full"
                          style="box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                         @if($discountPercent && $discountPercent > 0)
                             <span class="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full shadow">
@@ -490,27 +490,6 @@ document.addEventListener('DOMContentLoaded', () => {
         },
     });
 
-    const enforceSnap = () => {
-        if (!homeFeaturedSwiper || homeFeaturedSwiper.destroyed) return;
-        if (homeFeaturedSwiper.params.loop) return;
-        const total = homeFeaturedSwiper.slides?.length || 0;
-        if (total <= 1) return;
-        const active = homeFeaturedSwiper.activeIndex || 0;
-        if (active <= 0 || active >= total - 1) return;
-        const progress = homeFeaturedSwiper.touches?.diff || 0;
-        const threshold = 40;
-        if (Math.abs(progress) < threshold) {
-            homeFeaturedSwiper.slideTo(active, 280);
-            return;
-        }
-        if (progress < 0) {
-            homeFeaturedSwiper.slideTo(Math.min(active + 1, total - 1), 280);
-        } else {
-            homeFeaturedSwiper.slideTo(Math.max(active - 1, 0), 280);
-        }
-    };
-
-    homeFeaturedSwiper.on('touchEnd', enforceSnap);
     homeFeaturedSwiper.on('sliderFirstMove', () => {
         if (homeFeaturedSwiper.pagination && homeFeaturedSwiper.pagination.el) {
             homeFeaturedSwiper.pagination.el.style.pointerEvents = 'none';
