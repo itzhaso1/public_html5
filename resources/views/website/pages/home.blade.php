@@ -2,6 +2,12 @@
 
 @push('css')
 <style>
+    .home-featured-products-swiper .featured-product-card {
+        display: grid;
+        grid-template-rows: auto auto minmax(3.2rem, 3.2rem) minmax(2.75rem, 2.75rem) auto;
+        row-gap: 0.35rem;
+    }
+
     .home-featured-products-swiper {
         padding: 0 6px 42px;
     }
@@ -102,9 +108,9 @@
 
     @media (max-width: 639.98px) {
         .home-featured-products-swiper .swiper-slide > .product {
-            height: 360px;
-            min-height: 360px;
-            max-height: 360px;
+            height: 352px;
+            min-height: 352px;
+            max-height: 352px;
         }
 
         .home-featured-products-swiper .product-img {
@@ -129,6 +135,12 @@
             gap: 0.35rem;
             flex-wrap: wrap;
             overflow: hidden;
+        }
+
+        .home-featured-products-swiper .featured-product-card .featured-product-cta {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+            align-self: end;
         }
     }
 </style>
@@ -314,7 +326,7 @@
                 @endphp
 
                 <div class="swiper-slide">
-                    <div class="relative bg-white p-2.5 rounded-lg shadow text-center product flex flex-col h-full"
+                    <div class="featured-product-card relative bg-white p-2.5 rounded-lg shadow text-center product h-full"
                          style="box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
                         @if($discountPercent && $discountPercent > 0)
                             <span class="absolute top-2 left-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full shadow">
@@ -366,7 +378,7 @@
                             </p>
                         @endif
 
-                        <div class="mt-auto pt-3">
+                        <div class="featured-product-cta mt-auto pt-3">
                             <a href="{{ route('website.product.show', $product->id) }}"
                                class="block bg-yellow-500 text-white py-2 px-4 rounded hover:bg-yellow-600 transition font-medium text-center">
                                 عرض التفاصيل
