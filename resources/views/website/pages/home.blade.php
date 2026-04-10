@@ -3,8 +3,8 @@
 @push('css')
 <style>
     .home-featured-products-swiper .featured-product-card {
-        display: grid;
-        grid-template-rows: auto auto minmax(3.2rem, 3.2rem) minmax(2.75rem, 2.75rem) auto;
+        display: flex;
+        flex-direction: column;
         row-gap: 0.35rem;
     }
 
@@ -108,12 +108,19 @@
 
     @media (max-width: 639.98px) {
         .home-featured-products-swiper .featured-product-card {
+            height: 352px;
             min-height: 352px;
-            grid-template-rows: 128px auto 3.2rem 2.75rem auto;
+            max-height: 352px;
+            display: flex !important;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         .home-featured-products-swiper .product-img {
             height: 128px !important;
+            min-height: 128px;
+            max-height: 128px;
+            flex: 0 0 128px;
         }
 
         .home-featured-products-swiper .featured-product-title {
@@ -122,16 +129,33 @@
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
+            min-height: 3.2rem;
+            max-height: 3.2rem;
         }
 
         .home-featured-products-swiper .featured-product-price {
+            height: 2.75rem;
             min-height: 2.75rem;
+            max-height: 2.75rem;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 0.35rem;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            white-space: nowrap;
             overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .home-featured-products-swiper .featured-product-price .old-price {
+            max-width: 48%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .home-featured-products-swiper .featured-product-cta {
+            margin-top: auto !important;
         }
     }
 </style>
