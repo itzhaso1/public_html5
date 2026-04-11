@@ -8,10 +8,109 @@
 
 @php
     $isEdit = isset($product);
+    $formAction = $formAction ?? route('public.products.store', request()->query());
+    $namePrefix = $namePrefix ?? null;
+    $minGalleryCount = (int) ($minGalleryCount ?? 12);
+    if ($minGalleryCount < 1) $minGalleryCount = 1;
+    if ($minGalleryCount > 40) $minGalleryCount = 40;
+    $guidedSlots = $guidedSlots ?? [];
+    if (empty($guidedSlots)) {
+        $guidedSlots = [
+            ['key' => 'weapons_gallery', 'title' => '1) معرض أسلحة', 'hint' => 'صورة واضحة للأسلحة/الاسكنات'],
+            ['key' => 'shotgun', 'title' => '2) الشوت قان', 'hint' => 'صورة الشوت قان أو أفضل سلاح عندك'],
+            ['key' => 'hair', 'title' => '3) الشعر', 'hint' => 'صورة الشعر/الهيت'],
+            ['key' => 'face', 'title' => '4) الوجه', 'hint' => 'صورة الوجه/الماسك'],
+            ['key' => 'tops', 'title' => '5) الصدريات / تيشيرتات', 'hint' => 'أفضل صدرية/تيشيرت'],
+            ['key' => 'pants', 'title' => '6) السراويل', 'hint' => 'أفضل بنطلون/سروال'],
+            ['key' => 'emotes', 'title' => '7) الرقصات', 'hint' => 'أشهر الرقصات'],
+            ['key' => 'login_emotes', 'title' => '8) رقصات تسجيل دخول', 'hint' => 'رقصات الدخول/اللوبي'],
+            ['key' => 'banners', 'title' => '9) البنرات', 'hint' => 'بنرات/بادجات الحساب'],
+            ['key' => 'fire_pass', 'title' => '10) الفير باسات', 'hint' => 'صورة الفير باس/الباس'],
+            ['key' => 'extra_1', 'title' => '11) صورة إضافية 1', 'hint' => 'أي شيء قوي بالحساب'],
+            ['key' => 'extra_2', 'title' => '12) صورة إضافية 2', 'hint' => 'أي شيء قوي بالحساب'],
+        ];
+        if ($minGalleryCount > count($guidedSlots)) {
+            for ($i = count($guidedSlots) + 1; $i <= $minGalleryCount; $i++) {
+                $x = $i - 10;
+                $guidedSlots[] = ['key' => "extra_{$x}", 'title' => "{$i}) صورة إضافية {$x}", 'hint' => 'صورة إضافية حسب ما تراه مناسباً'];
+            }
+        } else {
+            $guidedSlots = array_slice($guidedSlots, 0, $minGalleryCount);
+        }
+    }
+    $guidedGalleryKeys = $guidedGalleryKeys ?? array_values(array_map(fn($s) => (string)($s['key'] ?? ''), $guidedSlots));
+
+    $initialWizardStep = (int) old('wizard_step', (int) session('wizard_force_step', 1));
+    $fieldToStep = [
+        'ar.name' => 1,
+        'ar.short_description' => 2,
+        'ar.description' => 3,
+        'client_number' => 4,
+        'client_email' => 4,
+        'price' => 4,
+        'product' => 5,
+        'gallery' => 6,
+        'gallery.' => 6,
+    ];
+    $errorStep = null;
+    if ($errors->any()) {
+        foreach ($errors->keys() as $field) {
+            $field = (string) $field;
+            foreach ($fieldToStep as $prefix => $stepNo) {
+                if ($field === $prefix || str_starts_with($field, $prefix)) {
+                    $stepNo = (int) $stepNo;
+                    $errorStep = $errorStep === null ? $stepNo : min($errorStep, $stepNo);
+                    break;
+                }
+            }
+        }
+    }
+    if ($errorStep !== null) {
+        $initialWizardStep = (int) $errorStep;
+    }
+    $initialWizardStep = max(1, min(7, $initialWizardStep));
+
+    // Read effective PHP request-size limit so frontend can auto-fit before submit.
+    $parseIniBytes = function ($value): int {
+        $v = trim((string) $value);
+        if ($v === '') return 0;
+        $num = (float) $v;
+        $unit = strtolower(substr($v, -1));
+        return match ($unit) {
+            'g' => (int) round($num * 1024 * 1024 * 1024),
+            'm' => (int) round($num * 1024 * 1024),
+            'k' => (int) round($num * 1024),
+            default => (int) round((float) $v),
+        };
+    };
+    $postMaxBytes = $parseIniBytes(ini_get('post_max_size'));
+    $serverPostMaxMb = $postMaxBytes > 0 ? round($postMaxBytes / (1024 * 1024), 2) : 0;
 @endphp
 <script src="https://cdn.jsdelivr.net/npm/heic2any/dist/heic2any.min.js"></script>
 <script src="https://cdn.tailwindcss.com"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Publish awareness modal -->
+<div id="publishAdviceModal" class="hidden fixed inset-0 z-[9999] bg-black/55 flex items-center justify-center p-4" dir="rtl">
+    <div class="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-indigo-100 overflow-hidden">
+        <div class="px-5 py-4 bg-indigo-50 border-b border-indigo-100">
+            <h3 class="text-base font-extrabold text-indigo-900">تنبيه مهم قبل نشر الحساب</h3>
+        </div>
+        <div class="p-5 space-y-3 text-sm leading-7 text-gray-800">
+            <p>
+                عزيزي العميل، لسرعة بيع حسابك اختر صور مناسبة وارفع حسابك بدقة حسب الشروط،
+                ولا تبالغ في السعر.
+            </p>
+            <p class="font-semibold text-emerald-700">لا تنسَ ذكر الله في طريقك.</p>
+        </div>
+        <div class="px-5 pb-5">
+            <button id="publishAdviceOkBtn" type="button"
+                    class="w-full rounded-xl bg-indigo-600 text-white py-3 font-bold hover:bg-indigo-700 transition">
+                موافق
+            </button>
+        </div>
+    </div>
+</div>
 
 <div class="w-full flex justify-center py-2">
     <div class="w-[85%] max-w-[300px] bg-red-50 border border-red-200 rounded-2xl p-3 text-center shadow-sm">
@@ -50,7 +149,7 @@
 
         <form
             id="productForm"
-            action="{{ route('public.products.store', request()->query()) }}"
+            action="{{ $formAction }}"
             method="POST"
             enctype="multipart/form-data"
            class="space-y-6"
@@ -60,6 +159,7 @@
             @if($isEdit)
                 @method('PUT')
             @endif
+            <input type="hidden" name="wizard_step" id="wizardStepInput" value="{{ $initialWizardStep }}">
 
             <!-- شريط التقدم -->
             <div class="space-y-2">
@@ -83,6 +183,7 @@
                             minlength="3"
                             placeholder="مثال: حساب فير 8 لليوم او حساب كلاش محروق"
                             value="{{ old($locale.'.name', $product?->translateOrNew($locale)->name ?? '') }}"
+                            @if(!empty($namePrefix)) data-name-prefix="{{ $namePrefix }}" @endif
                             oninput="updateCounter(this, 'nameCounter')"
                             class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
                                    px-4 py-5 text-lg
@@ -154,7 +255,7 @@
             <!-- STEP 4 -->
             <div class="step hidden" data-step="4">
                 <div>
-                    <label class="text-sm text-gray-600">رقم الواتساب</label>
+                    <label class="text-sm text-gray-600">رقم الواتساب (اختياري)</label>
 
                     <div class="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <select id="clientDial" name="client_dial"
@@ -194,14 +295,36 @@
                     </div>
 
                     <input type="hidden" id="clientNumberFull" name="client_number"
-                           value="{{ old('client_number', $product->client_number ?? '') }}">
+                           value="{{ old('client_number', $product?->client_number ?? '') }}">
 
                     <div class="mt-2 text-xs text-gray-500">
-                        سيتم إرسال إشعار واتساب عند <b>قبول</b> أو <b>رفض</b> طلبك.
+                        يمكنك ترك الرقم فارغًا. سنستخدم البريد الإلكتروني لإشعارات حالة الحساب.
                     </div>
                     @error('client_number')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
+
+                    <div class="mt-5">
+                        <label class="text-sm text-gray-600">البريد الإلكتروني (إجباري)</label>
+                        <input
+                            type="email"
+                            name="client_email"
+                            autocomplete="email"
+                            placeholder="اكتب بريدك لإشعارات حالة الحساب"
+                            value="{{ old('client_email', $product?->client_email ?? '') }}"
+                            class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
+                                   px-4 py-5 text-lg
+                                   placeholder:text-gray-400
+                                   focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            required
+                        >
+                        <div class="mt-2 text-xs text-gray-500">
+                            هذا البريد مخصص لإشعارات المتجر: قبول/رفض الطلب وأي ملاحظات على حسابك.
+                        </div>
+                        @error('client_email')
+                            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
                 </div>
 
                 <div>
@@ -210,11 +333,24 @@
                         type="number"
                         step="0.01"
                         name="price"
-                        value="{{ old('price', $product->price ?? '') }}"
+                        value="{{ old('price', $product?->price ?? '') }}"
                         class="mt-2 w-full rounded-2xl border border-gray-300 bg-gray-50
                                px-4 py-5 text-lg
                                focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     >
+                    <div class="mt-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4 text-sm">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-gray-700 font-semibold">العمولة</span>
+                            <span id="commissionFee" class="font-extrabold text-indigo-700">—</span>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between gap-3">
+                            <span class="text-gray-700 font-semibold">السعر بعد العمولة</span>
+                            <span id="commissionFinal" class="font-extrabold text-green-700">—</span>
+                        </div>
+                        <div class="mt-2 text-xs text-gray-500">
+                            اكتب سعر الحساب الأساسي (بدون عمولة)، وسيتم إضافة العمولة تلقائياً عند الإرسال.
+                        </div>
+                    </div>
                     @error('price')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
                     @enderror
@@ -233,6 +369,18 @@
                     <label class="text-sm text-gray-600">
                         صورة <span class="text-indigo-600 font-semibold">الملف الشخصي</span>
                     </label>
+
+                    @if(!empty($publishProfileGuideImage))
+                        <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-center space-y-2">
+                            <div class="text-sm font-bold text-indigo-700">معاينة تعليمية (مثال)</div>
+                            <div class="text-xs text-indigo-600">هذه صورة إرشادية من الإدارة لتوضيح شكل البروفايل المطلوب.</div>
+                            <img src="{{ $publishProfileGuideImage }}"
+                                 alt="معاينة إرشادية لصورة الملف الشخصي"
+                                 class="w-full max-h-64 object-contain rounded-lg border border-indigo-100 bg-white p-1"
+                                 loading="lazy"
+                                 decoding="async">
+                        </div>
+                    @endif
 
                     <div class="rounded-xl bg-red-50 border border-red-300 p-4 text-center space-y-2">
                         <div class="text-sm font-bold text-red-700">⚠️ تنبيه</div>
@@ -277,23 +425,84 @@
                         </span>
                     </label>
 
-                    <label for="gallery_images"
-                           class="flex items-center justify-center gap-2
-                                  w-full py-4 rounded-2xl
-                                  border-2 border-dashed border-emerald-300
-                                  bg-emerald-50 text-emerald-700
-                                  font-semibold text-base
-                                  cursor-pointer
-                                  active:scale-[0.98] transition">
-                        🖼️ اختر صور
-                    </label>
+                    <input type="hidden" name="gallery_mode" id="galleryMode" value="guided">
 
-                    <input id="gallery_images" type="file" name="gallery[]" accept="image/*" multiple
-                           class="hidden" onchange="previewGalleryImages(this)">
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                        <div class="font-bold mb-1">✅ رفع مرتب (الموصى به)</div>
+                        <div class="text-xs text-emerald-800">
+                            ارفع الصور بالترتيب المطلوب. هذا يساعد الإدارة تراجع حسابك بسرعة ويقلل الرفض.
+                        </div>
+                        <button type="button" id="toggleAdvancedGallery"
+                                class="mt-3 inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2 text-xs font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                            ⚙️ إعدادات متقدمة (رفع {{ $minGalleryCount }} صورة دفعة واحدة)
+                        </button>
+                    </div>
 
-                    <p id="gallery_images_name" class="text-xs text-gray-500">لم يتم اختيار أي ملفات</p>
+                    <!-- Guided gallery (12 slots) -->
+                    <div id="guidedGalleryWrap" class="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
+                        @foreach($guidedSlots as $s)
+                            <div class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <div class="font-extrabold text-sm text-gray-900">{{ $s['title'] }}</div>
+                                        <div class="text-xs text-gray-500 mt-1">{{ $s['hint'] }}</div>
+                                    </div>
+                                    <span class="text-[11px] font-extrabold text-red-700 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">مطلوب</span>
+                                </div>
 
-                    <div id="galleryPreview" class="grid grid-cols-3 gap-2 mt-3"></div>
+                                <div class="mt-3">
+                                    <label for="gallery_guided_{{ $s['key'] }}"
+                                           class="flex items-center justify-center gap-2 w-full py-3 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 font-extrabold text-sm cursor-pointer active:scale-[0.98] transition">
+                                        📷 اختر صورة
+                                    </label>
+                                    <input id="gallery_guided_{{ $s['key'] }}"
+                                           type="file"
+                                           name="gallery_guided[{{ $s['key'] }}]"
+                                           accept="image/*"
+                                           class="hidden"
+                                           onchange="previewGuidedGallery('{{ $s['key'] }}', this)">
+
+                                    <div id="guided_preview_box_{{ $s['key'] }}" class="hidden mt-3 relative">
+                                        <img id="guided_preview_img_{{ $s['key'] }}" class="w-full h-36 object-cover rounded-xl border" alt="preview">
+                                        <button type="button"
+                                                onclick="clearGuidedGallery('{{ $s['key'] }}')"
+                                                class="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center shadow-lg border border-white">
+                                            ✕
+                                        </button>
+                                    </div>
+                                    <p id="guided_file_name_{{ $s['key'] }}" class="text-xs text-gray-500 mt-2">لم يتم اختيار ملف</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <!-- Advanced (old) uploader -->
+                    <div id="advancedGalleryWrap" class="hidden mt-4">
+                        <div class="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
+                            <div class="text-sm font-extrabold text-yellow-900">⚠️ تنبيه</div>
+                            <div class="text-xs text-yellow-800 mt-1">
+                                الوضع المتقدم يتيح رفع كل الصور دفعة واحدة. الحد الأدنى المطلوب: {{ $minGalleryCount }} صورة.
+                            </div>
+                        </div>
+
+                        <label for="gallery_images_advanced"
+                               class="mt-3 flex items-center justify-center gap-2
+                                      w-full py-4 rounded-2xl
+                                      border-2 border-dashed border-emerald-300
+                                      bg-emerald-50 text-emerald-700
+                                      font-semibold text-base
+                                      cursor-pointer
+                                      active:scale-[0.98] transition">
+                            🖼️ اختر صور (دفعة واحدة)
+                        </label>
+
+                        <input id="gallery_images_advanced" type="file" name="gallery[]" accept="image/*" multiple
+                               class="hidden" onchange="previewGalleryImages(this)">
+
+                        <p id="gallery_images_name" class="text-xs text-gray-500">لم يتم اختيار أي ملفات</p>
+
+                        <div id="galleryPreview" class="grid grid-cols-3 gap-2 mt-3"></div>
+                    </div>
 
                     @error('gallery')
                         <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
@@ -316,6 +525,7 @@
                     <div>الوصف المختصر: <span id="reviewShort" class="font-semibold">—</span></div>
                     <div>السعر: <span id="reviewPrice" class="font-semibold">—</span></div>
                     <div>رقم الهاتف: <span id="reviewPhone" class="font-semibold">—</span></div>
+                    <div>البريد الإلكتروني: <span id="reviewEmail" class="font-semibold">—</span></div>
                     <div>الصورة الرئيسية: <span id="reviewMain" class="font-semibold">—</span></div>
                     <div>صور المعرض: <span id="reviewGallery" class="font-semibold">0</span></div>
                 </div>
@@ -358,21 +568,36 @@
 </div>
 
 <script>
-let currentStep = 1;
+let currentStep = {{ (int) $initialWizardStep }};
 const totalSteps = 7;
 let isProcessingImages = false;
-const MAX_IMG_DIM = 1600;
-const JPEG_QUALITY = 0.72;
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+const MAX_IMG_DIM = IS_IOS ? 1820 : 2560;
+const JPEG_QUALITY = IS_IOS ? 0.90 : 0.94;
+// Keep payload safely below common server post_max_size values.
+// We start high-quality, then only lower quality when absolutely needed.
+const SERVER_POST_MAX_MB = {{ json_encode((float) ($serverPostMaxMb ?? 0)) }};
+const BASE_MAX_TOTAL_UPLOAD_MB = IS_IOS ? 12.0 : 16.0;
+// Use only ~65% of server post_max_size to leave room for multipart/form-data overhead.
+const MAX_TOTAL_UPLOAD_MB = SERVER_POST_MAX_MB > 0
+  ? Math.max(2.5, Math.min(BASE_MAX_TOTAL_UPLOAD_MB, SERVER_POST_MAX_MB * 0.65))
+  : BASE_MAX_TOTAL_UPLOAD_MB;
+const UPLOAD_SOFT_TARGET_MB = Math.max(2.0, MAX_TOTAL_UPLOAD_MB * 0.92);
+const MIN_GALLERY_COUNT = {{ $minGalleryCount }};
+const GUIDED_KEYS = @json($guidedGalleryKeys);
+let processedMainImage = null;
+const processedGuidedFiles = {};
 
 async function downscaleToJpeg(file, opts = {}) {
   const maxDim = opts.maxDim || MAX_IMG_DIM;
   const quality = (typeof opts.quality === 'number') ? opts.quality : JPEG_QUALITY;
+  const force = !!opts.force;
 
   if (!file || !file.type || !file.type.startsWith('image/')) return file;
 
   // Compress only if the file is large (keeps fast devices fast)
   const isHeic = file.type === 'image/heic' || (file.name || '').toLowerCase().endsWith('.heic');
-  if (!isHeic && (file.size || 0) < 900 * 1024) {
+  if (!force && !isHeic && (file.size || 0) < 900 * 1024) {
     return file;
   }
 
@@ -406,10 +631,169 @@ async function downscaleToJpeg(file, opts = {}) {
   return new File([blob], base + '.jpg', { type: 'image/jpeg' });
 }
 
+async function compressStateWithProfile(mode, profile) {
+  if (processedMainImage instanceof File) {
+    processedMainImage = await downscaleToJpeg(processedMainImage, { ...profile, force: true });
+  }
+
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const f = processedGuidedFiles[key];
+      if (f instanceof File) {
+        processedGuidedFiles[key] = await downscaleToJpeg(f, { ...profile, force: true });
+      }
+    }
+    return;
+  }
+
+  if (Array.isArray(galleryFiles) && galleryFiles.length) {
+    const out = [];
+    for (const f of galleryFiles) {
+      if (f instanceof File) {
+        out.push(await downscaleToJpeg(f, { ...profile, force: true }));
+      } else {
+        out.push(f);
+      }
+    }
+    galleryFiles = out;
+  }
+}
+
+function getCurrentTotalBytes(mode) {
+  let totalBytes = 0;
+  if (processedMainImage instanceof File) totalBytes += processedMainImage.size || 0;
+
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const f = processedGuidedFiles[key];
+      if (f instanceof File) totalBytes += f.size || 0;
+    }
+    return totalBytes;
+  }
+
+  if (Array.isArray(galleryFiles)) {
+    for (const f of galleryFiles) {
+      if (f instanceof File) totalBytes += f.size || 0;
+    }
+  }
+  return totalBytes;
+}
+
+async function emergencyFitWithinBudget(mode) {
+  const emergencyProfiles = [
+    { maxDim: IS_IOS ? 1680 : 2280, quality: IS_IOS ? 0.86 : 0.90 },
+    { maxDim: IS_IOS ? 1540 : 2120, quality: IS_IOS ? 0.82 : 0.87 },
+    { maxDim: IS_IOS ? 1400 : 1960, quality: IS_IOS ? 0.78 : 0.84 },
+    { maxDim: IS_IOS ? 1260 : 1820, quality: IS_IOS ? 0.74 : 0.80 },
+    { maxDim: IS_IOS ? 1120 : 1680, quality: IS_IOS ? 0.70 : 0.76 },
+    { maxDim: IS_IOS ? 980 : 1520, quality: IS_IOS ? 0.66 : 0.72 },
+  ];
+
+  if (bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB) return true;
+
+  for (const profile of emergencyProfiles) {
+    await compressStateWithProfile(mode, profile);
+    if (bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function forceUltraCompression(mode) {
+  const ultraProfiles = [
+    { maxDim: IS_IOS ? 840 : 1280, quality: IS_IOS ? 0.58 : 0.66 },
+    { maxDim: IS_IOS ? 760 : 1160, quality: IS_IOS ? 0.52 : 0.60 },
+    { maxDim: IS_IOS ? 680 : 1040, quality: IS_IOS ? 0.46 : 0.54 },
+  ];
+  for (const p of ultraProfiles) {
+    await compressStateWithProfile(mode, p);
+    if (bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB) {
+      return true;
+    }
+  }
+  return bytesToMB(getCurrentTotalBytes(mode)) <= MAX_TOTAL_UPLOAD_MB;
+}
+
+function bytesToMB(bytes) {
+  return (Number(bytes || 0) / (1024 * 1024));
+}
+
+async function enforceUploadBudget() {
+  // Prefer high quality first, then only increase compression if total size exceeds soft target.
+  // Main
+  if (!(processedMainImage instanceof File)) {
+    const inputMain = document.getElementById('product_image');
+    const rawMain = inputMain && inputMain.files && inputMain.files[0] ? inputMain.files[0] : null;
+    if (rawMain instanceof File) processedMainImage = rawMain;
+  }
+
+  // Guided gallery (keep originals at first)
+  const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+  if (mode === 'guided') {
+    for (const key of (Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [])) {
+      const input = document.getElementById('gallery_guided_' + key);
+      let f = processedGuidedFiles[key];
+      if (!(f instanceof File)) {
+        f = input && input.files && input.files[0] ? input.files[0] : null;
+      }
+      if (f instanceof File) {
+        processedGuidedFiles[key] = f;
+      }
+    }
+  } else {
+    const advInput = document.getElementById('gallery_images_advanced');
+    const source = (Array.isArray(galleryFiles) && galleryFiles.length)
+      ? galleryFiles
+      : (advInput && advInput.files ? Array.from(advInput.files) : []);
+    if (source.length) {
+      const out = [];
+      for (const f of source) {
+        out.push(f);
+      }
+      galleryFiles = out;
+    }
+  }
+
+  let totalBytes = getCurrentTotalBytes(mode);
+
+  // Compress only when needed (quality first).
+  if (bytesToMB(totalBytes) > UPLOAD_SOFT_TARGET_MB) {
+    await compressStateWithProfile(mode, {
+      maxDim: IS_IOS ? 1760 : 2360,
+      quality: IS_IOS ? 0.88 : 0.92,
+    });
+    totalBytes = getCurrentTotalBytes(mode);
+  }
+
+  // Emergency fitting: avoid 413 by auto-adjusting only when necessary.
+  let finalTotalBytes = getCurrentTotalBytes(mode);
+  if (bytesToMB(finalTotalBytes) > MAX_TOTAL_UPLOAD_MB) {
+    await emergencyFitWithinBudget(mode);
+    finalTotalBytes = getCurrentTotalBytes(mode);
+  }
+
+  if (bytesToMB(finalTotalBytes) > MAX_TOTAL_UPLOAD_MB) {
+    throw new Error(`تمت محاولة تحسين الصور تلقائيًا لكن الحجم ما زال كبيرًا (${bytesToMB(finalTotalBytes).toFixed(1)}MB). حاول تقليل عدد الصور قليلًا.`);
+  }
+}
+
 function setWizardBusy(state, label = 'التالي') {
     isProcessingImages = state;
     const nextBtn = document.getElementById('wizardNextBtn');
     const submitBtn = document.getElementById('finalSubmit');
+
+    try {
+        if (window.__wizardBusyTimer) clearTimeout(window.__wizardBusyTimer);
+        if (state) {
+            // Safety net: never keep the wizard locked forever (iOS can throw in DataTransfer).
+            window.__wizardBusyTimer = setTimeout(() => {
+                isProcessingImages = false;
+                setWizardBusy(false, label);
+            }, 45000);
+        }
+    } catch (e) {}
 
     if (nextBtn) {
         nextBtn.disabled = state;
@@ -432,18 +816,22 @@ function updateProgress(step) {
 }
 
 function showStep(step) {
+    const safeStep = Math.max(1, Math.min(totalSteps, parseInt(step || 1, 10) || 1));
+    currentStep = safeStep;
     document.querySelectorAll('.step').forEach(el => el.classList.add('hidden'));
-    const active = document.querySelector(`.step[data-step="${step}"]`);
+    const active = document.querySelector(`.step[data-step="${safeStep}"]`);
     if (active) active.classList.remove('hidden');
 
-    document.getElementById('wizardPrevBtn').classList.toggle('hidden', step === 1);
-    document.getElementById('wizardNextBtn').classList.toggle('hidden', step === totalSteps);
-    document.getElementById('finalSubmit').classList.toggle('hidden', step !== totalSteps);
+    document.getElementById('wizardPrevBtn').classList.toggle('hidden', safeStep === 1);
+    document.getElementById('wizardNextBtn').classList.toggle('hidden', safeStep === totalSteps);
+    document.getElementById('finalSubmit').classList.toggle('hidden', safeStep !== totalSteps);
 
-    document.getElementById('stepIndicator').textContent = `الخطوة ${step} من ${totalSteps}`;
-    updateProgress(step);
+    document.getElementById('stepIndicator').textContent = `الخطوة ${safeStep} من ${totalSteps}`;
+    updateProgress(safeStep);
+    const wizardInput = document.getElementById('wizardStepInput');
+    if (wizardInput) wizardInput.value = String(safeStep);
 
-    if (step === totalSteps) {
+    if (safeStep === totalSteps) {
         updateReview();
     }
 }
@@ -464,16 +852,12 @@ function validateStep(step) {
         }
     }
     if (step === 4) {
-        const dial = document.getElementById('clientDial');
-        const local = document.getElementById('clientLocal');
-        const full = document.getElementById('clientNumberFull');
-        if (dial && local && full) {
-            syncClientNumber();
-            const v = (full.value || '').trim();
-            if (v.length < 9) {
-                alert('رقم الواتساب مطلوب');
-                return false;
-            }
+        const email = document.querySelector('input[name="client_email"]');
+        const value = (email && email.value ? String(email.value) : '').trim();
+        const looksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        if (!looksValid) {
+            alert('البريد الإلكتروني مطلوب وبصيغة صحيحة');
+            return false;
         }
     }
     if (step === 5) {
@@ -484,10 +868,23 @@ function validateStep(step) {
         }
     }
     if (step === 6) {
-        const gallery = document.querySelector('input[name="gallery[]"]');
-        if (!gallery || gallery.files.length < 12) {
-            alert('يجب رفع 12 صورة على الأقل');
-            return false;
+        const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+        if (mode === 'advanced') {
+            const gallery = document.getElementById('gallery_images_advanced');
+            if (!gallery || gallery.files.length < MIN_GALLERY_COUNT) {
+                alert(`يجب رفع ${MIN_GALLERY_COUNT} صورة على الأقل (الوضع المتقدم)`);
+                return false;
+            }
+        } else {
+            const requiredKeys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
+            const missing = requiredKeys.filter(k => {
+                const inp = document.getElementById('gallery_guided_' + k);
+                return !inp || !inp.files || inp.files.length === 0;
+            });
+            if (missing.length > 0) {
+                alert(`يجب رفع كل الصور بالترتيب (${requiredKeys.length} صورة).`);
+                return false;
+            }
         }
     }
     return true;
@@ -507,6 +904,11 @@ function syncClientNumber() {
     // If user pasted full international number into local field, keep it as-is.
     if (dialDigits && localDigits.startsWith(dialDigits) && localDigits.length >= dialDigits.length + 6) {
         full.value = localDigits;
+        return;
+    }
+
+    if (!localDigits) {
+        full.value = '';
         return;
     }
 
@@ -535,22 +937,77 @@ function prevStep() {
 function updateReview() {
     const name = document.querySelector('input[name="ar[name]"]')?.value?.trim() || '—';
     const shortDesc = document.querySelector('textarea[name="ar[short_description]"]')?.value?.trim() || '—';
-    const price = document.querySelector('input[name="price"]')?.value?.trim() || '—';
+    const priceRaw = document.querySelector('input[name="price"]')?.value?.trim() || '';
     syncClientNumber();
     const phone = document.getElementById('clientNumberFull')?.value?.trim() || '—';
     const mainImage = document.querySelector('input[name="product"]')?.files?.[0]?.name || 'غير مرفوعة';
-    const galleryCount = document.querySelector('input[name="gallery[]"]')?.files?.length || 0;
+    const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+    let galleryCount = 0;
+    if (mode === 'advanced') {
+        galleryCount = document.getElementById('gallery_images_advanced')?.files?.length || 0;
+    } else {
+        const keys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
+        galleryCount = keys.reduce((acc, k) => {
+            const inp = document.getElementById('gallery_guided_' + k);
+            return acc + ((inp && inp.files && inp.files.length) ? 1 : 0);
+        }, 0);
+    }
+
+    const toNum = (v) => {
+        const n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+        return isNaN(n) ? 0 : n;
+    };
+    const calcCommission = (base) => {
+        const p = toNum(base);
+        if (p <= 0) return 0;
+        if (p <= 500) return 50;
+        if (p <= 1000) return 75;
+        if (p <= 1500) return 75;
+        if (p <= 2000) return 100;
+        if (p <= 3000) return 175;
+        if (p <= 4000) return 250;
+        return 270;
+    };
+    const basePrice = toNum(priceRaw);
+    const fee = calcCommission(basePrice);
+    const finalPrice = basePrice > 0 ? (basePrice + fee) : 0;
+    const email = document.querySelector('input[name="client_email"]')?.value?.trim() || '—';
 
     document.getElementById('reviewName').textContent = name;
     document.getElementById('reviewShort').textContent = shortDesc;
-    document.getElementById('reviewPrice').textContent = price ? `${price} ريال` : '—';
+    document.getElementById('reviewPrice').textContent =
+        basePrice > 0
+            ? `${finalPrice} ريال (شامل عمولة ${fee})`
+            : '—';
     document.getElementById('reviewPhone').textContent = phone;
+    document.getElementById('reviewEmail').textContent = email;
     document.getElementById('reviewMain').textContent = mainImage;
     document.getElementById('reviewGallery').textContent = galleryCount;
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     showStep(currentStep);
+    initGalleryModeToggle();
+    setGalleryMode('guided');
+    initPublishAdviceModal();
+    // Optional name prefix enforcement (admin publish link)
+    try {
+        const nameInput = document.querySelector('input[name="ar[name]"][data-name-prefix]');
+        if (nameInput) {
+            const prefix = String(nameInput.getAttribute('data-name-prefix') || '').trim();
+            const ensure = () => {
+                if (!prefix) return;
+                const v = String(nameInput.value || '').trimStart();
+                if (!v) return;
+                if (v.startsWith(prefix) || v.startsWith(prefix + ' ')) return;
+                nameInput.value = (prefix + ' ' + v).slice(0, parseInt(nameInput.getAttribute('maxlength') || '999', 10));
+                try { updateCounter(nameInput, 'nameCounter'); } catch (e) {}
+            };
+            nameInput.addEventListener('input', ensure);
+            nameInput.addEventListener('blur', ensure);
+            ensure();
+        }
+    } catch (e) {}
     // Keep hidden full phone in sync.
     try {
         document.getElementById('clientDial')?.addEventListener('change', syncClientNumber);
@@ -578,20 +1035,103 @@ document.addEventListener('DOMContentLoaded', () => {
             syncClientNumber();
         }
     } catch (e) {}
+
+    // iOS Safari sometimes ignores taps when keyboard is open
+    try {
+        const submitBtn = document.getElementById('finalSubmit');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', () => {
+                try { document.activeElement && document.activeElement.blur && document.activeElement.blur(); } catch (e) {}
+            }, { passive: true });
+        }
+    } catch (e) {}
 });
+
+function initPublishAdviceModal() {
+    const modal = document.getElementById('publishAdviceModal');
+    const okBtn = document.getElementById('publishAdviceOkBtn');
+    if (!modal) return;
+
+    const storageKey = 'publish_advice_seen_v1';
+    const hideModal = () => {
+        modal.classList.add('hidden');
+        try { localStorage.setItem(storageKey, '1'); } catch (e) {}
+    };
+
+    try {
+        if (localStorage.getItem(storageKey) === '1') return;
+    } catch (e) {}
+
+    modal.classList.remove('hidden');
+    if (okBtn) okBtn.addEventListener('click', hideModal);
+
+    // Auto-hide after 15s if user doesn't click.
+    setTimeout(() => {
+        if (!modal.classList.contains('hidden')) {
+            hideModal();
+        }
+    }, 15000);
+}
 </script>
 
 <script>
-document.getElementById('productForm').addEventListener('submit', function (e) {
+  (function () {
+    const input = document.querySelector('input[name="price"]');
+    const feeEl = document.getElementById('commissionFee');
+    const finalEl = document.getElementById('commissionFinal');
+    if (!input || !feeEl || !finalEl) return;
+
+    const toNum = (v) => {
+      const n = parseFloat(String(v || '').replace(/[^\d.]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
+    const calcCommission = (base) => {
+      const p = toNum(base);
+      if (p <= 0) return 0;
+      if (p <= 500) return 50;
+      if (p <= 1000) return 75;
+      if (p <= 1500) return 75;
+      if (p <= 2000) return 100;
+      if (p <= 3000) return 175;
+      if (p <= 4000) return 250;
+      return 270;
+    };
+    const fmt = (n) => {
+      try { return (Math.round(n * 100) / 100).toString().replace(/\.00$/, ''); } catch (e) { return String(n); }
+    };
+    const render = () => {
+      const base = toNum(input.value);
+      if (!base || base <= 0) {
+        feeEl.textContent = '—';
+        finalEl.textContent = '—';
+        return;
+      }
+      const fee = calcCommission(base);
+      const finalPrice = base + fee;
+      feeEl.textContent = `+${fmt(fee)} ريال`;
+      finalEl.textContent = `${fmt(finalPrice)} ريال`;
+    };
+
+    input.addEventListener('input', render);
+    render();
+  })();
+</script>
+
+<script>
+const productForm = document.getElementById('productForm');
+if (productForm) productForm.addEventListener('submit', async function (e) {
     const form = this;
+    const wizardInput = document.getElementById('wizardStepInput');
+    if (wizardInput) wizardInput.value = String(currentStep || totalSteps);
+    const formActionUrl = (() => {
+        try { return new URL(form.action, window.location.origin).href; } catch (e) { return String(form.action || ''); }
+    })();
     try { syncClientNumber(); } catch (e) {}
     const uploadBox = document.getElementById('uploadBox');
     const progressBar = document.getElementById('progressBar');
     const progressPercent = document.getElementById('progressPercent');
     const progressInfo = document.getElementById('progressInfo');
     const progressTime = document.getElementById('progressTime');
-
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
 
     // Basic guard: prevent double submit
     const submitBtn = document.getElementById('finalSubmit');
@@ -605,17 +1145,74 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
     if (uploadBox) uploadBox.classList.remove('hidden');
 
     // If SweetAlert2 didn't load yet, fallback to alert later
-    const showSuccess = () => {
+    const normalizeUrl = (url) => {
+        const u = String(url || '').trim();
+        if (!u) return '';
+        try { return new URL(u, window.location.origin).href; } catch (e) { return ''; }
+    };
+
+    const extractTrackUrl = (payload, xhrObj) => {
+        // 1) Normal JSON payload
+        let u = normalizeUrl(payload && payload.track_url ? payload.track_url : '');
+        if (u) return u;
+
+        // 2) Response header fallback (works even when JSON parsing fails)
+        try {
+            const h = xhrObj && xhrObj.getResponseHeader ? xhrObj.getResponseHeader('X-Track-Url') : '';
+            u = normalizeUrl(h);
+            if (u) return u;
+        } catch (e) {}
+
+        // 3) If browser followed a redirect, responseURL usually becomes track URL
+        try {
+            const ru = normalizeUrl(xhrObj && xhrObj.responseURL ? xhrObj.responseURL : '');
+            if (ru && ru !== formActionUrl && /\/publish-product\/(requests|track)\//i.test(ru)) return ru;
+        } catch (e) {}
+
+        // 4) Try to recover track_url from non-JSON/noisy response text
+        const txt = String((xhrObj && xhrObj.responseText) || '');
+        if (txt) {
+            const m1 = txt.match(/"track_url"\s*:\s*"([^"]+)"/i);
+            if (m1 && m1[1]) {
+                const recovered = m1[1].replace(/\\\//g, '/');
+                u = normalizeUrl(recovered);
+                if (u) return u;
+            }
+            const m2 = txt.match(/https?:\/\/[^\s"'<>]*\/publish-product\/(requests|track)\/[A-Za-z0-9_-]+/i);
+            if (m2 && m2[0]) {
+                u = normalizeUrl(m2[0]);
+                if (u) return u;
+            }
+        }
+
+        return '';
+    };
+
+    const showSuccess = (message = 'تم رفع المنتج بنجاح', redirectUrl = '') => {
+        const safeRedirect = normalizeUrl(redirectUrl);
         if (window.Swal && Swal.fire) {
             Swal.fire({
                 icon: 'success',
                 title: 'تم تحميل الحساب',
-                text: 'تم رفع المنتج بنجاح',
+                text: message,
                 confirmButtonText: 'تمام'
-            }).then(() => window.location.reload());
+            }).then(() => {
+                if (safeRedirect) {
+                    window.location.href = safeRedirect;
+                } else {
+                    // Do not reload here; reloading sends user back to step 1.
+                    if (uploadBox) uploadBox.classList.add('hidden');
+                    if (submitBtn) submitBtn.textContent = 'تم إرسال الطلب';
+                }
+            });
         } else {
-            alert('تم رفع المنتج بنجاح');
-            window.location.reload();
+            alert(message);
+            if (safeRedirect) {
+                window.location.href = safeRedirect;
+            } else {
+                if (uploadBox) uploadBox.classList.add('hidden');
+                if (submitBtn) submitBtn.textContent = 'تم إرسال الطلب';
+            }
         }
     };
     const showError = (msg) => {
@@ -633,29 +1230,95 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
         }
     };
 
-    // iOS Safari is more reliable with native form submit for large multi-file uploads.
-    if (isIOS) {
-        // Let the browser handle upload; keep a simple “uploading” overlay.
-        if (progressPercent) progressPercent.innerText = 'جاري الرفع...';
-        if (progressInfo) progressInfo.innerText = 'قد يستغرق وقتًا حسب حجم الصور — لا تغلق الصفحة';
-        if (progressTime) progressTime.innerText = '';
-        if (progressBar) progressBar.style.width = '35%';
-        return; // do NOT preventDefault => native submit continues
+    e.preventDefault();
+    try {
+        await enforceUploadBudget();
+    } catch (err) {
+        showError((err && err.message) ? err.message : 'حجم الصور كبير جدًا. قلّل عدد الصور أو دقتها ثم أعد المحاولة.');
+        return;
     }
 
-    e.preventDefault();
+    const mode = (document.getElementById('galleryMode')?.value || 'guided').toString();
+    const buildFormData = () => {
+        const fd = new FormData(form);
+        try {
+            // Always prefer processed/compressed main image if available.
+            if (processedMainImage instanceof File) {
+                fd.delete('product');
+                fd.set('product', processedMainImage);
+            }
 
-    const formData = new FormData(form);
-    const xhr = new XMLHttpRequest();
+            if (mode === 'guided') {
+                // Host/browser-safe path: send guided files as gallery[] only.
+                // IMPORTANT: remove original gallery_guided[...] entries first to avoid duplicate uploads.
+                // Duplicates can exceed PHP max_file_uploads and randomly drop files.
+                fd.delete('gallery[]');
+                fd.delete('gallery');
+                const keys = Array.isArray(GUIDED_KEYS) ? GUIDED_KEYS : [];
+                fd.delete('gallery_guided');
+                keys.forEach((k) => {
+                    fd.delete(`gallery_guided[${k}]`);
+                });
+                keys.forEach((k) => {
+                    const inp = document.getElementById('gallery_guided_' + k);
+                    const fallbackFile = inp && inp.files && inp.files[0] ? inp.files[0] : null;
+                    const f = processedGuidedFiles[k] || fallbackFile;
+                    if (f) fd.append('gallery[]', f);
+                });
+                fd.set('gallery_mode', 'guided');
+            } else {
+                // Advanced mode: submit processed files from in-memory list (iOS-safe).
+                fd.delete('gallery[]');
+                fd.delete('gallery');
+                if (Array.isArray(galleryFiles) && galleryFiles.length) {
+                    galleryFiles.forEach((f) => {
+                        if (f instanceof File) fd.append('gallery[]', f);
+                    });
+                } else {
+                    const advancedInput = document.getElementById('gallery_images_advanced');
+                    const fallbackFiles = advancedInput && advancedInput.files ? Array.from(advancedInput.files) : [];
+                    fallbackFiles.forEach((f) => {
+                        if (f instanceof File) fd.append('gallery[]', f);
+                    });
+                }
+                fd.set('gallery_mode', 'advanced');
+            }
+        } catch (e) {}
+        return fd;
+    };
 
-    const startTime = new Date().getTime();
+    const sendOnce = (formData, onProgress) => new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', form.action, true);
+        xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
+        xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.timeout = 12 * 60 * 1000;
 
-    xhr.open('POST', form.action, true);
-    xhr.setRequestHeader('X-CSRF-TOKEN', '{{ csrf_token() }}');
-    xhr.timeout = 12 * 60 * 1000; // 12 minutes
+        xhr.upload.onprogress = function (e) {
+            if (typeof onProgress === 'function') onProgress(e);
+        };
+        xhr.onload = function () {
+            let payload = null;
+            try { payload = JSON.parse(xhr.responseText || '{}'); } catch (e) {}
+            resolve({ status: xhr.status, payload, xhr });
+        };
+        xhr.onerror = function () {
+            reject(new Error('network_error'));
+        };
+        xhr.ontimeout = function () {
+            reject(new Error('timeout'));
+        };
+        xhr.send(formData);
+    });
 
-    xhr.upload.onprogress = function (e) {
-        if (e.lengthComputable) {
+    let retried413 = false;
+    const doSubmit = async () => {
+        const fd = buildFormData();
+        const startTime = new Date().getTime();
+
+        const result = await sendOnce(fd, (e) => {
+            if (!e.lengthComputable) return;
             const percent = Math.round((e.loaded / e.total) * 100);
             progressBar.style.width = percent + '%';
             progressPercent.innerText = percent + '%';
@@ -665,31 +1328,56 @@ document.getElementById('productForm').addEventListener('submit', function (e) {
             progressInfo.innerText = `${loadedMB} MB / ${totalMB} MB`;
 
             const elapsedTime = (new Date().getTime() - startTime) / 1000;
-            const speed = e.loaded / elapsedTime;
+            const speed = e.loaded / Math.max(0.1, elapsedTime);
             const remainingTime = (e.total - e.loaded) / speed;
-
             progressTime.innerText = `الوقت المتبقي: ${Math.ceil(remainingTime)} ثانية`;
+        });
+
+        const { status, payload, xhr } = result;
+        if (status >= 200 && status < 300) {
+            const redirectUrl = extractTrackUrl(payload, xhr);
+            const message = (payload && payload.message) ? String(payload.message) : 'تم رفع المنتج بنجاح';
+            showSuccess(message, redirectUrl);
+            return;
         }
+
+        if (status === 413 && !retried413) {
+            retried413 = true;
+            progressTime.innerText = 'الطلب كبير، جاري إعادة المحاولة تلقائيًا مع ضغط أقوى...';
+            await forceUltraCompression(mode);
+            await doSubmit();
+            return;
+        }
+
+        if (status === 422 && payload && payload.errors) {
+            const firstField = Object.keys(payload.errors)[0];
+            const firstError = firstField && Array.isArray(payload.errors[firstField])
+                ? payload.errors[firstField][0]
+                : null;
+            showError(firstError || (payload.message || 'تحقق من البيانات في الخطوات المطلوبة.'));
+            return;
+        }
+
+        if (status === 413) {
+            showError('السيرفر ما زال يرفض الحجم (413) حتى بعد الضغط التلقائي. المشكلة من حد خفي بالسيرفر (Nginx/WAF).');
+            return;
+        }
+
+        console.error(xhr.responseText);
+        showError((payload && payload.message) ? payload.message : 'حدث خطأ أثناء رفع المنتج');
     };
 
-    xhr.onload = function () {
-        if (xhr.status >= 200 && xhr.status < 300) {
-            showSuccess();
+    try {
+        await doSubmit();
+    } catch (err) {
+        if (err && err.message === 'timeout') {
+            showError('انتهت مهلة الرفع. حاول مرة أخرى أو قلّل حجم الصور.');
+        } else if (err && err.message === 'network_error') {
+            showError('فشل الاتصال أثناء الرفع');
         } else {
-            console.error(xhr.responseText);
             showError('حدث خطأ أثناء رفع المنتج');
         }
-    };
-
-    xhr.onerror = function () {
-        showError('فشل الاتصال أثناء الرفع');
-    };
-
-    xhr.ontimeout = function () {
-        showError('انتهت مهلة الرفع. حاول مرة أخرى أو قلّل حجم الصور.');
-    };
-
-    xhr.send(formData);
+    }
 });
 </script>
 
@@ -703,42 +1391,47 @@ function updateCounter(input, counterId) {
 <script>
 async function previewMainImage(input) {
   setWizardBusy(true);
-
-  let file = input.files[0];
-  const previewBox = document.getElementById('imagePreviewBox');
-  const previewImg = document.getElementById('imagePreview');
-  const fileName = document.getElementById('product_image_name');
-
-  if (!file) {
-    setWizardBusy(false);
-    return;
-  }
-
-  if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
-    const convertedBlob = await heic2any({
-      blob: file,
-      toType: 'image/jpeg',
-      quality: 0.75
-    });
-
-    file = new File([convertedBlob], file.name.replace('.heic', '.jpg'), { type: 'image/jpeg' });
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-  }
-
   try {
-    file = await downscaleToJpeg(file);
-    const dt2 = new DataTransfer();
-    dt2.items.add(file);
-    input.files = dt2.files;
-  } catch (e) {}
+    let file = input.files[0];
+    const previewBox = document.getElementById('imagePreviewBox');
+    const previewImg = document.getElementById('imagePreview');
+    const fileName = document.getElementById('product_image_name');
 
-  fileName.innerText = file.name;
-  previewImg.src = URL.createObjectURL(file);
-  previewBox.classList.remove('hidden');
+    if (!file) return;
 
-  setWizardBusy(false);
+    try {
+      if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: 'image/jpeg',
+          quality: 0.75
+        });
+
+        file = new File([convertedBlob], file.name.replace('.heic', '.jpg'), { type: 'image/jpeg' });
+        try {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          input.files = dt.files;
+        } catch (e) {}
+      }
+    } catch (e) {}
+
+    try {
+      file = await downscaleToJpeg(file);
+      try {
+        const dt2 = new DataTransfer();
+        dt2.items.add(file);
+        input.files = dt2.files;
+      } catch (e) {}
+    } catch (e) {}
+
+    processedMainImage = file;
+    if (fileName) fileName.innerText = file.name;
+    if (previewImg) previewImg.src = URL.createObjectURL(file);
+    if (previewBox) previewBox.classList.remove('hidden');
+  } finally {
+    setWizardBusy(false);
+  }
 }
 
 function removeMainImage() {
@@ -747,6 +1440,7 @@ function removeMainImage() {
     const fileName = document.getElementById('product_image_name');
     
     input.value = "";
+    processedMainImage = null;
     previewBox.classList.add('hidden');
     fileName.textContent = "لم يتم اختيار ملف";
 }
@@ -764,48 +1458,156 @@ function copyStoreOnly() {
 <script>
 let galleryFiles = [];
 
-async function previewGalleryImages(input) {
-    setWizardBusy(true);
-
+function clearAdvancedGallerySelection() {
+    galleryFiles = [];
+    const input = document.getElementById('gallery_images_advanced');
     const preview = document.getElementById('galleryPreview');
     const nameLabel = document.getElementById('gallery_images_name');
+    if (input) {
+        try { input.value = ''; } catch (e) {}
+    }
+    if (preview) preview.innerHTML = '';
+    if (nameLabel) {
+        nameLabel.textContent = 'لم يتم اختيار أي ملفات';
+        nameLabel.classList.remove('text-red-600', 'text-green-600');
+        nameLabel.classList.add('text-gray-500');
+    }
+}
 
-    let files = Array.from(input.files);
-    galleryFiles = [];
-    preview.innerHTML = '';
+function setGalleryMode(mode) {
+    const m = (mode === 'advanced') ? 'advanced' : 'guided';
+    const inp = document.getElementById('galleryMode');
+    if (inp) inp.value = m;
 
-    for (let i = 0; i < files.length; i++) {
-        let file = files[i];
+    const guided = document.getElementById('guidedGalleryWrap');
+    const adv = document.getElementById('advancedGalleryWrap');
+    if (guided) guided.classList.toggle('hidden', m === 'advanced');
+    if (adv) adv.classList.toggle('hidden', m !== 'advanced');
 
-        if (nameLabel) {
-            nameLabel.textContent = `جاري تجهيز الصور... (${i + 1} / ${files.length})`;
-            nameLabel.classList.remove('text-red-600', 'text-green-600');
-            nameLabel.classList.add('text-gray-500');
+    // Prevent stale hidden advanced files from interfering with guided submit.
+    if (m === 'guided') {
+        clearAdvancedGallerySelection();
+    }
+}
+
+function initGalleryModeToggle() {
+    const btn = document.getElementById('toggleAdvancedGallery');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+        const current = (document.getElementById('galleryMode')?.value || 'guided').toString();
+        if (current === 'advanced') {
+            setGalleryMode('guided');
+            btn.textContent = `⚙️ إعدادات متقدمة (رفع ${MIN_GALLERY_COUNT} صورة دفعة واحدة)`;
+        } else {
+            setGalleryMode('advanced');
+            btn.textContent = '✅ رجوع للوضع المرتب';
         }
+        try { updateReview(); } catch (e) {}
+    });
+}
+
+async function previewGuidedGallery(key, input) {
+    setWizardBusy(true);
+    try {
+        let file = input.files && input.files[0] ? input.files[0] : null;
+        if (!file) return;
 
         try {
-            if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
-                const blob = await heic2any({
-                    blob: file,
-                    toType: 'image/jpeg',
-                    quality: 0.8
-                });
-
-                file = new File([blob], file.name.replace('.heic', '.jpg'), {
-                    type: 'image/jpeg'
-                });
+            if (file.type === 'image/heic' || (file.name || '').toLowerCase().endsWith('.heic')) {
+                const blob = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.8 });
+                file = new File([blob], (file.name || 'image').replace(/\.heic$/i, '.jpg'), { type: 'image/jpeg' });
             }
         } catch (e) {}
 
+        try { file = await downscaleToJpeg(file); } catch (e) {}
+        processedGuidedFiles[key] = file;
+
+        // Replace file on input (best-effort)
         try {
-            file = await downscaleToJpeg(file);
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
         } catch (e) {}
 
-        galleryFiles.push(file);
-    }
+        const box = document.getElementById('guided_preview_box_' + key);
+        const img = document.getElementById('guided_preview_img_' + key);
+        const name = document.getElementById('guided_file_name_' + key);
+        if (name) name.textContent = file.name || 'تم اختيار ملف';
+        if (img) img.src = URL.createObjectURL(file);
+        if (box) box.classList.remove('hidden');
 
-    renderGallery();
-    setWizardBusy(false);
+        try { updateReview(); } catch (e) {}
+    } finally {
+        setWizardBusy(false);
+    }
+}
+
+function clearGuidedGallery(key) {
+    const input = document.getElementById('gallery_guided_' + key);
+    const box = document.getElementById('guided_preview_box_' + key);
+    const name = document.getElementById('guided_file_name_' + key);
+    try { if (input) input.value = ''; } catch (e) {}
+    try { delete processedGuidedFiles[key]; } catch (e) {}
+    if (box) box.classList.add('hidden');
+    if (name) name.textContent = 'لم يتم اختيار ملف';
+    try { updateReview(); } catch (e) {}
+}
+
+async function previewGalleryImages(input) {
+    setWizardBusy(true);
+    try {
+        const preview = document.getElementById('galleryPreview');
+        const nameLabel = document.getElementById('gallery_images_name');
+
+        let files = Array.from(input.files || []);
+        galleryFiles = [];
+        if (preview) preview.innerHTML = '';
+
+        for (let i = 0; i < files.length; i++) {
+            let file = files[i];
+
+            if (nameLabel) {
+                nameLabel.textContent = `جاري تجهيز الصور... (${i + 1} / ${files.length})`;
+                nameLabel.classList.remove('text-red-600', 'text-green-600');
+                nameLabel.classList.add('text-gray-500');
+            }
+
+            try {
+                if (file.type === 'image/heic' || file.name.toLowerCase().endsWith('.heic')) {
+                    const blob = await heic2any({
+                        blob: file,
+                        toType: 'image/jpeg',
+                        quality: 0.8
+                    });
+
+                    file = new File([blob], file.name.replace('.heic', '.jpg'), {
+                        type: 'image/jpeg'
+                    });
+                }
+            } catch (e) {}
+
+            try { file = await downscaleToJpeg(file); } catch (e) {}
+
+            galleryFiles.push(file);
+        }
+
+        try {
+            renderGallery();
+        } catch (e) {
+            // Fallback: don't block the wizard if preview/sync fails on iOS.
+            const nextBtn = document.getElementById('wizardNextBtn');
+            const nameLabel2 = document.getElementById('gallery_images_name');
+            const count = (input.files && input.files.length) ? input.files.length : galleryFiles.length;
+            if (nameLabel2) {
+                nameLabel2.textContent = count < MIN_GALLERY_COUNT
+                    ? `⚠️ يجب اختيار ${MIN_GALLERY_COUNT} صورة على الأقل (المختار: ${count})`
+                    : `${count} صور مختارة`;
+            }
+            if (nextBtn) nextBtn.disabled = count < MIN_GALLERY_COUNT;
+        }
+    } finally {
+        setWizardBusy(false);
+    }
 }
 
 function renderGallery() {
@@ -813,25 +1615,34 @@ function renderGallery() {
     const nameLabel = document.getElementById('gallery_images_name');
     const nextBtn = document.getElementById('wizardNextBtn');
 
-    preview.innerHTML = '';
+    if (preview) preview.innerHTML = '';
 
-    const dt = new DataTransfer();
-    galleryFiles.forEach(f => dt.items.add(f));
-    document.getElementById('gallery_images').files = dt.files;
+    try {
+        const dt = new DataTransfer();
+        galleryFiles.forEach(f => dt.items.add(f));
+        const input = document.getElementById('gallery_images_advanced');
+        if (input) input.files = dt.files;
+    } catch (e) {
+        // DataTransfer may throw on iOS Safari; keep original input.files untouched.
+    }
 
-    if (galleryFiles.length < 12) {
-        nameLabel.textContent = `⚠️ يجب اختيار 12 صورة على الأقل (المختار: ${galleryFiles.length})`;
-        nameLabel.classList.add('text-red-600');
-        nameLabel.classList.remove('text-green-600');
+    if (galleryFiles.length < MIN_GALLERY_COUNT) {
+        if (nameLabel) {
+            nameLabel.textContent = `⚠️ يجب اختيار ${MIN_GALLERY_COUNT} صورة على الأقل (المختار: ${galleryFiles.length})`;
+            nameLabel.classList.add('text-red-600');
+            nameLabel.classList.remove('text-green-600');
+        }
 
         if (nextBtn) {
             nextBtn.disabled = true;
             nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
         }
     } else {
-        nameLabel.textContent = `${galleryFiles.length} صور مختارة`;
-        nameLabel.classList.remove('text-red-600');
-        nameLabel.classList.add('text-green-600');
+        if (nameLabel) {
+            nameLabel.textContent = `${galleryFiles.length} صور مختارة`;
+            nameLabel.classList.remove('text-red-600');
+            nameLabel.classList.add('text-green-600');
+        }
 
         if (nextBtn) {
             nextBtn.disabled = false;

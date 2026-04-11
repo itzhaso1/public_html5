@@ -15,8 +15,9 @@ return [
     |
     */
 
-   // Keep Laravel default; production should set DB_CONNECTION explicitly in .env
-   'default' => env('DB_CONNECTION', 'sqlite'),
+   // Production should set DB_CONNECTION explicitly in .env.
+   // Fallback to mysql to match typical production usage.
+   'default' => env('DB_CONNECTION', 'mysql'),
 
 
     /*
@@ -43,6 +44,16 @@ return [
             'database' => env('DB_DATABASE', database_path('arafateg_site.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+        ],
+
+        // Legacy SQLite DB for one-time data migration into MySQL.
+        // Usage: set SQLITE_LEGACY_DATABASE to an absolute path of your old .sqlite file.
+        'sqlite_legacy' => [
+            'driver' => 'sqlite',
+            'url' => env('SQLITE_LEGACY_URL'),
+            'database' => env('SQLITE_LEGACY_DATABASE'),
+            'prefix' => '',
+            'foreign_key_constraints' => false,
         ],
 
         'mysql' => [

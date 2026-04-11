@@ -126,17 +126,7 @@
 .table-wrap::-webkit-scrollbar{ height:8px; }
 .table-wrap::-webkit-scrollbar-thumb{ background:#d9e2ff; border-radius:999px; }
 
-/* أخفي الأعمدة الثقيلة على الجوال فقط */
 @media (max-width: 992px){
-    #products-table thead th:nth-child(4),
-    #products-table tbody td:nth-child(4),
-    #products-table thead th:nth-child(5),
-    #products-table tbody td:nth-child(5),
-    #products-table thead th:nth-child(6),
-    #products-table tbody td:nth-child(6){
-        display:none !important;
-    }
-
     .product-header{
         padding: 16px !important;
     }
@@ -156,6 +146,16 @@
 
 /* اخفاء أزرار DataTables */
 div.dt-buttons{ display:none !important; }
+
+.columns-manager {
+    border: 1px dashed #d8def0;
+    border-radius: 12px;
+    padding: 12px;
+    background: #fbfdff;
+}
+.columns-manager .col-check {
+    min-width: 160px;
+}
 </style>
 @endpush
 
@@ -175,11 +175,33 @@ div.dt-buttons{ display:none !important; }
 
                 @php $group = $group ?? null; @endphp
                 <div class="d-flex flex-wrap gap-2 w-100 w-lg-auto">
+                    <button type="button" class="btn btn-danger w-100 w-lg-auto" id="products-bulk-delete-selected" disabled>
+                        حذف المحدد <span class="ms-1" id="products-bulk-delete-selected-count"></span>
+                    </button>
+                    <form id="products-bulk-delete-selected-form" method="POST" action="{{ route('admin.products.bulk_delete_selected') }}" class="d-none">
+                        @csrf
+                        <input type="hidden" name="confirm" id="products-bulk-delete-confirm" value="">
+                        <input type="hidden" name="group" value="{{ $group ?? 'all' }}">
+                        <span id="products-bulk-delete-ids"></span>
+                    </form>
+
                     @if(in_array($group, ['accounts','charge','codes']))
                         <form method="POST" action="{{ route('admin.products.bulk_delete', $group) }}" class="w-100 w-lg-auto bulk-delete-form">
                             @csrf
+                            <input type="hidden" name="confirm" value="DELETE">
                             <button type="submit" class="btn btn-danger w-100 w-lg-auto">
                                 حذف {{ $pageTitle ?? 'المنتجات' }} دفعة واحدة
+                            </button>
+                        </form>
+                    @endif
+
+                    @if($group === 'accounts')
+                        <form method="POST"
+                              action="{{ route('admin.products.bulk_delete_sold_accounts') }}"
+                              class="w-100 w-lg-auto bulk-delete-sold-form">
+                            @csrf
+                            <button type="submit" class="btn btn-outline-danger w-100 w-lg-auto">
+                                حذف الحسابات المباعة فقط
                             </button>
                         </form>
                     @endif
@@ -237,6 +259,48 @@ div.dt-buttons{ display:none !important; }
                     </div>
                 </div>
 
+                @if(($group ?? null) === 'accounts')
+                    <div class="mb-4">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <div class="input-group w-100 w-lg-400px">
+                                <span class="input-group-text">بحث</span>
+                                <input type="text"
+                                       class="form-control"
+                                       id="accounts-search"
+                                       placeholder="ابحث عن الحساب (ID / الاسم / slug / SKU)"
+                                       autocomplete="off" />
+                                <button class="btn btn-primary" type="button" id="accounts-search-btn">بحث</button>
+                                <button class="btn btn-light" type="button" id="accounts-search-clear">مسح</button>
+                            </div>
+                            <div class="text-muted small">
+                                سيتم البحث داخل أسماء الحسابات (الترجمات) + رقم المنتج + slug + SKU.
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
+                <div class="mb-3">
+                    <button class="btn btn-light-primary btn-sm"
+                            type="button"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#products-columns-manager"
+                            aria-expanded="false"
+                            aria-controls="products-columns-manager">
+                        إخفاء / إظهار الأعمدة
+                    </button>
+                </div>
+
+                <div class="collapse mb-3" id="products-columns-manager">
+                    <div class="columns-manager">
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-light-success" id="columns-show-all">إظهار الكل</button>
+                            <button type="button" class="btn btn-sm btn-light-warning" id="columns-hide-all">إخفاء الكل</button>
+                            <button type="button" class="btn btn-sm btn-light" id="columns-reset-default">استعادة الافتراضي</button>
+                        </div>
+                        <div class="row g-2" id="products-columns-list"></div>
+                    </div>
+                </div>
+
                 <div class="table-wrap">
                     {!! $dataTable->table(['id' => 'products-table', 'class' => 'table table-striped table-row-bordered gy-5 gs-7 align-middle text-center w-100']) !!}
                 </div>
@@ -256,6 +320,204 @@ div.dt-buttons{ display:none !important; }
 $(function () {
     // يمسك نفس الجدول (بدون إعادة تهيئة)
     const table = $('#products-table').DataTable();
+    const groupName = @json($group ?? 'all') || 'all';
+    const columnsStorageKey = `admin.products.columns.visibility.v2.${groupName}`;
+
+    // Bulk delete selected (checkboxes)
+    const $bulkBtn = $('#products-bulk-delete-selected');
+    const $bulkCount = $('#products-bulk-delete-selected-count');
+    const $bulkIdsWrap = $('#products-bulk-delete-ids');
+    const $bulkConfirm = $('#products-bulk-delete-confirm');
+    const $bulkForm = $('#products-bulk-delete-selected-form');
+
+    const selectedIds = () => $('.js-product-select:checked').map(function(){ return $(this).val(); }).get();
+    const refreshBulkUi = () => {
+        const ids = selectedIds();
+        $bulkBtn.prop('disabled', ids.length === 0);
+        $bulkCount.text(ids.length ? `(${ids.length})` : '');
+
+        const $all = $('#products-select-all');
+        const total = $('.js-product-select').length;
+        if ($all.length) {
+            if (total === 0 || ids.length === 0) {
+                $all.prop('checked', false).prop('indeterminate', false);
+            } else if (ids.length === total) {
+                $all.prop('checked', true).prop('indeterminate', false);
+            } else {
+                $all.prop('checked', false).prop('indeterminate', true);
+            }
+        }
+    };
+
+    $(document).on('change', '.js-product-select', refreshBulkUi);
+    $(document).on('change', '#products-select-all', function () {
+        const checked = $(this).is(':checked');
+        $('.js-product-select').prop('checked', checked);
+        refreshBulkUi();
+    });
+    table.on('draw', function () {
+        refreshBulkUi();
+    });
+
+    $bulkBtn.on('click', function () {
+        const ids = selectedIds();
+        if (!ids.length) return;
+
+        Swal.fire({
+            title: 'تأكيد الحذف',
+            html: `سيتم حذف <b>${ids.length}</b> عنصر/عناصر (المسموح حذفها فقط).<br><b>هذا الإجراء لا يمكن التراجع عنه.</b>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+            const v = prompt('اكتب DELETE لتأكيد حذف المحدد');
+            if (v !== 'DELETE') return;
+
+            $bulkIdsWrap.empty();
+            $bulkConfirm.val('DELETE');
+            ids.forEach(id => {
+                $('<input>').attr({type:'hidden', name:'ids[]'}).val(id).appendTo($bulkIdsWrap);
+            });
+            $bulkForm.trigger('submit');
+        });
+    });
+
+    // Column visibility manager (UI-only, keeps backend intact)
+    (function initColumnsManager() {
+        const listEl = $('#products-columns-list');
+        const showAllBtn = $('#columns-show-all');
+        const hideAllBtn = $('#columns-hide-all');
+        const resetBtn = $('#columns-reset-default');
+        const allIndexes = [];
+        table.columns().every(function (idx) { allIndexes.push(idx); });
+
+        const defaultHidden = (groupName === 'accounts') ? [4, 5, 6, 8] : [];
+        const buildDefaultMap = () => {
+            const map = {};
+            allIndexes.forEach((idx) => { map[idx] = true; });
+            defaultHidden.forEach((idx) => { map[idx] = false; });
+            map[0] = true; // keep select column visible
+            return map;
+        };
+        const loadMap = () => {
+            try {
+                const raw = localStorage.getItem(columnsStorageKey);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                return (parsed && typeof parsed === 'object') ? parsed : null;
+            } catch (e) {
+                return null;
+            }
+        };
+        const currentMap = () => {
+            const map = {};
+            allIndexes.forEach((idx) => {
+                map[idx] = table.column(idx).visible();
+            });
+            map[0] = true;
+            return map;
+        };
+        const saveMap = (map) => {
+            try { localStorage.setItem(columnsStorageKey, JSON.stringify(map)); } catch (e) {}
+        };
+        const applyMap = (map) => {
+            allIndexes.forEach((idx) => {
+                const visible = (idx === 0) ? true : (map[idx] !== false);
+                table.column(idx).visible(visible, false);
+            });
+            table.columns.adjust().draw(false);
+        };
+        const renderList = () => {
+            listEl.empty();
+            allIndexes.forEach((idx) => {
+                if (idx === 0) return;
+                const th = $(table.column(idx).header());
+                const title = (th.text() || '').replace(/\s+/g, ' ').trim() || `عمود ${idx + 1}`;
+                const checked = table.column(idx).visible() ? 'checked' : '';
+                const id = `col-toggle-${idx}`;
+                const item = `
+                    <div class="col-6 col-md-4 col-lg-3 col-check">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input js-col-toggle" type="checkbox" id="${id}" data-col-idx="${idx}" ${checked}>
+                            <label class="form-check-label" for="${id}">${title}</label>
+                        </div>
+                    </div>
+                `;
+                listEl.append(item);
+            });
+        };
+
+        const initial = loadMap() || buildDefaultMap();
+        applyMap(initial);
+        saveMap(initial);
+        renderList();
+
+        listEl.on('change', '.js-col-toggle', function () {
+            const idx = Number($(this).data('col-idx'));
+            if (!Number.isFinite(idx)) return;
+            table.column(idx).visible(!!this.checked, false);
+            table.columns.adjust().draw(false);
+            saveMap(currentMap());
+        });
+
+        showAllBtn.on('click', function () {
+            const map = {};
+            allIndexes.forEach((idx) => { map[idx] = true; });
+            map[0] = true;
+            applyMap(map);
+            saveMap(map);
+            renderList();
+        });
+        hideAllBtn.on('click', function () {
+            const map = {};
+            allIndexes.forEach((idx) => { map[idx] = false; });
+            map[0] = true;
+            applyMap(map);
+            saveMap(map);
+            renderList();
+        });
+        resetBtn.on('click', function () {
+            const map = buildDefaultMap();
+            applyMap(map);
+            saveMap(map);
+            renderList();
+        });
+    })();
+
+    // Search UX for accounts list
+    const isAccounts = @json(($group ?? null) === 'accounts');
+    if (isAccounts) {
+        const $input = $('#accounts-search');
+        const $btn = $('#accounts-search-btn');
+        const $clear = $('#accounts-search-clear');
+        let t = null;
+
+        const doSearch = () => {
+            const v = ($input.val() || '').toString();
+            table.search(v).draw();
+        };
+
+        $btn.on('click', doSearch);
+        $clear.on('click', function () {
+            $input.val('');
+            table.search('').draw();
+            $input.trigger('focus');
+        });
+        $input.on('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                doSearch();
+            }
+        });
+        $input.on('input', function () {
+            clearTimeout(t);
+            t = setTimeout(doSearch, 300);
+        });
+    }
 
     $(document).on('submit', '.bulk-delete-form', function (e) {
         e.preventDefault();
@@ -269,6 +531,26 @@ $(function () {
             confirmButtonColor: '#d33',
             cancelButtonColor: '#3085d6',
             confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
+
+    $(document).on('submit', '.bulk-delete-sold-form', function (e) {
+        e.preventDefault();
+        const form = this;
+
+        Swal.fire({
+            title: 'تأكيد حذف الحسابات المباعة',
+            html: 'سيتم حذف <b>الحسابات المباعة فقط</b> ضمن قسم الحسابات.<br>لن يتم حذف العناصر المرتبطة بطلبات/سلة/مبيعات.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'نعم، احذف المباعة',
             cancelButtonText: 'إلغاء'
         }).then((result) => {
             if (result.isConfirmed) {

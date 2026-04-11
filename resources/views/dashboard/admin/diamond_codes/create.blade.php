@@ -46,6 +46,7 @@
                                 <option value="{{ $p->id }}"
                                         data-name="{{ $p->name }}"
                                         data-price="{{ (float) $p->price }}"
+                                        data-lucky="{{ (int) (($p->is_lucky_draw_codes ?? false) ? 1 : 0) }}"
                                         @selected(old('product_id') == $p->id)>
                                     {{ $p->name }} (ID: {{ $p->id }})
                                 </option>
@@ -100,9 +101,31 @@
                         <input type="number" step="0.01" name="product_price" value="{{ old('product_price') }}"
                                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
                                placeholder="السعر (اختياري)">
+                        <label class="flex items-center gap-2 text-xs font-extrabold text-gray-800">
+                            <input type="checkbox" name="is_lucky_draw_codes" value="1" class="accent-black"
+                                   @checked((bool) old('is_lucky_draw_codes'))>
+                            هذا المنتج هو قسم (انت وحظك) - قرعة أكواد
+                        </label>
                         <div class="text-xs text-gray-500">سيتم إنشاء منتج أكواد جديد تلقائيًا.</div>
                     </div>
                 </label>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+                <label class="block text-sm font-extrabold mb-1">نسبة/وزن القرعة (Luck Weight)</label>
+                <input type="number" min="1" name="luck_weight" value="{{ old('luck_weight', 1) }}"
+                       class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                       placeholder="1">
+                <div class="text-xs text-gray-500 mt-1">كلما زاد الرقم زادت فرصة فوز هذا الكود (لـ “انت وحظك”).</div>
+            </div>
+            <div>
+                <label class="block text-sm font-extrabold mb-1">وصف/تصنيف (اختياري)</label>
+                <input type="text" name="luck_label" value="{{ old('luck_label') }}"
+                       class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                       placeholder="مثال: أفضل / متوسط / رخيص">
+                <div class="text-xs text-gray-500 mt-1">للإدارة فقط (يساعدك ترتّب الأكواد).</div>
             </div>
         </div>
 
@@ -175,6 +198,11 @@
                            placeholder="0.00">
                 </div>
 
+                <label class="flex items-center gap-2 text-xs font-extrabold text-gray-800">
+                    <input type="checkbox" name="is_lucky_draw_codes" value="1" class="accent-black" id="editProductLucky">
+                    تفعيل قسم (انت وحظك) لهذا المنتج
+                </label>
+
                 <div class="rounded-xl border border-yellow-200 bg-yellow-50 p-3 text-xs text-yellow-900">
                     ملاحظة: هذا التعديل مخصص لمنتجات “أكواد ملابس” فقط.
                 </div>
@@ -211,6 +239,7 @@
 
     const inputName = document.getElementById('editProductName');
     const inputPrice = document.getElementById('editProductPrice');
+    const inputLucky = document.getElementById('editProductLucky');
 
     const updateTpl = @json(route('admin.diamond_codes.product.update', ['product' => 0]));
     const deleteTpl = @json(route('admin.diamond_codes.product.destroy', ['product' => 0]));
@@ -241,6 +270,7 @@
 
       const name = opt.getAttribute('data-name') || '-';
       const price = opt.getAttribute('data-price') || '0';
+      const lucky = opt.getAttribute('data-lucky') || '0';
       metaBox?.classList.remove('hidden');
       metaName.textContent = name;
       metaPrice.textContent = `ر.س ${Number(price).toFixed(2)}`;
@@ -253,6 +283,7 @@
       // Pre-fill modal inputs
       inputName.value = name;
       inputPrice.value = Number(price);
+      if (inputLucky) inputLucky.checked = String(lucky) === '1';
     }
 
     function openModal() {

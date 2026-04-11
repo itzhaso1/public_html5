@@ -5,6 +5,19 @@ use App\Http\Controllers\Auth\Manager;
 use Illuminate\Support\Facades\Route;
 use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 
+// Redirect non-localized home to localized home (e.g. / -> /ar)
+Route::get('/', function () {
+    $supported = array_keys((array) config('laravellocalization.supportedLocales', []));
+    $fallback = $supported[0] ?? config('app.locale', 'ar');
+
+    $locale = session('locale') ?: app()->getLocale();
+    if (! in_array($locale, $supported, true)) {
+        $locale = $fallback;
+    }
+
+    return redirect()->to(LaravelLocalization::getLocalizedURL($locale, '/'));
+});
+
 // Important: use the correct guard for admin/manager login pages.
 // Otherwise, a logged-in website user (web guard) will be redirected to home and can't access admin login.
 Route::middleware('guest:admin')->group(function () {

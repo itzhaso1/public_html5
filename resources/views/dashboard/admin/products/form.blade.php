@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="form-group mb-3">
     <label>رقم العميل</label>
     <input type="text" name="client_number" class="form-control"
-           value="{{ old('client_number', $product->client_number ?? '') }}"
+           value="{{ old('client_number', $product?->client_number ?? '') }}"
            placeholder="اكتب رقم العميل هنا">
 </div>
 
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="form-group mb-3">
                         <label>السعر قبل الخصم</label>
                         <input type="number" step="0.01" name="price_before_discount" class="form-control"
-                            value="{{ old('price_before_discount', $product->price_before_discount ?? '') }}">
+                            value="{{ old('price_before_discount', $product?->price_before_discount ?? '') }}">
                     </div>
 
                     <div class="form-group mb-3">
@@ -153,14 +153,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="form-group mb-3">
                         <label>السعر</label>
                         <input type="number" step="0.01" name="price" class="form-control"
-                            value="{{ old('price', $product->price ?? '') }}">
+                            value="{{ old('price', $product?->price ?? '') }}">
+                    </div>
+
+                    <div class="form-group mb-3">
+                        <label>السعر بالنقاط (اختياري)</label>
+                        <input type="number" step="1" min="0" name="points_price" class="form-control"
+                               value="{{ old('points_price', $product?->points_price ?? '') }}"
+                               placeholder="مثال: 250">
+                        <small class="text-muted">إذا تركته فارغاً فلن يظهر خيار الشراء بالنقاط في أقسام الشحن/الأكواد.</small>
                     </div>
 
                     {{-- إخفاء حقل الكمية المتاحة --}}
 <div class="form-group mb-3" style="display: none;">
     <label>الكمية المتاحة</label>
     <input type="number" name="stock" class="form-control"
-           value="{{ old('stock', $product->stock ?? '') }}">
+           value="{{ old('stock', $product?->stock ?? '') }}">
 </div>
 
 
@@ -169,7 +177,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <label>الحالة</label>
                         <select name="status" class="form-control">
                             
-                            <option value="published" @selected(old('status', $product->status ?? '') == 'published')>منشور</option>
+                            <option value="published" @selected(old('status', $product?->status ?? '') == 'published')>منشور</option>
                            
                         </select>
                     </div>
@@ -179,7 +187,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     <div class="form-check mb-3">
                         <input type="checkbox" name="featured" value="1" class="form-check-input" id="featured" {{ old('featured',
-                            $product->featured ?? false) ? 'checked' : '' }}>
+                            $product?->featured ?? false) ? 'checked' : '' }}>
                         <label class="form-check-label" for="featured"> مباع</label>
                     </div>
                 
@@ -570,6 +578,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
     if (token) xhr.setRequestHeader('X-CSRF-TOKEN', token);
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.setRequestHeader('Accept', 'application/json');
 
     barContainer.style.display = "block";
     infoBox.style.display = "block";
@@ -592,30 +601,60 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     xhr.onload = () => {
-      if (xhr.status === 200) {
+      if (xhr.status >= 200 && xhr.status < 300) {
         bar.style.background = "linear-gradient(90deg, #00c851, #00e676)";
         percentLabel.textContent = "100% ✅";
         setTimeout(() => {
           barContainer.style.display = "none";
           infoBox.style.display = "none";
-          window.location.reload();
+          if (xhr.responseURL) {
+            window.location.href = xhr.responseURL;
+          } else {
+            window.location.reload();
+          }
         }, 1200);
       } else {
-        showError();
+        showError(xhr);
       }
     };
 
-    xhr.onerror = showError;
+    xhr.onerror = () => showError(xhr);
 
-    function showError() {
+    function extractErrorMessage(xhrObj) {
+      try {
+        const contentType = (xhrObj.getResponseHeader('Content-Type') || '').toLowerCase();
+        if (contentType.includes('application/json')) {
+          const body = JSON.parse(xhrObj.responseText || '{}');
+          if (body.message) return body.message;
+          if (body.errors) {
+            const firstKey = Object.keys(body.errors)[0];
+            if (firstKey && Array.isArray(body.errors[firstKey]) && body.errors[firstKey][0]) {
+              return body.errors[firstKey][0];
+            }
+          }
+        }
+      } catch (e) {}
+      return '';
+    }
+
+    function showError(xhrObj = null) {
       bar.style.background = "linear-gradient(90deg, #ff4444, #ff6b6b)";
       percentLabel.textContent = "فشل ❌";
       speedLabel.textContent = "";
-      timeLabel.textContent = "";
+      let msg = 'فشل رفع الصور. تأكد من نوع الصور والحجم ثم أعد المحاولة.';
+      if (xhrObj) {
+        if (xhrObj.status === 413) {
+          msg = 'حجم الصور كبير جدًا (413). قلّل الدقة/العدد ثم أعد المحاولة.';
+        } else {
+          const extracted = extractErrorMessage(xhrObj);
+          if (extracted) msg = extracted;
+        }
+      }
+      timeLabel.textContent = msg;
       setTimeout(() => {
         barContainer.style.display = "none";
         infoBox.style.display = "none";
-      }, 2000);
+      }, 3500);
     }
 
     xhr.send(fd);

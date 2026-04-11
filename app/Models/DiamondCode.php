@@ -15,12 +15,15 @@ class DiamondCode extends Model
         'user_id',
         'code',
         'image_path',
+        'luck_weight',
+        'luck_label',
         'status',
         'delivered_at',
     ];
 
     protected $casts = [
         'delivered_at' => 'datetime',
+        'luck_weight' => 'int',
     ];
 
     public function product()

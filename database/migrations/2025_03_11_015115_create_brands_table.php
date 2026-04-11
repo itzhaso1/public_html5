@@ -13,10 +13,8 @@ return new class extends Migration
     {
         Schema::create('brands', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('category_id')
-                ->nullable()
-                ->constrained()
-                ->cascadeOnDelete();
+            // Categories table is created later in migrations; add FK in a later migration for MySQL compatibility.
+            $table->unsignedBigInteger('category_id')->nullable()->index();
             $table->timestamps();
         });
     }

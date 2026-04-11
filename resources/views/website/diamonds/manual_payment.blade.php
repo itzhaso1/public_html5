@@ -14,6 +14,7 @@
     $selectedMethod = old('payment_method') ?: ($methodKeys[0] ?? null);
     $userPhone = preg_replace('/\D+/', '', (string) (auth()->user()?->phone ?? auth()->user()?->profile?->phone ?? ''));
     $phoneRequired = $userPhone === '';
+    $basePrice = (float) ($product?->price ?? 0);
 @endphp
 
 @include('website.diamonds.partials.header', [
@@ -33,8 +34,8 @@
                 <div class="text-sm text-gray-700 font-bold">{{ $product->name }}</div>
                 <div class="mt-1 text-xs text-gray-500">السعر</div>
                 <div class="mt-1 text-3xl font-extrabold text-green-600 product-price"
-                     data-base-price="{{ (float) $product->price }}">
-                    <span class="current-price">ر.س {{ number_format((float) $product->price, 2) }}</span>
+                     data-base-price="{{ (float) $basePrice }}">
+                    <span class="current-price">ر.س {{ number_format((float) $basePrice, 2) }}</span>
                 </div>
             </div>
 
@@ -163,6 +164,40 @@
                                         </span>
                                     </div>
                                 @endif
+                            @else
+                                @php
+                                    $labels = [
+                                        'bank_name' => 'البنك',
+                                        'account_name' => 'اسم الحساب',
+                                        'account_number' => 'رقم الحساب',
+                                        'iban' => 'IBAN',
+                                        'click_id' => 'Click ID',
+                                        'network' => 'Network',
+                                        'address' => 'Address',
+                                        'link' => 'Link',
+                                    ];
+                                @endphp
+                                @foreach($labels as $field => $label)
+                                    @php $val = $m[$field] ?? null; @endphp
+                                    @if(!empty($val))
+                                        <div class="py-2 flex items-center justify-between gap-3">
+                                            <span class="text-xs text-gray-500">{{ $label }}</span>
+                                            <span class="flex items-center gap-2">
+                                                @if($field === 'link')
+                                                    <a class="text-blue-600 underline" href="{{ $val }}" target="_blank">فتح الرابط</a>
+                                                    <button type="button" class="copy-trigger text-blue-600 hover:text-blue-800" data-copy-text="{{ $val }}" aria-label="Copy">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                                    </button>
+                                                @else
+                                                    <span class="{{ in_array($field, ['account_number','iban','address','click_id'], true) ? 'font-mono' : 'font-semibold' }} font-semibold text-[13px] select-all">{{ $val }}</span>
+                                                    <button type="button" class="copy-trigger text-blue-600 hover:text-blue-800" data-copy-text="{{ $val }}" aria-label="Copy">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4C2.9 1 2 1.9 2 3v14h2V3h12V1zm3 4H8C6.9 5 6 5.9 6 7v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                                    </button>
+                                                @endif
+                                            </span>
+                                        </div>
+                                    @endif
+                                @endforeach
                             @endif
 
                             @if(!empty($m['note']))
@@ -235,25 +270,65 @@
 
                 @php
                     $phoneFull = preg_replace('/\D+/', '', (string) old('contact_phone', $userPhone));
+                    $waCountries = [
+                        'SA' => ['dial' => '966', 'label' => '🇸🇦 السعودية (+966)'],
+                        'JO' => ['dial' => '962', 'label' => '🇯🇴 الأردن (+962)'],
+                        'AE' => ['dial' => '971', 'label' => '🇦🇪 الإمارات (+971)'],
+                        'KW' => ['dial' => '965', 'label' => '🇰🇼 الكويت (+965)'],
+                        'QA' => ['dial' => '974', 'label' => '🇶🇦 قطر (+974)'],
+                        'BH' => ['dial' => '973', 'label' => '🇧🇭 البحرين (+973)'],
+                        'OM' => ['dial' => '968', 'label' => '🇴🇲 عُمان (+968)'],
+                        'IQ' => ['dial' => '964', 'label' => '🇮🇶 العراق (+964)'],
+                        'LB' => ['dial' => '961', 'label' => '🇱🇧 لبنان (+961)'],
+                        'PS' => ['dial' => '970', 'label' => '🇵🇸 فلسطين (+970)'],
+                        'YE' => ['dial' => '967', 'label' => '🇾🇪 اليمن (+967)'],
+                        'SY' => ['dial' => '963', 'label' => '🇸🇾 سوريا (+963)'],
+                        'EG' => ['dial' => '20',  'label' => '🇪🇬 مصر (+20)'],
+                        'SD' => ['dial' => '249', 'label' => '🇸🇩 السودان (+249)'],
+                        'LY' => ['dial' => '218', 'label' => '🇱🇾 ليبيا (+218)'],
+                        'TN' => ['dial' => '216', 'label' => '🇹🇳 تونس (+216)'],
+                        'DZ' => ['dial' => '213', 'label' => '🇩🇿 الجزائر (+213)'],
+                        'MA' => ['dial' => '212', 'label' => '🇲🇦 المغرب (+212)'],
+                        'MR' => ['dial' => '222', 'label' => '🇲🇷 موريتانيا (+222)'],
+                        'SO' => ['dial' => '252', 'label' => '🇸🇴 الصومال (+252)'],
+                        'DJ' => ['dial' => '253', 'label' => '🇩🇯 جيبوتي (+253)'],
+                        'KM' => ['dial' => '269', 'label' => '🇰🇲 جزر القمر (+269)'],
+                    ];
+
                     $defaultCountry = 'SA';
                     $defaultLocal = $phoneFull;
-                    if (str_starts_with($phoneFull, '962')) { $defaultCountry = 'JO'; $defaultLocal = substr($phoneFull, 3); }
-                    elseif (str_starts_with($phoneFull, '966')) { $defaultCountry = 'SA'; $defaultLocal = substr($phoneFull, 3); }
+
+                    $dials = [];
+                    foreach ($waCountries as $cc => $info) { $dials[$cc] = (string) ($info['dial'] ?? ''); }
+                    uasort($dials, fn($a, $b) => strlen($b) <=> strlen($a)); // match longer first
+
+                    foreach ($dials as $cc => $dial) {
+                        if ($dial !== '' && str_starts_with($phoneFull, $dial)) {
+                            $defaultCountry = $cc;
+                            $defaultLocal = substr($phoneFull, strlen($dial));
+                            break;
+                        }
+                    }
+
                     $defaultLocal = ltrim((string) $defaultLocal, '0');
                 @endphp
                 <div>
                     <label class="block text-sm font-bold text-gray-800 mb-1">رقم واتساب لاستلام إشعار الطلب</label>
                     <input type="hidden" name="contact_phone" id="waFullPhone" value="{{ $phoneFull }}">
-                    <div class="flex gap-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-[11rem,1fr] gap-2">
                         <select name="contact_phone_country" id="waCountry"
-                                class="w-40 rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-yellow-400/60">
-                            <option value="SA" {{ ($defaultCountry === 'SA') ? 'selected' : '' }}>🇸🇦 +966</option>
-                            <option value="JO" {{ ($defaultCountry === 'JO') ? 'selected' : '' }}>🇯🇴 +962</option>
+                                class="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-yellow-400/60">
+                            @foreach($waCountries as $cc => $info)
+                                <option value="{{ $cc }}" {{ ($defaultCountry === $cc) ? 'selected' : '' }}>
+                                    {{ $info['label'] ?? ($cc . ' +' . ($info['dial'] ?? '')) }}
+                                </option>
+                            @endforeach
                         </select>
                         <input type="tel" name="contact_phone_local" id="waLocal"
                                value="{{ old('contact_phone_local', $defaultLocal) }}"
-                               class="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-yellow-400/60"
-                               placeholder="اكتب رقمك فقط"
+                               class="min-w-0 rounded-xl border border-gray-200 px-4 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-yellow-400/60 text-left"
+                               dir="ltr"
+                               placeholder="مثال: 5XXXXXXXX"
                                inputmode="numeric" autocomplete="tel"
                                {{ $phoneRequired ? 'required' : '' }}>
                     </div>
@@ -264,9 +339,28 @@
 
                 <div>
                     <label class="block text-sm font-bold text-gray-800 mb-1">إيصال التحويل</label>
-                    <input type="file" name="receipt" accept=".jpg,.jpeg,.png,.webp,.pdf"
-                           class="w-full rounded-xl border border-gray-200 px-4 py-2 text-sm bg-white" required>
-                    <div class="text-xs text-gray-500 mt-1">الأنواع المسموحة: JPG/PNG/WEBP/PDF — حتى 5MB</div>
+                    <input id="receiptInput" type="file" name="receipt"
+                           class="hidden"
+                           accept=".jpg,.jpeg,.png,.webp,.pdf"
+                           required>
+                    <div class="space-y-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button type="button" id="pickReceiptImage"
+                                    class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                                اختيار صورة الإيصال
+                                <span class="text-xs font-mono text-gray-500">JPG/PNG/WEBP</span>
+                            </button>
+                            <button type="button" id="pickReceiptPdf"
+                                    class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-extrabold text-gray-800 hover:bg-gray-50 transition">
+                                اختيار PDF
+                                <span class="text-xs font-mono text-gray-500">PDF</span>
+                            </button>
+                        </div>
+                        <div id="receiptName" class="text-xs text-gray-600 rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                            لم يتم اختيار ملف
+                        </div>
+                        <div class="text-xs text-gray-500">الحد الأقصى: 5MB.</div>
+                    </div>
                     @error('receipt')<div class="text-xs text-red-600 mt-1">{{ $message }}</div>@enderror
                 </div>
 
@@ -296,7 +390,11 @@
     const full = document.getElementById('waFullPhone');
     if (!country || !local || !full) return;
 
-    const dialByCountry = { SA: '966', JO: '962' };
+    const dialByCountry = {
+      SA: '966', JO: '962', AE: '971', KW: '965', QA: '974', BH: '973', OM: '968',
+      IQ: '964', LB: '961', PS: '970', YE: '967', SY: '963', EG: '20', SD: '249',
+      LY: '218', TN: '216', DZ: '213', MA: '212', MR: '222', SO: '252', DJ: '253', KM: '269'
+    };
     const digitsOnly = (v) => String(v || '').replace(/\D+/g, '');
     const build = () => {
       const c = String(country.value || 'SA').toUpperCase();
@@ -308,6 +406,31 @@
     country.addEventListener('change', build);
     local.addEventListener('input', build);
     build();
+  })();
+</script>
+<script>
+  (function () {
+    const input = document.getElementById('receiptInput');
+    const nameEl = document.getElementById('receiptName');
+    const btnImg = document.getElementById('pickReceiptImage');
+    const btnPdf = document.getElementById('pickReceiptPdf');
+    if (!input || !nameEl || !btnImg || !btnPdf) return;
+
+    const setName = () => {
+      const f = input.files && input.files[0] ? input.files[0] : null;
+      nameEl.textContent = f ? (f.name || 'تم اختيار ملف') : 'لم يتم اختيار ملف';
+    };
+
+    btnImg.addEventListener('click', () => {
+      input.accept = 'image/*';
+      input.click();
+    });
+    btnPdf.addEventListener('click', () => {
+      input.accept = 'application/pdf';
+      input.click();
+    });
+    input.addEventListener('change', setName);
+    setName();
   })();
 </script>
 @unless($isCodes)

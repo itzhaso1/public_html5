@@ -3,12 +3,15 @@
 namespace App\Repositories;
 
 use App\Models\{Product, Category, Type, Brand, Tag, Section};
+use App\Models\SettingWatermark;
 use App\Services\Contracts\ProductInterface;
 use Illuminate\Http\Request;
 use App\DataTables\Dashboard\Admin\ProductDataTable;
 use App\Models\Concerns\UploadVideoTrait;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class ProductRepository implements ProductInterface
 {
@@ -36,7 +39,7 @@ class ProductRepository implements ProductInterface
         $countQuery = Product::query();
         if ($group === 'accounts') {
             $pageTitle = 'قائمة الحسابات';
-            $countQuery->whereNull('service_type');
+            $countQuery->accountsOnly();
         } elseif ($group === 'charge') {
             $pageTitle = 'قائمة باقات الشحن';
             $countQuery->where('service_type', 'gems');
@@ -64,6 +67,7 @@ class ProductRepository implements ProductInterface
 
         return view('dashboard.admin.products.form', [
             'pageTitle' => 'إضافة منتج',
+            'product' => null,
             'defaultCategoryId' => $defaultCategoryId,
             'defaultTypeId' => $defaultTypeId,
             'categories' => $categories,
@@ -76,6 +80,12 @@ class ProductRepository implements ProductInterface
      * ========================= */
     public function store(Request $request)
     {
+        $request->validate([
+            'product' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+            'gallery' => ['nullable', 'array'],
+            'gallery.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+
         $data = $this->extractData($request);
         $product = Product::create($data);
 
@@ -87,14 +97,26 @@ class ProductRepository implements ProductInterface
 
         // الصورة الرئيسية
         if ($request->hasFile('product')) {
-            $media = $product->uploadSingleMedia(
-                'product',
-                $request->file('product'),
-                $product,
-                null,
-                'media',
-                true
-            );
+            try {
+                $media = $product->uploadSingleMedia(
+                    'product',
+                    $request->file('product'),
+                    $product,
+                    null,
+                    'media',
+                    true,
+                    false,
+                    null,
+                    false,
+                    (int) config('account_image.top_area.size_px', 35),
+                    true
+                );
+            } catch (\Throwable $e) {
+                report($e);
+                throw ValidationException::withMessages([
+                    'product' => 'تعذر معالجة الصورة الرئيسية. ارفع صورة أوضح بصيغة JPG/PNG/WEBP.',
+                ]);
+            }
 
             if ($media) {
                 $imagePath = public_path("uploads/product/{$media}");
@@ -104,15 +126,32 @@ class ProductRepository implements ProductInterface
 
         // صور المعرض
         if ($request->hasFile('gallery')) {
-            $product->uploadMultipleMedia(
-                'product/gallery',
-                $request->file('gallery'),
-                $product,
-                'media',
-                false,
-                true,
-                'gallery'
-            );
+            try {
+                $uploadedGallery = $product->uploadMultipleMedia(
+                    'product/gallery',
+                    $request->file('gallery'),
+                    $product,
+                    'media',
+                    false,
+                    true,
+                    'gallery',
+                    false,
+                    (int) config('account_image.top_area.size_px', 35)
+                );
+            } catch (\Throwable $e) {
+                report($e);
+                throw ValidationException::withMessages([
+                    'gallery' => 'تعذر معالجة صور المعرض. تأكد أن الصور واضحة وبصيغة مدعومة.',
+                ]);
+            }
+
+            if (empty($uploadedGallery)) {
+                // Avoid leaving an orphan product when all gallery files fail processing.
+                try { $product->delete(); } catch (\Throwable $e) {}
+                throw ValidationException::withMessages([
+                    'gallery' => 'تعذر رفع الصور الفرعية. تأكد أن الملفات صور صالحة (JPG/PNG/WEBP).',
+                ]);
+            }
         }
 
         // الفيديو
@@ -131,6 +170,12 @@ class ProductRepository implements ProductInterface
      * ========================= */
     public function update(Request $request, Product $product)
 {
+    $request->validate([
+        'product' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        'gallery' => ['nullable', 'array'],
+        'gallery.*' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+    ]);
+
     $data = $this->extractData($request);
     $product->update($data);
 
@@ -148,6 +193,11 @@ class ProductRepository implements ProductInterface
             $product,
             null,
             'media',
+            true,
+            false,
+            null,
+            false,
+            (int) config('account_image.top_area.size_px', 35),
             true
         );
 
@@ -185,7 +235,9 @@ if (is_array($galleryFiles)) {
             'media',
             false,
             true,
-            'gallery'
+            'gallery',
+            false,
+            (int) config('account_image.top_area.size_px', 35)
         );
     }
 }
@@ -277,12 +329,14 @@ if ($request->hasFile('video')) {
             'price_before_discount',
             'deal_ends_at',
             'price',
+            'points_price',
             'stock',
             'sku',
             'status',
             'featured',
             'slug',
             'client_number',
+            'client_email',
             'publish_source',
             'review_note',
             'review_reject_reasons',
@@ -290,6 +344,15 @@ if ($request->hasFile('video')) {
             'reviewed_at',
             'rejected_at',
         ]);
+
+        // Backward-compatible deploy: avoid inserting columns that may not exist yet.
+        try {
+            if (! Schema::hasColumn('products', 'client_email')) {
+                unset($data['client_email']);
+            }
+        } catch (\Throwable $e) {
+            unset($data['client_email']);
+        }
 
         if (empty($data['category_id'])) {
             $data['category_id'] = Category::query()->where('status', 'active')->value('id') ?? Category::query()->value('id');
@@ -328,11 +391,15 @@ if ($request->hasFile('video')) {
     private function addWatermark($imagePath)
     {
         try {
-            $logoPath = public_path('watermark/logo.png');
-
-            if (!file_exists($imagePath) || !file_exists($logoPath)) {
+            if (!file_exists($imagePath)) {
                 return;
             }
+
+            $settings = \App\Models\Setting::query()->latest('id')->first();
+            // watermark_enabled=false means "fallback to default watermark layout",
+            // not "hide watermark completely".
+            $wmCustomEnabled = (bool) ($settings?->watermark_enabled ?? true);
+            $multiEnabled = $wmCustomEnabled && (bool) ($settings?->watermark_multi_enabled ?? false);
 
             $info = getimagesize($imagePath);
             $mime = $info['mime'];
@@ -341,55 +408,169 @@ if ($request->hasFile('video')) {
                 ? imagecreatefrompng($imagePath)
                 : imagecreatefromjpeg($imagePath);
 
-            $logo = imagecreatefrompng($logoPath);
-
             imagesavealpha($image, true);
             imagealphablending($image, true);
-            imagesavealpha($logo, true);
-            imagealphablending($logo, true);
 
             $imageWidth  = imagesx($image);
             $imageHeight = imagesy($image);
-            $logoWidth   = imagesx($logo);
-            $logoHeight  = imagesy($logo);
+            $placedCount = 0;
 
-            $newLogoWidth  = intval($imageWidth * 0.2);
-            $scale         = $newLogoWidth / $logoWidth;
-            $newLogoHeight = intval($logoHeight * $scale);
+            // New multi-watermark system (dashboard-managed, unlimited items).
+            $multiWatermarks = collect();
+            if ($multiEnabled && $settings?->id) {
+                $multiWatermarks = SettingWatermark::query()
+                    ->where('setting_id', (int) $settings->id)
+                    ->where('enabled', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('id')
+                    ->get();
+            }
 
-            $resizedLogo = imagecreatetruecolor($newLogoWidth, $newLogoHeight);
-            imagesavealpha($resizedLogo, true);
-            imagefill($resizedLogo, 0, 0, imagecolorallocatealpha($resizedLogo, 0, 0, 0, 127));
+            if ($multiWatermarks->isNotEmpty()) {
+                foreach ($multiWatermarks as $wm) {
+                    $wmPath = (string) $wm->getMediaUrl('setting/watermarks', $wm, null, 'media', 'watermark_image');
+                    if ($wmPath === '' || !is_file($wmPath)) {
+                        continue;
+                    }
 
-            imagecopyresampled(
-                $resizedLogo,
-                $logo,
-                0, 0, 0, 0,
-                $newLogoWidth,
-                $newLogoHeight,
-                $logoWidth,
-                $logoHeight
-            );
+                    $logo = @imagecreatefrompng($wmPath);
+                    if (! $logo) {
+                        continue;
+                    }
+                    imagesavealpha($logo, true);
+                    imagealphablending($logo, true);
 
-            $y = intval($imageHeight * 0.11);
+                    $logoWidth = imagesx($logo);
+                    $logoHeight = imagesy($logo);
+                    if ($logoWidth <= 0 || $logoHeight <= 0) {
+                        imagedestroy($logo);
+                        continue;
+                    }
 
-            $x1 = $imageWidth - $newLogoWidth - 20;
-            imagecopy($image, $resizedLogo, $x1, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+                    $scalePercent = max(1, min(100, (int) $wm->scale_percent));
+                    $newLogoWidth = max(1, (int) floor($imageWidth * ($scalePercent / 100)));
+                    $scale = $newLogoWidth / $logoWidth;
+                    $newLogoHeight = max(1, (int) floor($logoHeight * $scale));
 
+                    $resizedLogo = imagecreatetruecolor($newLogoWidth, $newLogoHeight);
+                    imagesavealpha($resizedLogo, true);
+                    imagefill($resizedLogo, 0, 0, imagecolorallocatealpha($resizedLogo, 0, 0, 0, 127));
+                    imagecopyresampled(
+                        $resizedLogo,
+                        $logo,
+                        0,
+                        0,
+                        0,
+                        0,
+                        $newLogoWidth,
+                        $newLogoHeight,
+                        $logoWidth,
+                        $logoHeight
+                    );
 
-            $x2 = intval(($imageWidth - $newLogoWidth) / 2) + 40;
-imagecopy($image, $resizedLogo, $x2, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+                    $xOffset = (int) ($wm->x_offset ?? 20);
+                    $yOffset = (int) ($wm->y_offset ?? 0);
+                    $x = max(0, min($imageWidth - $newLogoWidth, $xOffset));
+                    $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
+
+                    imagecopy($image, $resizedLogo, $x, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+                    $placedCount++;
+
+                    imagedestroy($logo);
+                    imagedestroy($resizedLogo);
+                }
+            }
+
+            // Backward-compatible fallback to the old two-logo behavior
+            // when no multi-watermark item is configured yet.
+            if ($placedCount === 0) {
+                $logoPath = public_path('watermark/logo.png');
+                if (is_file($logoPath)) {
+                    if ($wmCustomEnabled) {
+                        $xOffset = max(0, (int) ($settings?->watermark_x_offset ?? 20));
+                        $yOffset = max(0, (int) ($settings?->watermark_y_offset ?? 0));
+                        $scalePercent = max(5, min(90, (int) ($settings?->watermark_scale_percent ?? 20)));
+                        $secondEnabled = (bool) ($settings?->watermark_second_enabled ?? true);
+                        $secondXOffset = (int) ($settings?->watermark_second_x_offset ?? 40);
+                        $secondYOffset = (int) ($settings?->watermark_second_y_offset ?? 0);
+                    } else {
+                        // Default legacy placement when custom controls are disabled.
+                        $xOffset = 20;
+                        $yOffset = 0;
+                        $scalePercent = 20;
+                        $secondEnabled = true;
+                        $secondXOffset = 40;
+                        $secondYOffset = 0;
+                    }
+
+                    $logo = imagecreatefrompng($logoPath);
+                    imagesavealpha($logo, true);
+                    imagealphablending($logo, true);
+
+                    $logoWidth   = imagesx($logo);
+                    $logoHeight  = imagesy($logo);
+                    $newLogoWidth  = intval($imageWidth * ($scalePercent / 100));
+                    $scale         = $newLogoWidth / max(1, $logoWidth);
+                    $newLogoHeight = intval($logoHeight * $scale);
+
+                    $resizedLogo = imagecreatetruecolor($newLogoWidth, $newLogoHeight);
+                    imagesavealpha($resizedLogo, true);
+                    imagefill($resizedLogo, 0, 0, imagecolorallocatealpha($resizedLogo, 0, 0, 0, 127));
+
+                    imagecopyresampled(
+                        $resizedLogo,
+                        $logo,
+                        0,
+                        0,
+                        0,
+                        0,
+                        $newLogoWidth,
+                        $newLogoHeight,
+                        $logoWidth,
+                        $logoHeight
+                    );
+
+                    if ($wmCustomEnabled) {
+                        $y = max(0, min($imageHeight - $newLogoHeight, $yOffset));
+                        $x1 = max(0, $imageWidth - $newLogoWidth - $xOffset);
+                        imagecopy($image, $resizedLogo, $x1, $y, 0, 0, $newLogoWidth, $newLogoHeight);
+
+                        if ($secondEnabled) {
+                            $x2Base = (int) floor(($imageWidth - $newLogoWidth) / 2);
+                            $x2 = max(0, min($imageWidth - $newLogoWidth, $x2Base + $secondXOffset));
+                            $y2 = max(0, min($imageHeight - $newLogoHeight, $y + $secondYOffset));
+                            imagecopy($image, $resizedLogo, $x2, $y2, 0, 0, $newLogoWidth, $newLogoHeight);
+                        }
+                    } else {
+                        // Exact legacy placement before dashboard controls:
+                        // y at ~11% from top, first logo top-right with -20px,
+                        // second logo near top-center with +40px on X.
+                        $yLegacy = (int) floor($imageHeight * 0.11);
+                        $yLegacy = max(0, min($imageHeight - $newLogoHeight, $yLegacy));
+
+                        $x1Legacy = $imageWidth - $newLogoWidth - 20;
+                        $x1Legacy = max(0, min($imageWidth - $newLogoWidth, $x1Legacy));
+                        imagecopy($image, $resizedLogo, $x1Legacy, $yLegacy, 0, 0, $newLogoWidth, $newLogoHeight);
+
+                        $x2Legacy = (int) floor(($imageWidth - $newLogoWidth) / 2) + 40;
+                        $x2Legacy = max(0, min($imageWidth - $newLogoWidth, $x2Legacy));
+                        imagecopy($image, $resizedLogo, $x2Legacy, $yLegacy, 0, 0, $newLogoWidth, $newLogoHeight);
+                    }
+
+                    imagedestroy($logo);
+                    imagedestroy($resizedLogo);
+                }
+            }
 
             $mime === 'image/png'
                 ? imagepng($image, $imagePath, 9)
-                : imagejpeg($image, $imagePath, 90);
+                : imagejpeg($image, $imagePath, 96);
 
             imagedestroy($image);
-            imagedestroy($logo);
-            imagedestroy($resizedLogo);
 
         } catch (\Exception $e) {
             // تجاهل الخطأ
         }
     }
+
 }

@@ -4,15 +4,21 @@ namespace App\Http\Controllers\Dashboard;
  
 use App\DataTables\Dashboard\Admin\ProductDataTable;
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Notifications\AdminUserMessageNotification;
 use App\Services\Contracts\ProductInterface;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\ProductsImport;
 use App\Services\Services\ERP\ERPService;
+use App\Support\Email\EmailNotifier;
+use App\Support\WhatsApp\WhatsAppNumber;
+use App\Support\WhatsApp\WasenderNotifier;
 use Illuminate\Support\Str; // مكتبة للنصوص
 use Illuminate\Support\Facades\Cache;
 use App\Services\Integrations\Shop2TopUp\Shop2TopUpService;
+use App\Support\Shop2TopUp\Shop2TopUpBundle;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
  
@@ -59,6 +65,124 @@ class ProductController extends Controller
     public function show($id) {
         return redirect()->route('admin.products.index');
     }
+
+    public function requestPriceUpdate(Request $request, Product $product)
+    {
+        if ((string) ($product->publish_source ?? '') !== 'public') {
+            return back()->withErrors(['error' => 'هذا الزر مخصص للحسابات المنشورة من صفحة النشر العامة فقط.']);
+        }
+
+        $data = $request->validate([
+            'channels' => ['required', 'array', 'min:1'],
+            'channels.*' => ['required', 'string', 'in:whatsapp,email,site'],
+            'subject' => ['nullable', 'string', 'max:180'],
+            'message' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $subject = trim((string) ($data['subject'] ?? ''));
+        if ($subject === '') {
+            $subject = 'الرجاء تعديل سعر حسابك';
+        }
+
+        $fallbackMessage = "مرحباً،\nنرجو منك تعديل سعر حسابك المنشور لدينا.\nالحساب: {$product->name}\nالسعر الحالي: " . number_format((float) ($product->price ?? 0), 2) . " ر.س\n\nشكراً لك.";
+        $message = trim((string) ($data['message'] ?? ''));
+        if ($message === '') {
+            $message = $fallbackMessage;
+        }
+
+        // Optional placeholders if admin writes custom templates.
+        $message = strtr($message, [
+            '{account_name}' => (string) ($product->name ?? ''),
+            '{current_price}' => number_format((float) ($product->price ?? 0), 2),
+            '{currency}' => 'SAR',
+        ]);
+
+        $channels = array_values(array_unique((array) ($data['channels'] ?? [])));
+        $sent = ['whatsapp' => 0, 'email' => 0, 'site' => 0];
+
+        $phone = WhatsAppNumber::normalize((string) ($product->client_number ?? ''));
+        $email = trim((string) ($product->client_email ?? ''));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $email = '';
+        }
+
+        if (in_array('whatsapp', $channels, true) && $phone !== '') {
+            try {
+                WasenderNotifier::sendAfterCommit($phone, $message);
+                $sent['whatsapp'] = 1;
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        if (in_array('email', $channels, true) && $email !== '') {
+            try {
+                EmailNotifier::sendAfterCommit($email, $subject, $message);
+                $sent['email'] = 1;
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
+        if (in_array('site', $channels, true)) {
+            $users = $this->usersByProductContact($email, $phone);
+            $notification = new AdminUserMessageNotification(
+                $subject,
+                $message,
+                (int) (auth('admin')->id() ?: 0)
+            );
+            foreach ($users as $u) {
+                try {
+                    $u->notify($notification);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+            $sent['site'] = $users->count();
+        }
+
+        if ($sent['whatsapp'] === 0 && $sent['email'] === 0 && $sent['site'] === 0) {
+            return back()->withErrors(['error' => 'تعذر إرسال الرسالة: لا توجد وسيلة تواصل متاحة لهذا الحساب (رقم/بريد/مطابقة مستخدم).']);
+        }
+
+        return back()->with('success', 'تم إرسال طلب تعديل السعر بنجاح — واتساب: '
+            . $sent['whatsapp']
+            . ' | بريد: '
+            . $sent['email']
+            . ' | داخل الموقع: '
+            . $sent['site']);
+    }
+
+    private function usersByProductContact(string $email, string $phone)
+    {
+        $query = User::query()->select(['id', 'email', 'phone']);
+        if ($email !== '' && $phone !== '') {
+            $query->where(function ($q) use ($email, $phone) {
+                $q->where('email', $email)
+                    ->orWhere('phone', 'like', '%' . $phone);
+            });
+        } elseif ($email !== '') {
+            $query->where('email', $email);
+        } elseif ($phone !== '') {
+            $query->where('phone', 'like', '%' . $phone);
+        } else {
+            return collect();
+        }
+
+        $users = $query->get();
+        if ($phone === '') {
+            return $users;
+        }
+
+        return $users->filter(function (User $user) use ($phone, $email) {
+            $userEmail = trim((string) ($user->email ?? ''));
+            $userPhone = WhatsAppNumber::normalize((string) ($user->phone ?? ''));
+            if ($email !== '' && strcasecmp($userEmail, $email) === 0) {
+                return true;
+            }
+            return $userPhone !== '' && $userPhone === $phone;
+        })->values();
+    }
  
     // ==========================================
     // ✅ (الجديد) قسم إضافة منتجات الشحن
@@ -74,11 +198,24 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric|min:0',
+            'points_price' => 'nullable|integer|min:0',
+            'itemID' => 'nullable|string|max:255',
             // NOTE: this field is actually the service type (gems/codes)
             'type_id' => 'required|in:gems,codes',
         ]);
  
         try {
+            $itemIDRaw = null;
+            if ($request->type_id === 'gems') {
+                $itemIDRaw = trim((string) $request->input('itemID', ''));
+                $offerIds = Shop2TopUpBundle::parseOfferIds($itemIDRaw);
+                if (empty($offerIds)) {
+                    return redirect()->back()->withErrors([
+                        'error' => 'itemID (Shop2TopUp Offer ID) مطلوب للشحن ويجب أن يكون رقمًا أو باقة مثل 2400+2400+210.'
+                    ])->withInput();
+                }
+            }
+
             // نأخذ أول قسم ونوع موجودين لتجنب الأخطاء
             $categoryId = \DB::table('categories')->value('id');
             $typeId = \DB::table('types')->value('id');
@@ -100,6 +237,8 @@ class ProductController extends Controller
                 'type_id'      => $typeId ?: null,
                 'service_type' => $request->type_id, // gems/codes
                 'price'        => $request->price,
+                'itemID'       => $itemIDRaw,
+                'points_price' => $request->filled('points_price') ? (int) $request->points_price : null,
                 'stock'        => 9999,
                 'sku'          => $sku,
                 'status'       => 'published',
@@ -149,7 +288,7 @@ class ProductController extends Controller
         $query = Product::query()->with('media');
 
         if ($group === 'accounts') {
-            $query->whereNull('service_type');
+            $query->accountsOnly();
         } elseif ($group === 'charge') {
             $query->where('service_type', 'gems');
         } else { // codes
@@ -209,6 +348,128 @@ class ProductController extends Controller
         }
 
         return back()->with('success', "تم حذف {$deleted} منتج بنجاح ✅");
+    }
+
+    public function bulkDeleteSoldAccounts(Request $request)
+    {
+        // Sold accounts are regular accounts (service_type is null) marked as featured=1.
+        $query = Product::query()->with('media')
+            ->accountsOnly()
+            ->where('featured', 1);
+
+        // Never delete products that have manual payment requests.
+        $query->whereDoesntHave('manualPaymentRequests');
+
+        // Avoid deleting products currently in carts or referenced in orders.
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('carts')->whereNotNull('product_id');
+        });
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('order_items')->whereNotNull('product_id');
+        });
+
+        $toDeleteCount = (clone $query)->count();
+        if ($toDeleteCount === 0) {
+            return back()->with('success', 'لا يوجد حسابات مباعة يمكن حذفها حالياً (إما لا توجد أو مرتبطة بطلبات/سلة/مبيعات).');
+        }
+
+        $deleted = 0;
+        $query->orderBy('id')->chunkById(50, function ($products) use (&$deleted) {
+            foreach ($products as $product) {
+                try {
+                    if (method_exists($product, 'deleteExistingMedia')) {
+                        $product->deleteExistingMedia('product', $product, null, 'media', true, 'product');
+                        $product->deleteExistingMedia('gallery', $product, null, 'media', true, 'gallery');
+                    }
+                    $product->delete();
+                    $deleted++;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+
+        foreach (['ar', 'en'] as $locale) {
+            Cache::forget("home.products.$locale");
+            Cache::forget("home.sections.$locale");
+            Cache::forget("diamonds.charge.$locale");
+            Cache::forget("diamonds.codes.$locale");
+        }
+
+        return back()->with('success', "تم حذف {$deleted} حساب/حسابات مباعة بنجاح ✅");
+    }
+
+    public function bulkDeleteSelected(Request $request)
+    {
+        $data = $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['required', 'integer', 'min:1'],
+            'confirm' => ['required', 'in:DELETE'],
+            'group' => ['nullable', 'in:accounts,charge,codes,all'],
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', (array) ($data['ids'] ?? []))));
+        if (count($ids) === 0) {
+            return back()->withErrors(['error' => 'اختر عنصر واحد على الأقل.']);
+        }
+
+        $group = strtolower(trim((string) ($data['group'] ?? 'all')));
+        if ($group === '') $group = 'all';
+
+        $query = Product::query()->with('media')->whereIn('id', $ids);
+
+        if ($group === 'accounts') {
+            $query->accountsOnly();
+        } elseif ($group === 'charge') {
+            $query->where('service_type', 'gems');
+        } elseif ($group === 'codes') {
+            $query->where('service_type', 'codes');
+        }
+
+        // Safety: never delete products tied to manual payments / carts / orders.
+        $query->whereDoesntHave('manualPaymentRequests');
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('carts')->whereNotNull('product_id');
+        });
+        $query->whereNotIn('id', function ($q) {
+            $q->select('product_id')->from('order_items')->whereNotNull('product_id');
+        });
+
+        if ($group === 'codes') {
+            $query->whereNotIn('id', function ($q) {
+                $q->select('product_id')->from('diamond_codes')->where('status', 'delivered');
+            });
+        }
+
+        $deleted = 0;
+
+        $query->orderBy('id')->chunkById(50, function ($products) use (&$deleted) {
+            foreach ($products as $product) {
+                try {
+                    if (method_exists($product, 'deleteExistingMedia')) {
+                        $product->deleteExistingMedia('product', $product, null, 'media', true, 'product');
+                        $product->deleteExistingMedia('gallery', $product, null, 'media', true, 'gallery');
+                    }
+                    $product->delete();
+                    $deleted++;
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        });
+
+        foreach (['ar', 'en'] as $locale) {
+            Cache::forget("home.products.$locale");
+            Cache::forget("home.sections.$locale");
+            Cache::forget("diamonds.charge.$locale");
+            Cache::forget("diamonds.codes.$locale");
+        }
+
+        if ($deleted === 0) {
+            return back()->with('success', 'لم يتم حذف أي عنصر (قد تكون العناصر مرتبطة بطلبات/سلة/مبيعات).');
+        }
+
+        return back()->with('success', "تم حذف {$deleted} عنصر/عناصر ✅");
     }
 
     /**

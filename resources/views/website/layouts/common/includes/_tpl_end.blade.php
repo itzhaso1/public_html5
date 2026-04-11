@@ -259,16 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
     <!-- ترتيب المنتجات -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const productsContainer = document.querySelector('.grid.grid-cols-2.md\\:grid-cols-3');
+            const productsContainer = document.querySelector('[data-sort-by-base-price]');
             if (!productsContainer) return;
 
             const products = Array.from(productsContainer.children || []);
             if (products.length < 2) return;
 
             const getPrice = (el) => {
-                const p = el && el.querySelector ? el.querySelector('p.font-semibold') : null;
-                if (!p) return 0;
-                const raw = String(p.textContent || '').replace(/[^\d.]/g,'');
+                const priceEl = el && el.querySelector ? el.querySelector('.product-price[data-base-price]') : null;
+                if (!priceEl) return 0;
+                const raw = String(priceEl.getAttribute('data-base-price') || '').trim();
                 const n = parseFloat(raw);
                 return isNaN(n) ? 0 : n;
             };
@@ -320,10 +320,46 @@ document.addEventListener('DOMContentLoaded', () => {
                 } catch (e) {}
             };
 
+            const initHomeFeaturedAccountsSwiper = () => {
+                document.querySelectorAll('.home-featured-accounts-swiper').forEach((el) => {
+                    if (!el || el.swiper) return;
+                    const slidesCount = el.querySelectorAll('.swiper-slide').length;
+                    if (!slidesCount) return;
+                    const paginationEl = el.querySelector('.swiper-pagination');
+                    try {
+                        new Swiper(el, {
+                            loop: slidesCount > 1,
+                            autoplay: slidesCount > 1 ? { delay: 3200, disableOnInteraction: false } : false,
+                            centeredSlides: true,
+                            watchOverflow: true,
+                            grabCursor: true,
+                            slidesPerView: 1,
+                            spaceBetween: 10,
+                            speed: 550,
+                            breakpoints: {
+                                640: { centeredSlides: true, slidesPerView: 1.3, spaceBetween: 14 },
+                                768: { centeredSlides: false, slidesPerView: 1.9, spaceBetween: 16 },
+                                1024: { centeredSlides: false, slidesPerView: 2.5, spaceBetween: 18 },
+                            },
+                            pagination: paginationEl ? {
+                                el: paginationEl,
+                                clickable: true,
+                                bulletClass: 'home-featured-dot',
+                                bulletActiveClass: 'is-active',
+                                renderBullet: function (index, className) {
+                                    return `<span class="${className}" aria-label="انتقل للسلايد ${index + 1}"></span>`;
+                                }
+                            } : undefined,
+                        });
+                    } catch (e) {}
+                });
+            };
+
             const initAll = () => {
                 if (!window.Swiper) return;
                 initHeroSwipers();
                 initReviewsSwiper();
+                initHomeFeaturedAccountsSwiper();
             };
 
             const loadSwiperOnce = (cb) => {

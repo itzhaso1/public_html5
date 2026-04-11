@@ -25,11 +25,73 @@ class Setting extends Model
         'home_quick_codes_title',
         'home_quick_cash_exchange_title',
         'home_quick_money_exchange_title',
+        'home_quick_freefire_title',
+        'home_quick_freefire_position',
+        'public_publish_profile_example_caption',
+        'home_featured_all_mobile_columns',
+        'home_featured_all_autoplay_seconds',
+        'public_publish_profile_guide_enabled',
         'cash_exchange_enabled',
+        'money_exchange_enabled',
+        'charge_enabled',
+        'codes_enabled',
+        'public_publish_min_gallery_images',
+        'home_featured_product_ids',
+        'home_featured_product_ids_all',
+        'merchant_usd_rate',
+        'custom_usd_to_sar_rate',
+        'merchant_charge_discount_percent',
+        'point_price_sar',
+        'point_price_usd',
+        'account_name_blur_enabled',
+        'account_name_blur_x_offset_from_right',
+        'account_name_blur_y',
+        'account_name_blur_width',
+        'account_name_blur_height',
+        'account_name_blur_strength',
+        'account_name_blur_mode',
+        'account_name_blur_x_offset_from_right_ratio',
+        'account_name_blur_y_ratio',
+        'account_name_blur_width_ratio',
+        'account_name_blur_height_ratio',
+        'account_top_area_mode',
+        'account_top_area_size_px',
+        'account_top_area_width_px',
+        'account_top_area_width_ratio',
+        'account_top_area_x_from_right_px',
+        'account_top_area_blur_strength',
+        'account_center_blur_enabled',
+        'account_center_blur_x',
+        'account_center_blur_y',
+        'account_center_blur_x_from_right',
+        'account_center_blur_width',
+        'account_center_blur_height',
+        'account_center_blur_strength',
+        'watermark_enabled',
+        'watermark_x_offset',
+        'watermark_y_offset',
+        'watermark_scale_percent',
+        'watermark_second_enabled',
+        'watermark_second_x_offset',
+        'watermark_second_y_offset',
+        'watermark_multi_enabled',
+    ];
+
+    protected $casts = [
+        'home_featured_product_ids' => 'array',
+        'home_featured_product_ids_all' => 'array',
+        'home_featured_all_mobile_columns' => 'integer',
+        'home_featured_all_autoplay_seconds' => 'integer',
+        'public_publish_profile_guide_enabled' => 'boolean',
     ];
 
     public function media()
     {
         return $this->morphMany(Media::class, 'mediable');
+    }
+
+    public function watermarks()
+    {
+        return $this->hasMany(SettingWatermark::class)->orderBy('sort_order')->orderBy('id');
     }
 }

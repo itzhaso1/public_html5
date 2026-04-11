@@ -21,6 +21,16 @@
                    href="{{ route('admin.public_products.index', ['status' => 'rejected']) }}">مرفوض</a>
                 <a class="btn btn-sm {{ ($status ?? '') === 'all' ? 'btn-primary' : 'btn-light' }}"
                    href="{{ route('admin.public_products.index', ['status' => 'all']) }}">الكل</a>
+
+                <button type="button" class="btn btn-sm btn-danger" id="public-products-bulk-delete" disabled>
+                    حذف المحدد
+                </button>
+
+                <form id="public-products-bulk-delete-form" method="POST" action="{{ route('admin.public_products.bulk_delete') }}" class="d-none">
+                    @csrf
+                    <input type="hidden" name="confirm" id="public-products-bulk-confirm" value="">
+                    <span id="public-products-bulk-ids"></span>
+                </form>
             </div>
         </div>
 
@@ -36,6 +46,9 @@
                 <table class="table table-striped table-row-bordered gy-5 gs-7">
                     <thead>
                     <tr class="text-start text-muted fw-bold fs-7 text-uppercase gs-0">
+                        <th style="width:32px">
+                            <input type="checkbox" class="form-check-input" id="public-products-select-all" />
+                        </th>
                         <th>#</th>
                         <th>الاسم</th>
                         <th>السعر</th>
@@ -56,6 +69,12 @@
                             };
                         @endphp
                         <tr>
+                            <td>
+                                <input type="checkbox"
+                                       class="form-check-input js-public-product-id"
+                                       value="{{ $p->id }}"
+                                       aria-label="Select {{ $p->id }}" />
+                            </td>
                             <td>{{ $p->id }}</td>
                             <td class="fw-bold">{{ $p->name ?? '—' }}</td>
                             <td class="fw-bold text-success">{{ number_format((float) ($p->price ?? 0), 2) }} ر.س</td>
@@ -78,7 +97,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="text-center text-muted py-6">لا توجد طلبات.</td></tr>
+                        <tr><td colspan="9" class="text-center text-muted py-6">لا توجد طلبات.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -89,5 +108,71 @@
             </div>
         </div>
     </div>
+@endsection
+
+@section('js')
+    <script>
+        (function () {
+            const btn = document.getElementById('public-products-bulk-delete');
+            const selectAll = document.getElementById('public-products-select-all');
+            const idsWrap = document.getElementById('public-products-bulk-ids');
+            const confirmInput = document.getElementById('public-products-bulk-confirm');
+            const form = document.getElementById('public-products-bulk-delete-form');
+
+            if (!btn || !selectAll || !idsWrap || !confirmInput || !form) return;
+
+            const getChecks = () => Array.from(document.querySelectorAll('.js-public-product-id'));
+            const getSelectedIds = () => getChecks().filter(c => c.checked).map(c => c.value);
+
+            const refresh = () => {
+                const checks = getChecks();
+                const selected = getSelectedIds();
+                btn.disabled = selected.length === 0;
+                if (checks.length > 0) {
+                    selectAll.indeterminate = selected.length > 0 && selected.length < checks.length;
+                    selectAll.checked = selected.length > 0 && selected.length === checks.length;
+                } else {
+                    selectAll.indeterminate = false;
+                    selectAll.checked = false;
+                }
+            };
+
+            document.addEventListener('change', function (e) {
+                if (e.target && (e.target.classList?.contains('js-public-product-id') || e.target.id === 'public-products-select-all')) {
+                    if (e.target.id === 'public-products-select-all') {
+                        const checked = !!e.target.checked;
+                        getChecks().forEach(c => { c.checked = checked; });
+                    }
+                    refresh();
+                }
+            });
+
+            btn.addEventListener('click', function () {
+                const ids = getSelectedIds();
+                if (ids.length === 0) {
+                    alert('اختر عنصر واحد على الأقل.');
+                    return;
+                }
+                const v = prompt('اكتب DELETE لتأكيد حذف المحدد (' + ids.length + ')');
+                if (v !== 'DELETE') return;
+
+                // reset previous ids
+                idsWrap.innerHTML = '';
+                confirmInput.value = 'DELETE';
+
+                ids.forEach(id => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'ids[]';
+                    input.value = id;
+                    idsWrap.appendChild(input);
+                });
+
+                form.submit();
+            });
+
+            refresh();
+        })();
+    </script>
 @endsection
 

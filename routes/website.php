@@ -4,11 +4,17 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Artisan;
 use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
  
 use App\Http\Controllers\Website;
 use App\Http\Controllers\Website\Customer;
 use App\Http\Controllers\PublicProductController;
 use App\Models\Product;
+use App\Models\Setting;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Website\WalletPointsPaymentController;
+use App\Http\Controllers\Website\Customer\WalletController as CustomerWalletController;
  
 Route::group(
     [
@@ -43,6 +49,15 @@ Route::group(
         // Diamonds Sections ✅ (مصحح ومحمي)
         // ===============================
         Route::get('diamonds/charge', function () {
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'charge_enabled')) {
+                    $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
+                    if (! (bool) ($s?->charge_enabled ?? true)) {
+                        return redirect()->route('home')->with('error', 'قسم الشحن غير متاح حالياً.');
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             $locale = app()->getLocale();
             $products = Cache::remember("diamonds.charge.$locale", 60 * 5, function () {
                 return Product::query()
@@ -55,6 +70,15 @@ Route::group(
         })->name('website.diamonds.charge');
  
         Route::get('diamonds/codes', function () {
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'codes_enabled')) {
+                    $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
+                    if (! (bool) ($s?->codes_enabled ?? true)) {
+                        return redirect()->route('home')->with('error', 'قسم الأكواد غير متاح حالياً.');
+                    }
+                }
+            } catch (\Throwable $e) {}
+
             $locale = app()->getLocale();
             $products = Cache::remember("diamonds.codes.$locale", 60 * 5, function () {
                 return Product::query()
@@ -80,6 +104,46 @@ Route::group(
             return view('website.diamonds.codes', compact('products'));
         })->name('website.diamonds.codes');
 
+        // أنت وحظك (Lucky draw codes)
+        Route::get('diamonds/lucky-codes', function () {
+            try {
+                if (Schema::hasTable('settings') && Schema::hasColumn('settings', 'codes_enabled')) {
+                    $s = Cache::get('app_settings') ?: Setting::query()->latest()->first();
+                    if (! (bool) ($s?->codes_enabled ?? true)) {
+                        return redirect()->route('home')->with('error', 'قسم الأكواد غير متاح حالياً.');
+                    }
+                }
+            } catch (\Throwable $e) {}
+
+            $product = Product::query()
+                ->where('service_type', 'codes')
+                ->where('is_lucky_draw_codes', true)
+                ->with(['media', 'translations'])
+                ->latest('id')
+                ->first();
+
+            if (! $product) {
+                return redirect()
+                    ->route('website.diamonds.codes')
+                    ->withErrors(['error' => 'قسم (انت وحظك) غير جاهز بعد. أنشئ منتج أكواد وضع عليه خيار “انت وحظك” ثم أضف أكواد.']);
+            }
+
+            $samples = \App\Models\DiamondCode::query()
+                ->where('product_id', $product->id)
+                ->whereNotNull('image_path')
+                ->where('image_path', '!=', '')
+                ->where('status', 'available')
+                ->latest('id')
+                ->limit(12)
+                ->get(['id', 'image_path', 'luck_label']);
+
+            return view('website.diamonds.lucky_codes', [
+                'product' => $product,
+                'samples' => $samples,
+                'pageTitle' => 'انت وحظك - أكواد ملابس فري فاير',
+            ]);
+        })->name('website.diamonds.lucky_codes');
+
         // Manual bank transfer flow (upload receipt, pending approval)
         Route::get('diamonds/{product}/manual-payment', [Website\ManualPaymentController::class, 'create'])
             ->middleware('auth')
@@ -87,6 +151,14 @@ Route::group(
         Route::post('diamonds/{product}/manual-payment', [Website\ManualPaymentController::class, 'store'])
             ->middleware('auth')
             ->name('website.diamonds.manual_payment.store');
+
+        // Wallet points payment (create a pending request paid with points)
+        Route::get('diamonds/{product}/points-payment', [WalletPointsPaymentController::class, 'create'])
+            ->middleware('auth')
+            ->name('website.diamonds.points_payment.create');
+        Route::post('diamonds/{product}/points-payment', [WalletPointsPaymentController::class, 'store'])
+            ->middleware('auth')
+            ->name('website.diamonds.points_payment.store');
         Route::post('diamonds/check-player', [Website\ManualPaymentController::class, 'checkPlayerName'])
             ->middleware(['auth', 'throttle:5,1'])
             ->name('website.diamonds.check_player');
@@ -134,6 +206,7 @@ Route::group(
         // Shop
         // ===============================
         Route::get('shop', [Website\ShopController::class, 'index'])->name('shop.index');
+        Route::get('freefire-accounts', [Website\WebsiteController::class, 'freefireAccounts'])->name('website.freefire_accounts');
         Route::get('product/{product}', [Website\WebsiteController::class, 'show'])->name('website.product.show');
         Route::post('product/{productId}/unlock-client', [Website\ShopController::class, 'unlockClientNumber'])->name('product.unlock.client');
  
@@ -142,7 +215,29 @@ Route::group(
         // ===============================
         Route::get('publish-product', [PublicProductController::class, 'create'])->name('public.products.create');
         Route::post('publish-product', [PublicProductController::class, 'store'])->name('public.products.store');
+        Route::get('publish-product-admin', [PublicProductController::class, 'createAdmin'])->name('public.products.create_admin');
+        Route::post('publish-product-admin', [PublicProductController::class, 'storeAdmin'])->name('public.products.store_admin');
         Route::get('publish-product/requests/{slug}', [PublicProductController::class, 'track'])->name('public.products.track');
+
+        // ===============================
+        // Merchant requests (Diamonds charge)
+        // ===============================
+        Route::get('merchant/apply', [Website\MerchantController::class, 'create'])
+            ->middleware('auth')
+            ->name('website.merchant.apply');
+        Route::post('merchant/apply', [Website\MerchantController::class, 'store'])
+            ->middleware('auth')
+            ->name('website.merchant.apply.store');
+
+        // ===============================
+        // Password reset (website users)
+        // ===============================
+        Route::middleware('guest')->group(function () {
+            Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
+            Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])->name('password.email');
+            Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
+            Route::post('reset-password', [NewPasswordController::class, 'store'])->name('password.store');
+        });
  
         // ===============================
         // Customer dashboard
@@ -153,11 +248,21 @@ Route::group(
             Route::get('orders/show/{order}', [Customer\DashboardController::class, 'showPartial'])->name('orders.partial');
             Route::get('track', [Customer\DashboardController::class, 'trackOrder'])->name('track.order');
             Route::get('purchases', [Customer\PurchasesController::class, 'index'])->name('purchases');
+            Route::post('purchases/{manualPaymentRequest}/refresh-shop2topup', [Customer\PurchasesController::class, 'refreshShop2Topup'])
+                ->middleware('throttle:10,1')
+                ->name('purchases.refresh_shop2topup');
             Route::get('diamond-codes/{diamondCode}/image', [Customer\DiamondCodeController::class, 'image'])
                 ->name('diamond_codes.image');
             Route::get('profile', [Customer\ProfileController::class, 'edit'])->name('profile');
             Route::post('profile', [Customer\ProfileController::class, 'update'])->name('profile.update');
             Route::post('profile/password', [Customer\ProfileController::class, 'updatePassword'])->name('profile.password');
+
+            // Wallet (points)
+            Route::get('wallet', [CustomerWalletController::class, 'index'])->name('wallet.index');
+            Route::get('wallet/topup', [CustomerWalletController::class, 'createTopup'])->name('wallet.topup');
+            Route::post('wallet/topup', [CustomerWalletController::class, 'storeTopup'])->name('wallet.topup.store');
+            Route::get('wallet/topups/{walletTopupRequest}/receipt', [CustomerWalletController::class, 'receipt'])
+                ->name('wallet.topups.receipt');
 
             // Money exchange tracking
             Route::get('money-exchange', [Website\MoneyExchangeController::class, 'list'])->name('money_exchange.index');

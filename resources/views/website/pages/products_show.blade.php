@@ -214,7 +214,7 @@ video {
    
 <div class="video-container relative w-full aspect-video bg-black">
     <video class="absolute inset-0 w-full h-full object-contain" controls controlsList="nodownload">
-        <source src="{{ asset('public/' . $productVideo->video_path) }}" type="video/mp4">
+        <source src="{{ asset($productVideo->video_path) }}" type="video/mp4">
         متصفحك لا يدعم تشغيل الفيديو.
     </video>
 </div>
@@ -350,34 +350,43 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   <!-- العملة والسعر -->
-  <div class="mt-7 text-center border-t pt-4">
-    <div class="flex items-center justify-center gap-3 mb-4">
-      <!-- السعودية -->
-      <button class="currency-btn bg-white border border-gray-200 p-1.5 rounded-full shadow-sm hover:scale-110 transition"
-          data-symbol="ر.س" data-rate="1" title="الريال السعودي">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/0/0d/Flag_of_Saudi_Arabia.svg"
-             class="w-8 h-8 rounded-full" alt="السعودية">
-      </button>
-
-      <!-- الأردن -->
-      <button class="currency-btn bg-white border border-gray-200 p-1.5 rounded-full shadow-sm hover:scale-110 transition"
-          data-symbol="د.أ" data-rate="0.18" title="الدينار الأردني">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c0/Flag_of_Jordan.svg"
-             class="w-8 h-8 rounded-full" alt="الأردن">
-      </button>
-
-      <!-- أمريكا -->
-      <button class="currency-btn bg-white border border-gray-200 p-1.5 rounded-full shadow-sm hover:scale-110 transition"
-          data-symbol="$" data-rate="0.25" title="الدولار الأمريكي">
-        <img src="https://upload.wikimedia.org/wikipedia/en/a/a4/Flag_of_the_United_States.svg"
-             class="w-8 h-8 rounded-full" alt="أمريكا">
-      </button>
+  @php
+      $basePrice = (float) ($product->price ?? 0);
+      $installmentPrice = round($basePrice * 1.16, 2); // Tabby/Tamara surcharge
+      $usdRate = (float) (($currencyRatesByCountry['US'] ?? 0.2666));
+  @endphp
+  <div class="mt-7 border-t pt-4">
+    <div class="mb-4">
+      @include('website.partials.currency_picker')
     </div>
 
-    <div class="text-gray-500 text-base mb-1 font-medium">السعر</div>
-    <div class="text-4xl font-extrabold text-green-600 product-price tracking-wide"
-        data-base-price="{{ $product->price }}">
-      <span class="current-price">ر.س {{ $product->price }}</span>
+    <div class="text-center">
+      <div class="text-gray-500 text-sm mb-1 font-medium">السعر الأصلي</div>
+      <div class="text-4xl font-extrabold text-green-600 product-price tracking-wide"
+          data-base-price="{{ number_format($basePrice, 2, '.', '') }}">
+        <span class="current-price">ر.س {{ number_format($basePrice, 2) }}</span>
+      </div>
+    </div>
+
+    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div class="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-3 text-center">
+        <div class="text-xs text-indigo-700 font-extrabold">تابي (+16%)</div>
+        <div class="mt-1 text-2xl font-extrabold text-indigo-800 product-price"
+             data-base-price="{{ number_format($installmentPrice, 2, '.', '') }}">
+          <span class="current-price">ر.س {{ number_format($installmentPrice, 2) }}</span>
+        </div>
+      </div>
+      <div class="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 text-center">
+        <div class="text-xs text-emerald-700 font-extrabold">تمارا (+16%)</div>
+        <div class="mt-1 text-2xl font-extrabold text-emerald-800 product-price"
+             data-base-price="{{ number_format($installmentPrice, 2, '.', '') }}">
+          <span class="current-price">ر.س {{ number_format($installmentPrice, 2) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3 text-center text-xs text-gray-500">
+      سعر الصرف الحالي (مثل الصفحة الرئيسية): 1 ر.س = ${{ number_format($usdRate, 4, '.', '') }}
     </div>
   </div>
 </section>
@@ -405,6 +414,75 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   <div class="flex justify-center gap-3 flex-wrap">
+    @php
+      $waTo = preg_replace('/\D+/', '', (string) (config('bank.whatsapp') ?: ($settings?->phone ?? '')));
+      $u = auth()->user();
+      $buyer = $u ? trim((string) ($u->name ?? $u->email ?? '')) : 'زائر';
+      $buyerPhone = $u ? preg_replace('/\D+/', '', (string) ($u->phone ?? $u->profile?->phone ?? '')) : '';
+      $buyerEmail = $u ? trim((string) ($u->email ?? '')) : '';
+      $basePrice = (float) ($product?->price ?? 0);
+      $installmentPrice = round($basePrice * 1.16, 2);
+      $basePriceText = number_format($basePrice, 2, '.', '');
+      $installmentPriceText = number_format($installmentPrice, 2, '.', '');
+
+      $msg = "طلب شراء حساب/منتج\n"
+        . "المنتج: " . ($product?->name ?? '') . "\n"
+        . "ID: " . ($product?->id ?? '') . "\n"
+        . "طريقة الدفع: الدفع العادي\n"
+        . "السعر: " . $basePriceText . " SAR\n"
+        . "الرابط: " . url()->current() . "\n"
+        . "العميل: " . $buyer . "\n"
+        . ($buyerPhone !== '' ? ("واتساب العميل: " . $buyerPhone . "\n") : '')
+        . ($buyerEmail !== '' ? ("ايميل العميل: " . $buyerEmail . "\n") : '')
+        . "هل المنتج متوفر؟";
+
+      $tabbyMsg = "طلب شراء حساب/منتج\n"
+        . "المنتج: " . ($product?->name ?? '') . "\n"
+        . "ID: " . ($product?->id ?? '') . "\n"
+        . "طريقة الدفع: تابي (+16%)\n"
+        . "السعر: " . $installmentPriceText . " SAR\n"
+        . "الرابط: " . url()->current() . "\n"
+        . "العميل: " . $buyer . "\n"
+        . ($buyerPhone !== '' ? ("واتساب العميل: " . $buyerPhone . "\n") : '')
+        . ($buyerEmail !== '' ? ("ايميل العميل: " . $buyerEmail . "\n") : '')
+        . "أحتاج إتمام الدفع عبر تابي.";
+
+      $tamaraMsg = "طلب شراء حساب/منتج\n"
+        . "المنتج: " . ($product?->name ?? '') . "\n"
+        . "ID: " . ($product?->id ?? '') . "\n"
+        . "طريقة الدفع: تمارا (+16%)\n"
+        . "السعر: " . $installmentPriceText . " SAR\n"
+        . "الرابط: " . url()->current() . "\n"
+        . "العميل: " . $buyer . "\n"
+        . ($buyerPhone !== '' ? ("واتساب العميل: " . $buyerPhone . "\n") : '')
+        . ($buyerEmail !== '' ? ("ايميل العميل: " . $buyerEmail . "\n") : '')
+        . "أحتاج إتمام الدفع عبر تمارا.";
+
+      $waHref = $waTo !== '' ? ('https://wa.me/' . $waTo . '?text=' . urlencode($msg)) : null;
+      $waTabbyHref = $waTo !== '' ? ('https://wa.me/' . $waTo . '?text=' . urlencode($tabbyMsg)) : null;
+      $waTamaraHref = $waTo !== '' ? ('https://wa.me/' . $waTo . '?text=' . urlencode($tamaraMsg)) : null;
+    @endphp
+
+    @if($waHref)
+      <a href="{{ $waHref }}" target="_blank"
+         class="flex items-center gap-2 bg-black text-white px-5 py-2.5 rounded-full shadow-md hover:bg-yellow-400 hover:text-black hover:shadow-lg transition-all duration-200">
+        🛒 <span class="font-semibold">تواصل لشراء هذا الحساب</span>
+      </a>
+    @endif
+
+    @if($waTabbyHref)
+      <a href="{{ $waTabbyHref }}" target="_blank"
+         class="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-full shadow-md hover:bg-indigo-700 hover:shadow-lg transition-all duration-200">
+        💳 <span class="font-semibold">الدفع عبر تابي (+16%)</span>
+      </a>
+    @endif
+
+    @if($waTamaraHref)
+      <a href="{{ $waTamaraHref }}" target="_blank"
+         class="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-full shadow-md hover:bg-emerald-700 hover:shadow-lg transition-all duration-200">
+        💳 <span class="font-semibold">الدفع عبر تمارا (+16%)</span>
+      </a>
+    @endif
    
 
     <a href="https://chat.whatsapp.com/LiEKm0hQPlB9yeToyetcbh" target="_blank"

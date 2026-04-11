@@ -35,12 +35,17 @@ class Shop2TopUpService
 
         $timeout = (int) config('services.shop2topup.timeout', 20);
 
-        $response = Http::timeout($timeout)
-            ->acceptJson()
-            ->withHeaders([
-                'Authorization' => 'Bearer ' . $key,
-            ])
-            ->get($this->baseUrl() . '/offers');
+        try {
+            $response = Http::timeout($timeout)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                ])
+                ->get($this->baseUrl() . '/offers');
+        } catch (\Throwable $e) {
+            report($e);
+            return ['success' => false, 'offers' => [], 'msg' => 'تعذر الاتصال بالمزود'];
+        }
 
         if (! $response->successful()) {
             $json = $response->json();
@@ -76,12 +81,17 @@ class Shop2TopUpService
 
         $timeout = (int) config('services.shop2topup.timeout', 20);
 
-        $response = Http::timeout($timeout)
-            ->acceptJson()
-            ->withHeaders([
-                'Authorization' => 'Bearer ' . $key,
-            ])
-            ->get($this->baseUrl() . '/balance');
+        try {
+            $response = Http::timeout($timeout)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                ])
+                ->get($this->baseUrl() . '/balance');
+        } catch (\Throwable $e) {
+            report($e);
+            return ['success' => false, 'msg' => 'تعذر الاتصال بالمزود'];
+        }
 
         if (! $response->successful()) {
             $json = $response->json();
@@ -121,14 +131,19 @@ class Shop2TopUpService
 
         $timeout = (int) config('services.shop2topup.timeout', 20);
 
-        $response = Http::timeout($timeout)
-            ->acceptJson()
-            ->withHeaders([
-                'Authorization' => 'Bearer ' . $key,
-            ])
-            ->post($this->baseUrl() . '/transaction', [
-                'trx_id' => $trxId,
-            ]);
+        try {
+            $response = Http::timeout($timeout)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                ])
+                ->post($this->baseUrl() . '/transaction', [
+                    'trx_id' => $trxId,
+                ]);
+        } catch (\Throwable $e) {
+            report($e);
+            return ['success' => false, 'msg' => 'تعذر الاتصال بالمزود'];
+        }
 
         if (! $response->successful()) {
             $json = $response->json();
@@ -167,14 +182,19 @@ class Shop2TopUpService
         $timeout = (int) config('services.shop2topup.timeout', 20);
 
         // Step 1: send request to check player name
-        $response = Http::timeout($timeout)
-            ->acceptJson()
-            ->withHeaders([
-                'Authorization' => 'Bearer ' . $key,
-            ])
-            ->post($this->baseUrl() . '/id', [
-                'playerID' => $playerId,
-            ]);
+        try {
+            $response = Http::timeout($timeout)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                ])
+                ->post($this->baseUrl() . '/id', [
+                    'playerID' => $playerId,
+                ]);
+        } catch (\Throwable $e) {
+            report($e);
+            return ['success' => false, 'msg' => 'تعذر الاتصال بالمزود'];
+        }
 
         if (! $response->successful()) {
             $json = $response->json();
@@ -242,14 +262,19 @@ class Shop2TopUpService
 
         $timeout = (int) config('services.shop2topup.timeout', 20);
 
-        $response = Http::timeout($timeout)
-            ->acceptJson()
-            ->withHeaders([
-                'Authorization' => 'Bearer ' . $key,
-            ])
-            ->get($this->baseUrl() . '/id', [
-                'playerID' => $playerId,
-            ]);
+        try {
+            $response = Http::timeout($timeout)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                ])
+                ->get($this->baseUrl() . '/id', [
+                    'playerID' => $playerId,
+                ]);
+        } catch (\Throwable $e) {
+            report($e);
+            return ['success' => false, 'msg' => 'تعذر الاتصال بالمزود'];
+        }
 
         if (! $response->successful()) {
             $json = $response->json();
@@ -306,16 +331,21 @@ class Shop2TopUpService
 
         $timeout = (int) config('services.shop2topup.timeout', 20);
 
-        $response = Http::timeout($timeout)
-            ->acceptJson()
-            ->withHeaders([
-                'Authorization' => 'Bearer ' . $key,
-            ])
-            ->post($this->baseUrl() . '/topup', [
-                'playerID' => $playerId,
-                'offer' => $offerId,
-                'trx_id' => $trxId,
-            ]);
+        try {
+            $response = Http::timeout($timeout)
+                ->acceptJson()
+                ->withHeaders([
+                    'Authorization' => 'Bearer ' . $key,
+                ])
+                ->post($this->baseUrl() . '/topup', [
+                    'playerID' => $playerId,
+                    'offer' => $offerId,
+                    'trx_id' => $trxId,
+                ]);
+        } catch (\Throwable $e) {
+            report($e);
+            return ['success' => false, 'msg' => 'تعذر الاتصال بالمزود'];
+        }
 
         // They may return 403 DUPLICATE_TASK; treat as failure with msg.
         if (! $response->successful()) {
