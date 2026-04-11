@@ -13,8 +13,10 @@ use App\Models\Category;
 use App\Models\Type;
 use App\Models\Tag;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Support\Email\EmailNotifier;
 use App\Support\WhatsApp\WhatsAppNumber;
+use Illuminate\Support\Facades\Cache;
 
 class PublicProductController extends Controller
 {
@@ -108,6 +110,17 @@ class PublicProductController extends Controller
     {
         $minGallery = $this->publishMinGalleryImages();
         $guidedSlots = $this->guidedSlotDefinitions($minGallery);
+        $publishProfileGuideImage = null;
+        try {
+            $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+            if ($s) {
+                $publishProfileGuideImage = (bool) ($s?->public_publish_profile_guide_enabled ?? false)
+                    ? ($s->getMediaUrl('setting', $s, null, 'media', 'public_publish_profile_guide') ?: null)
+                    : null;
+            }
+        } catch (\Throwable $e) {
+            $publishProfileGuideImage = null;
+        }
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج',
             'product' => null,
@@ -115,6 +128,7 @@ class PublicProductController extends Controller
             'minGalleryCount' => $minGallery,
             'guidedSlots' => $guidedSlots,
             'guidedGalleryKeys' => array_values(array_map(fn($s) => (string) $s['key'], $guidedSlots)),
+            'publishProfileGuideImage' => $publishProfileGuideImage,
             'data' => [
                 'categories' => Category::all(),
                 'types' => Type::all(),
@@ -130,6 +144,17 @@ class PublicProductController extends Controller
     {
         $minGallery = $this->publishMinGalleryImages();
         $guidedSlots = $this->guidedSlotDefinitions($minGallery);
+        $publishProfileGuideImage = null;
+        try {
+            $s = Cache::get('app_settings') ?: Setting::query()->latest('id')->first();
+            if ($s) {
+                $publishProfileGuideImage = (bool) ($s?->public_publish_profile_guide_enabled ?? false)
+                    ? ($s->getMediaUrl('setting', $s, null, 'media', 'public_publish_profile_guide') ?: null)
+                    : null;
+            }
+        } catch (\Throwable $e) {
+            $publishProfileGuideImage = null;
+        }
         return view('public.products.form', [
             'pageTitle' => 'نشر منتج (للإدارة)',
             'product' => null,
@@ -138,6 +163,7 @@ class PublicProductController extends Controller
             'minGalleryCount' => $minGallery,
             'guidedSlots' => $guidedSlots,
             'guidedGalleryKeys' => array_values(array_map(fn($s) => (string) $s['key'], $guidedSlots)),
+            'publishProfileGuideImage' => $publishProfileGuideImage,
             'data' => [
                 'categories' => Category::all(),
                 'types' => Type::all(),

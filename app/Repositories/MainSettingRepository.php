@@ -30,6 +30,7 @@ class MainSettingRepository implements MainSettingInterface
         $homeQuickCashExchangeImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_cash_exchange') ?? null;
         $homeQuickMoneyExchangeImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_money_exchange') ?? null;
         $homeQuickFreefireImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'home_quick_freefire') ?? null;
+        $publishProfileGuideImg = $setting?->getMediaUrl('setting', $setting, null, 'media', 'public_publish_profile_guide') ?? null;
 
         $homeFeaturedProducts = collect();
         $selectedHomeFeaturedProductIds = [];
@@ -97,6 +98,7 @@ class MainSettingRepository implements MainSettingInterface
             'homeQuickCashExchangeImg' => $homeQuickCashExchangeImg,
             'homeQuickMoneyExchangeImg' => $homeQuickMoneyExchangeImg,
             'homeQuickFreefireImg' => $homeQuickFreefireImg,
+            'publishProfileGuideImg' => $publishProfileGuideImg,
             'homeFeaturedProducts' => $homeFeaturedProducts,
             'selectedHomeFeaturedProductIds' => $selectedHomeFeaturedProductIds,
             'homeFeaturedAllProducts' => $homeFeaturedAllProducts,
@@ -140,6 +142,7 @@ class MainSettingRepository implements MainSettingInterface
             $hasWatermarkSecondEnabled = false;
             $hasWatermarkSecondXOffset = false;
             $hasWatermarkSecondYOffset = false;
+            $hasPublishProfileGuide = false;
             try {
                 $hasMoneyToggle = Schema::hasColumn('settings', 'money_exchange_enabled');
                 $hasChargeToggle = Schema::hasColumn('settings', 'charge_enabled');
@@ -151,6 +154,7 @@ class MainSettingRepository implements MainSettingInterface
                 $hasHomeFeaturedAllSliderControls =
                     Schema::hasColumn('settings', 'home_featured_all_mobile_columns')
                     && Schema::hasColumn('settings', 'home_featured_all_autoplay_seconds');
+                $hasPublishProfileGuide = Schema::hasColumn('settings', 'public_publish_profile_guide_enabled');
                 $hasAccountBlurControls =
                     Schema::hasColumn('settings', 'account_name_blur_enabled')
                     && Schema::hasColumn('settings', 'account_name_blur_x_offset_from_right')
@@ -199,6 +203,7 @@ class MainSettingRepository implements MainSettingInterface
                 $hasWatermarkSecondEnabled = false;
                 $hasWatermarkSecondXOffset = false;
                 $hasWatermarkSecondYOffset = false;
+                $hasPublishProfileGuide = false;
             }
 
             // Always update the latest settings row (singleton behavior).
@@ -242,6 +247,9 @@ class MainSettingRepository implements MainSettingInterface
             }
             if ($hasPublishMinGallery) {
                 $fields[] = 'public_publish_min_gallery_images';
+            }
+            if ($hasPublishProfileGuide) {
+                $fields[] = 'public_publish_profile_guide_enabled';
             }
             if ($hasHomeFeaturedAllSliderControls) {
                 $fields[] = 'home_featured_all_mobile_columns';
@@ -306,6 +314,9 @@ class MainSettingRepository implements MainSettingInterface
                 if ($n < 1) $n = 1;
                 if ($n > 40) $n = 40;
                 $setting->public_publish_min_gallery_images = $n;
+            }
+            if ($hasPublishProfileGuide) {
+                $setting->public_publish_profile_guide_enabled = $request->boolean('public_publish_profile_guide_enabled', false);
             }
             if ($hasHomeFeaturedProducts) {
                 $ids = collect((array) $request->input('home_featured_product_ids', []))
@@ -427,6 +438,9 @@ class MainSettingRepository implements MainSettingInterface
                 if ($request->hasFile('home_quick_freefire_image')) {
                     $setting->updateSingleMedia('setting', $request->file('home_quick_freefire_image'), $setting, null, 'media', true, false, 'home_quick_freefire');
                 }
+            }
+            if ($request->hasFile('publish_profile_guide_image')) {
+                $setting->updateSingleMedia('setting', $request->file('publish_profile_guide_image'), $setting, null, 'media', true, false, 'public_publish_profile_guide');
             }
 
             Cache::forget('app_settings');

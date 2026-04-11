@@ -272,6 +272,34 @@
                                     </div>
                                 </div>
                             </div>
+                            @if(\Illuminate\Support\Facades\Schema::hasColumn('settings', 'public_publish_profile_guide_enabled'))
+                                <hr class="my-4">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="input-group-text text-dark">تفعيل صورة تعليمية في الخطوة 5 (صورة الملف الشخصي)</label>
+                                        @php
+                                            $guideEnabled = (bool) old('public_publish_profile_guide_enabled', (bool) ($setting?->public_publish_profile_guide_enabled ?? false));
+                                        @endphp
+                                        <select name="public_publish_profile_guide_enabled" class="form-select">
+                                            <option value="1" {{ $guideEnabled ? 'selected' : '' }}>مفعل</option>
+                                            <option value="0" {{ !$guideEnabled ? 'selected' : '' }}>معطل</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">صورة المعاينة التعليمية (الخطوة 5)</label>
+                                        <input class="form-control" type="file" name="publish_profile_guide_image" accept="image/*">
+                                        @php
+                                            $publishGuideImage = $setting?->getMediaUrl('setting', $setting, null, 'media', 'public_publish_profile_guide');
+                                        @endphp
+                                        @if(!empty($publishGuideImage))
+                                            <img src="{{ $publishGuideImage }}" class="img-fluid mt-2 rounded border" style="max-height: 160px;">
+                                        @endif
+                                        <div class="form-text">
+                                            تظهر هذه الصورة للعميل داخل الخطوة 5 لتوضيح شكل صورة الملف الشخصي المطلوب رفعها.
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         @else
                             <div class="text-muted">
                                 لتفعيل إعدادات نشر الحساب شغّل: <code>php artisan migrate --force</code>

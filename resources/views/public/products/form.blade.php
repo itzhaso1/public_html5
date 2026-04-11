@@ -381,6 +381,18 @@
                         </div>
                     </div>
 
+                    @if(!empty($publishProfileGuideImage))
+                        <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-center space-y-2">
+                            <div class="text-sm font-bold text-indigo-700">معاينة تعليمية (مثال)</div>
+                            <div class="text-xs text-indigo-600">هذه صورة إرشادية من الإدارة لتوضيح شكل البروفايل المطلوب.</div>
+                            <img src="{{ $publishProfileGuideImage }}"
+                                 alt="معاينة إرشادية لصورة الملف الشخصي"
+                                 class="w-full max-h-64 object-contain rounded-lg border border-indigo-100 bg-white p-1"
+                                 loading="lazy"
+                                 decoding="async">
+                        </div>
+                    @endif
+
                     <label for="product_image" class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50 text-indigo-700 font-semibold text-base cursor-pointer active:scale-[0.98] transition">
                         📷 اختر صورة
                     </label>

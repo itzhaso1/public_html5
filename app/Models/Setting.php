@@ -27,8 +27,10 @@ class Setting extends Model
         'home_quick_money_exchange_title',
         'home_quick_freefire_title',
         'home_quick_freefire_position',
+        'public_publish_profile_example_caption',
         'home_featured_all_mobile_columns',
         'home_featured_all_autoplay_seconds',
+        'public_publish_profile_guide_enabled',
         'cash_exchange_enabled',
         'money_exchange_enabled',
         'charge_enabled',
@@ -80,6 +82,7 @@ class Setting extends Model
         'home_featured_product_ids_all' => 'array',
         'home_featured_all_mobile_columns' => 'integer',
         'home_featured_all_autoplay_seconds' => 'integer',
+        'public_publish_profile_guide_enabled' => 'boolean',
     ];
 
     public function media()
