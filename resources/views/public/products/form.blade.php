@@ -370,17 +370,6 @@
                         صورة <span class="text-indigo-600 font-semibold">الملف الشخصي</span>
                     </label>
 
-                    <div class="rounded-xl bg-red-50 border border-red-300 p-4 text-center space-y-2">
-                        <div class="text-sm font-bold text-red-700">⚠️ تنبيه</div>
-                        <div class="text-sm text-red-600">يرجى نسخ النص التالي ووضعه في الملف الشخصي للحساب</div>
-
-                        <div onclick="copyStoreOnly()" class="cursor-pointer select-none rounded-lg bg-white border p-3">
-                            <div class="font-bold tracking-widest">مــتــجـر الــمــمالـــك</div>
-                            <div class="text-green-600 font-semibold">WHATSAPP+962ᅠ0777ᅠ515ﾠ306</div>
-                            <div class="text-xs text-gray-500 mt-2">اضغط هنا لنسخ النص</div>
-                        </div>
-                    </div>
-
                     @if(!empty($publishProfileGuideImage))
                         <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3 text-center space-y-2">
                             <div class="text-sm font-bold text-indigo-700">معاينة تعليمية (مثال)</div>
@@ -392,6 +381,17 @@
                                  decoding="async">
                         </div>
                     @endif
+
+                    <div class="rounded-xl bg-red-50 border border-red-300 p-4 text-center space-y-2">
+                        <div class="text-sm font-bold text-red-700">⚠️ تنبيه</div>
+                        <div class="text-sm text-red-600">يرجى نسخ النص التالي ووضعه في الملف الشخصي للحساب</div>
+
+                        <div onclick="copyStoreOnly()" class="cursor-pointer select-none rounded-lg bg-white border p-3">
+                            <div class="font-bold tracking-widest">مــتــجـر الــمــمالـــك</div>
+                            <div class="text-green-600 font-semibold">WHATSAPP+962ᅠ0777ᅠ515ﾠ306</div>
+                            <div class="text-xs text-gray-500 mt-2">اضغط هنا لنسخ النص</div>
+                        </div>
+                    </div>
 
                     <label for="product_image" class="flex items-center justify-center gap-2 w-full py-4 rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50 text-indigo-700 font-semibold text-base cursor-pointer active:scale-[0.98] transition">
                         📷 اختر صورة
